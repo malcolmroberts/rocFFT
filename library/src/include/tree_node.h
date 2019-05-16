@@ -93,7 +93,7 @@ private:
             batch     = p->batch;
             direction = p->direction;
         }
-        
+
         Pow2Lengths1Single.insert(std::make_pair(8192, 64));
         Pow2Lengths1Single.insert(std::make_pair(16384, 64));
         Pow2Lengths1Single.insert(std::make_pair(32768, 128));
@@ -118,7 +118,7 @@ private:
     // Compute divLength1 from Length[0] for non-power-of-two 1D
     // transform sizes
     size_t div1DNoPo2(const size_t length0);
-    
+
 public:
     size_t batch;
 
@@ -206,14 +206,14 @@ public:
 
     // Real-complex and complex-real node builder:
     void BuildReal();
-    
+
     // 1D node builers:
     void Build1D();
     void Build1DBluestein();
     void Build1DCS_L1D_TRTRT(const size_t divLength0, const size_t divLength1);
     void Build1DCS_L1D_CC(const size_t divLength0, const size_t divLength1);
     void Build1DCS_L1D_CRT(const size_t divLength0, const size_t divLength1);
-    
+
     void TraverseTreeAssignBuffersLogicA(OperatingBuffer& flipIn,
                                          OperatingBuffer& flipOut,
                                          OperatingBuffer& obOutBuf);

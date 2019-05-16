@@ -161,8 +161,7 @@ int transform(size_t*                 lengths,
     // Fill the input buffers
     switch(inArrType)
     {
-    case rocfft_array_type_complex_interleaved:
-    {
+    case rocfft_array_type_complex_interleaved: {
         size_of_input_buffers_in_bytes = fftBatchSize * sizeof(std::complex<T>);
 
         setupBuffers(device_id,
@@ -207,8 +206,7 @@ int transform(size_t*                 lengths,
                     "hipMemcpy failed");
     }
     break;
-    case rocfft_array_type_complex_planar:
-    {
+    case rocfft_array_type_complex_planar: {
         size_of_input_buffers_in_bytes = fftBatchSize * sizeof(T);
 
         setupBuffers(device_id,
@@ -260,8 +258,7 @@ int transform(size_t*                 lengths,
                     "hipMemcpy failed");
     }
     break;
-    case rocfft_array_type_hermitian_interleaved:
-    {
+    case rocfft_array_type_hermitian_interleaved: {
         size_of_input_buffers_in_bytes = fftBatchSize * sizeof(std::complex<T>);
 
         setupBuffers(device_id,
@@ -294,8 +291,7 @@ int transform(size_t*                 lengths,
                     "hipMemcpy failed");
     }
     break;
-    case rocfft_array_type_hermitian_planar:
-    {
+    case rocfft_array_type_hermitian_planar: {
         size_of_input_buffers_in_bytes = fftBatchSize * sizeof(T);
 
         setupBuffers(device_id,
@@ -335,8 +331,7 @@ int transform(size_t*                 lengths,
                     "hipMemcpy failed");
     }
     break;
-    case rocfft_array_type_real:
-    {
+    case rocfft_array_type_real: {
         size_of_input_buffers_in_bytes = fftBatchSize * sizeof(T);
 
         setupBuffers(device_id,
@@ -381,8 +376,7 @@ int transform(size_t*                 lengths,
                     "hipMemcpy failed");
     }
     break;
-    default:
-    {
+    default: {
         throw std::runtime_error("Input layout format not yet supported");
     }
     break;
@@ -481,8 +475,7 @@ int transform(size_t*                 lengths,
     {
         switch(inArrType)
         {
-        case rocfft_array_type_complex_interleaved:
-        {
+        case rocfft_array_type_complex_interleaved: {
             if((outArrType == rocfft_array_type_complex_planar)
                || (outArrType == rocfft_array_type_hermitian_planar))
             {
@@ -491,8 +484,7 @@ int transform(size_t*                 lengths,
             }
             break;
         }
-        case rocfft_array_type_complex_planar:
-        {
+        case rocfft_array_type_complex_planar: {
             if((outArrType == rocfft_array_type_complex_interleaved)
                || (outArrType == rocfft_array_type_hermitian_interleaved))
             {
@@ -501,8 +493,7 @@ int transform(size_t*                 lengths,
             }
             break;
         }
-        case rocfft_array_type_hermitian_interleaved:
-        {
+        case rocfft_array_type_hermitian_interleaved: {
             if(outArrType != rocfft_array_type_real)
             {
                 throw std::runtime_error("Cannot use the same buffer for "
@@ -510,14 +501,12 @@ int transform(size_t*                 lengths,
             }
             break;
         }
-        case rocfft_array_type_hermitian_planar:
-        {
+        case rocfft_array_type_hermitian_planar: {
             throw std::runtime_error("Cannot use the same buffer for "
                                      "planar->interleaved in-place transforms");
             break;
         }
-        case rocfft_array_type_real:
-        {
+        case rocfft_array_type_real: {
             if((outArrType == rocfft_array_type_complex_planar)
                || (outArrType == rocfft_array_type_hermitian_planar))
             {
@@ -629,8 +618,7 @@ int transform(size_t*                 lengths,
         switch(outArrType)
         {
         case rocfft_array_type_hermitian_interleaved:
-        case rocfft_array_type_complex_interleaved:
-        {
+        case rocfft_array_type_complex_interleaved: {
             std::vector<std::complex<T>> output(outfftBatchSize);
 
             if(place == rocfft_placement_inplace)
@@ -679,8 +667,7 @@ int transform(size_t*                 lengths,
         }
         break;
         case rocfft_array_type_hermitian_planar:
-        case rocfft_array_type_complex_planar:
-        {
+        case rocfft_array_type_complex_planar: {
             std::valarray<T> real(outfftBatchSize);
             std::valarray<T> imag(outfftBatchSize);
 
@@ -739,8 +726,7 @@ int transform(size_t*                 lengths,
             }
         }
         break;
-        case rocfft_array_type_real:
-        {
+        case rocfft_array_type_real: {
             std::valarray<T> real(outfftBatchSize);
 
             if(place == rocfft_placement_inplace)
@@ -786,8 +772,7 @@ int transform(size_t*                 lengths,
             }
         }
         break;
-        default:
-        {
+        default: {
             throw std::runtime_error("Input layout format not yet supported");
         }
         break;
