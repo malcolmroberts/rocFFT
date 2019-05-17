@@ -127,6 +127,10 @@ list( APPEND CMAKE_PREFIX_PATH /opt/rocm/hcc /opt/rocm/hip )
 # library without tensile to allow for rapid iteration without GEMM functionality
 option( BUILD_VERBOSE "Output additional build information" OFF )
 
+# Building tensile can add significant compile time; this option allows to build
+# library without tensile to allow for rapid iteration without GEMM functionality
+option( BUILD_CPUREF "Build CPU reference debug code" OFF )
+
 # BUILD_SHARED_LIBS is a cmake built-in; we make it an explicit option such that it shows in cmake-gui
 option( BUILD_SHARED_LIBS "Build rocFFT as a shared library" ON )
 
