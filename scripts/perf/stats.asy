@@ -50,3 +50,27 @@ real[] mediandev(real[] vals)
 
    return medlh;
 }
+
+real[] ratiodev(real[] vA, real[] vB) {
+    real[] medlh = new real[2];
+
+    
+    real ratio = getmedian(vA) / getmedian(vB);
+
+    int nboot = 1000;
+    real[] ratios =new real[nboot];
+    ratios[0] = ratio;
+    for(int n = 1; n < nboot; ++n) {
+        real valA = vA[rand() % vA.length];
+        real valB = vB[rand() % vB.length];
+        ratios[n] = valA / valB;
+    }
+    ratios = sort(ratios);
+    real low = ratios[(int)floor(nboot * 0.025)];
+    real high = ratios[(int)ceil(nboot * 0.975)];
+    
+   medlh[0] = low;
+   medlh[1] = high;
+
+   return medlh;
+}

@@ -78,18 +78,22 @@ real[][] x = new real[testlist.length][];
 real[][] y = new real[testlist.length][];
 real[][] ly = new real[testlist.length][];
 real[][] hy = new real[testlist.length][];
+real[][][] data = new real[testlist.length][][];
 real xmax = 0.0;
 real xmin = inf;
 
 for(int n = 0; n < testlist.length; ++n)
 {
     string filename = testlist[n];
-    
+
+    data[n] = new real[][];
     write(filename);
 
     real[] ly;
     real[] hy;
 
+    int dataidx = 0;
+    
     bool moretoread = true;
     file fin = input(filename);
     while(moretoread) {
@@ -98,16 +102,20 @@ for(int n = 0; n < testlist.length; ++n)
             moretoread = false;
             break;
         } 
-
+        
         int N = fin;
         if (N > 0) {
             xmax = max(a,xmax);
             xmin = min(a,xmin);
 
             x[n].push(a);
+
+            data[n][dataidx] = new real[N];
+            
             real vals[] = new real[N];
             for(int i = 0; i < N; ++i) {
                 vals[i] = fin;
+                data[n][dataidx][i] = vals[i];
             }
             //if(a >= xmin && a <= xmax) {
             real[] medlh = mediandev(vals);
@@ -115,6 +123,7 @@ for(int n = 0; n < testlist.length; ++n)
             ly.push(medlh[1]);
             hy.push(medlh[2]);
             //}
+            ++dataidx;
         }
     }
    
@@ -184,12 +193,24 @@ if(speedup) {
             {
                 real[] xval = new real[];
                 real[] yval = new real[];
+                pair[] zy;
+                pair[] dp;
+                pair[] dm;
                 for(int i = 0; i < x[n].length; ++i) {
                     for(int j = 0; j < x[n+1].length; ++j) {
                         if (x[n][i] == x[n+1][j]) {
                             xval.push(x[n][i]);
                             real val = y[n][i] / y[n+1][j];
                             yval.push(val);
+
+                            zy.push((x[n][i], val));
+                            real[] lowhi = ratiodev(data[n][i], data[n+1][j]);
+                            real hi = lowhi[1];
+                            real low = lowhi[0];
+
+                            dp.push((0 , hi - val));
+                            dm.push((0 , low - val));
+    
                             ymin = min(val, ymin);
                             ymax = max(val, ymax);
                             break;
@@ -206,6 +227,7 @@ if(speedup) {
                     marker mark = marker(g, Draw(p + solid));
                 
                     draw(pic,graph(pic,xval, yval),p,legends[n] + "/" + legends[n+1],mark);
+                    errorbars(pic, zy, dp, dm, p);
                 }
 
                 {
