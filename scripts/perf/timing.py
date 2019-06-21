@@ -21,15 +21,17 @@ Usage:
 \t\t-o <string> name of output file
 \t\t-R          set transform to be real/complex or complex/real
 \t\t-w <string> set working directory for rocfft-rider
+\t\t-d <1,2,3>  default: 1dimension of transform
 \t\t-x <int>    minimum problem size in x direction
-\t\t-X <int>    maximum problem size in x direction'''
+\t\t-X <int>    maximum problem size in x direction
+\t\t-x <int>    minimum problem size in x direction
+\t\t-X <int>    maximum problem size in x direction
+\t\t-b <int>    batch size'''
 
-def runcase(workingdir, xval, direction, rcfft, inplace, ntrial):
+def runcase(workingdir, xval, yval, zval, direction, rcfft, inplace, ntrial, precision, nbatch,
+            logfilename):
     progname = "rocfft-rider"
     prog = os.path.join(workingdir, progname)
-
-
-        
     
     cmd = []
     cmd.append(prog)
@@ -40,10 +42,21 @@ def runcase(workingdir, xval, direction, rcfft, inplace, ntrial):
     cmd.append("-x")
     cmd.append(str(xval))
 
+    cmd.append("-y")
+    cmd.append(str(yval))
+
+    cmd.append("-z")
+    cmd.append(str(zval))
+
     cmd.append("-N")
     cmd.append(str(ntrial))
 
+    if precision == "double":
+        cmd.append("--double")
 
+    cmd.append("-b")
+    cmd.append(str(nbatch))
+        
     ttype = -1
     itype = ""
     otype = ""
@@ -74,14 +87,13 @@ def runcase(workingdir, xval, direction, rcfft, inplace, ntrial):
     
     
     print(cmd)
-   
-    fout = tempfile.TemporaryFile(mode="w+")
-    ferr = tempfile.TemporaryFile(mode="w+")
 
-    proc = subprocess.Popen(cmd, cwd=os.path.join(workingdir,"..",".."), stdout=fout, stderr=ferr, env=os.environ.copy())
+    print(logfilename)
+    fout = open(logfilename, 'w+')
+    proc = subprocess.Popen(cmd, cwd=os.path.join(workingdir,"..",".."), stdout=fout, stderr=fout,
+                            env=os.environ.copy())
     proc.wait()
     rc = proc.returncode
-
     seconds = []
     
     if rc == 0:
@@ -89,8 +101,8 @@ def runcase(workingdir, xval, direction, rcfft, inplace, ntrial):
         fout.seek(0)
         cout = fout.read()
 
-        ferr.seek(0)
-        cerr = ferr.read()
+        # ferr.seek(0)
+        # cerr = ferr.read()
 
         searchstr = "Execution gpu time: "
         for line in cout.split("\n"):
@@ -111,24 +123,29 @@ def runcase(workingdir, xval, direction, rcfft, inplace, ntrial):
         return []
                 
     fout.close()
-    ferr.close()
     
     return seconds
     
 
 def main(argv):
-    dryrun = False
     workingdir = "."
+    dimension = 1
     xmin = 2
     xmax = 1024
+    ymin = 2
+    ymax = 1024
+    zmin = 2
+    zmax = 1024
     ntrial = 10
     outfilename = "timing.dat"
     direction = -1
     rcfft = False
     inplace = False
+    precision = "float"
+    nbatch = 1
     
     try:
-        opts, args = getopt.getopt(argv,"hdD:IN:o:Rw:x:X:")
+        opts, args = getopt.getopt(argv,"hb:d:D:IN:o:Rw:x:X:y:Y:z:Z:f:")
     except getopt.GetoptError:
         print("error in parsing arguments.")
         print(usage)
@@ -138,7 +155,11 @@ def main(argv):
             print(usage)
             exit(0)
         elif opt in ("-d"):
-            dryrun = True
+            dimension = int(arg)
+            if not dimension in {1,2,3}:
+                print("invalid dimension")
+                print(usage)
+                sys.exit(1)
         elif opt in ("-D"):
             if(int(arg) in [-1,1]):
                 direction = int(arg)
@@ -160,28 +181,51 @@ def main(argv):
             xmin = int(arg)
         elif opt in ("-X"):
             xmax = int(arg)
+        elif opt in ("-y"):
+            xmin = int(arg)
+        elif opt in ("-Y"):
+            xmax = int(arg)
+        elif opt in ("-z"):
+            xmin = int(arg)
+        elif opt in ("-Z"):
+            xmax = int(arg)
+        elif opt in ("-b"):
+            nbatch = int(arg)
+        elif opt in ("-f"):
+            precition = arg
+            if precision not in ["float", "double"]:
+                wirte("precision must be float or double")
+
             
     print("workingdir: "+ workingdir)
     print("outfilename: "+ outfilename)
     print("ntrial: " + str(ntrial))
     print("xmin: "+ str(xmin) + " xmax: " + str(xmax))
+    print("ymin: "+ str(ymin) + " ymax: " + str(ymax))
+    print("zmin: "+ str(zmin) + " zmax: " + str(zmax))
     print("direction: " + str(direction))
     print("real/complex FFT? " + str(rcfft))
     print("in-place? " + str(inplace))
+    print("batch-size: " + str(nbatch))
 
     progname = "rocfft-rider"
     prog = os.path.join(workingdir, progname)
     if not os.path.isfile(prog):
         print("**** Error: unable to find " + prog)
         sys.exit(1)
-    
+
+
     with open(outfilename, 'w+') as outfile:
         # TODO: add metadata to output file
         xval = xmin
-        while(xval <= xmax):
+        yval = ymin if dimension > 1 else 1
+        zval = zmin if dimension > 2 else 1
+        while(xval <= xmax and yval < ymax and zval < zmax):
             print(xval)
             outfile.write(str(xval))
-            seconds = runcase(workingdir, xval, direction, rcfft, inplace, ntrial)
+            logfilename = outfilename + ".log"
+            seconds = runcase(workingdir, xval, yval, zval, direction, rcfft, inplace, ntrial,
+                              precision, nbatch, logfilename)
             #print(seconds)
             outfile.write("\t")
             outfile.write(str(len(seconds)))
@@ -190,6 +234,10 @@ def main(argv):
                 outfile.write(str(second))
             outfile.write("\n")
             xval *= 2
+            if dimension > 1:
+                yval *= 2
+            if dimension > 2:
+                zval *= 2
         
     
     

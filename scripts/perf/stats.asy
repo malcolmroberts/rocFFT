@@ -21,16 +21,17 @@ real getmean(real[] vals)
 
 // Bootstrap resampling method for computing the 95% band for the
 // median.
-void mediandev(real[] vals,
-	       real median, real low, real high)
+real[] mediandev(real[] vals)
 {
+    real[] medlh = new real[3];
    int nsample = vals.length;
    real resample[] = new real[nsample];
    for(int i = 0; i < nsample; ++i) {
       resample[i] = vals[i];
    }
-   median = getmedian(resample);
-
+   real median = getmedian(resample);
+   medlh[0] = median;
+   
    // Number of resamples to perform:
    int nperm = 200;
    real medians[] = new real[nperm];
@@ -41,6 +42,11 @@ void mediandev(real[] vals,
       medians[i] = getmedian(resample);
    }
    medians = sort(medians);
-   low = medians[(int)floor(nperm * 0.025)];
-   high = medians[(int)ceil(nperm * 0.975)];
+   real low = medians[(int)floor(nperm * 0.025)];
+   real high = medians[(int)ceil(nperm * 0.975)];
+
+   medlh[1] = low;
+   medlh[2] = high;
+
+   return medlh;
 }

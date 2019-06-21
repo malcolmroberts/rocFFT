@@ -213,6 +213,7 @@ def checkTimeOutPut(args):
         except:
             printLog("ERROR: UNKNOWN Exception - +checkWinTimeOutPut()::executeCommand()")
 
+    print args
     currCommandProcess = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True)
     thread = Thread(target=executeCommand)
     thread.start()

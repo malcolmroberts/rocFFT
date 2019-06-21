@@ -14,7 +14,7 @@ scale(Log, Log);
 
 bool dolegend = true;
 
-string filenames = getstring("filenames");
+string filenames = "";
 string legendlist = "";
 
 real xmin = -inf;
@@ -23,13 +23,19 @@ real xmax = inf;
 bool doxticks = true;
 bool doyticks = true;
 string xlabel = "Problem size";
-string ylabel = "Time, [s]";
+string ylabel = "Time [s]";
 
 bool normalize = false;
 
-bool raw = false;
+bool raw = true;
+
+bool speedup = true;
 
 usersetting();
+write("filenames:\"", filenames+"\"");
+
+if(filenames == "")
+    filenames = getstring("filenames");
 
 bool myleg = ((legendlist == "") ? false: true);
 string[] legends=set_legends(legendlist);
@@ -43,99 +49,111 @@ bool plotxval(real x) {
    return x >= xmin && x <= xmax;
 }
 
-int n = -1;
-bool flag = true;
-int lastpos;
-while(flag) {
-   ++n;
-   int pos=find(filenames,",",lastpos);
-   string filename;
-   if(lastpos == -1) {filename = ""; flag=false;}
-   filename = substr(filenames,lastpos,pos-lastpos);
+string[] listfromcsv(string input)
+{
+    string list[] = new string[];
+    int n = -1;
+    bool flag = true;
+    int lastpos;
+    while(flag) {
+        ++n;
+        int pos = find(input, ",", lastpos);
+        string found;
+        if(lastpos == -1) {
+            flag = false;
+            found = "";
+        }
+        found = substr(input, lastpos, pos - lastpos);
+        if(flag) {
+            list.push(found);
+            lastpos = pos > 0 ? pos + 1 : -1;
+        }
+    }
+    return list;
+}
 
-   if(flag) {
-      write(filename);
-      lastpos = pos > 0 ? pos + 1 : -1;
+string[] testlist = listfromcsv(filenames);
 
-      real[] x;
-      real[] y;
-      real[] ly;
-      real[] hy;
+real[][] x = new real[testlist.length][];
+real[][] y = new real[testlist.length][];
+real[][] ly = new real[testlist.length][];
+real[][] hy = new real[testlist.length][];
+real xmax = 0.0;
+real xmin = inf;
 
-      if(!raw) {
-	 file fin=input(filename).line();
-	 real[][] a = fin.dimension(0,0);
-	 a = transpose(a);
-	 x = a[0];
-	 y = normalize ? a[1] / x : a[1];
-	 ly = normalize ? a[2] / x : a[2];
-	 hy = normalize ? a[3] / x : a[3];
-      } else {
-	 bool moretoread = true;
-	 file fin = input(filename);
-	 while(moretoread) {
-	    int a = fin;
-	    if(a == 0) {
-	       moretoread = false;
-	       break;
-	    } 
-	    x.push(a);
-
-	    int n = fin;
-	    real vals[] = new real[n];
-	    for(int i = 0; i < n; ++i) {
-	       real val = fin;
-	       if(normalize)
-		  vals[i] = val / a;
-	       else
-		  vals[i] = val;
-	    }
-	    if(a >= xmin && a <= xmax) {
-	       real median, low, high;
-	       mediandev(vals, median, low, high);
-	       y.push(median);
-	       ly.push(low);
-	       hy.push(high);
-	    }
-	 }
-      }
-     
-      pen p = Pen(n);
-      if(n == 2)
-	 p = darkgreen;
-
-      pair[] z;
-      pair[] dp;
-      pair[] dm;
-      for(int i = 0; i < x.length; ++i) {
-	 if(plotxval(x[i])) {
-	    z.push((x[i] , y[i]));
-	    dp.push((0 , y[i] - hy[i]));
-	    dm.push((0 , y[i] - ly[i]));
-	 }
-      }
-      errorbars(z, dp, dm, p);
-
-      if(n == 1) 
-	 p += dashed;
-      if(n == 2) 
-	 p += Dotted;
+for(int n = 0; n < testlist.length; ++n)
+{
+    string filename = testlist[n];
     
-      guide g = scale(0.5mm) * unitcircle;
-      marker mark = marker(g, Draw(p + solid));
+    write(filename);
 
-      bool drawme[] = new bool[x.length];
-      for(int i = 0; i < drawme.length; ++i) {
-	 drawme[i] = true;
-	 if(!plotxval(x[i]))
-	    drawme[i] = false;
-	 if(y[i] <= 0.0)
-	    drawme[i] = false;
-      }
+    real[] ly;
+    real[] hy;
 
-      draw(graph(x, y, drawme), p,  
-	   myleg ? legends[n] : texify(filename), mark);
-   }
+    bool moretoread = true;
+    file fin = input(filename);
+    while(moretoread) {
+        int a = fin;
+        if(a == 0) {
+            moretoread = false;
+            break;
+        } 
+
+        int N = fin;
+        if (N > 0) {
+            xmax = max(a,xmax);
+            xmin = min(a,xmin);
+
+            x[n].push(a);
+            real vals[] = new real[N];
+            for(int i = 0; i < N; ++i) {
+                vals[i] = fin;
+            }
+            //if(a >= xmin && a <= xmax) {
+            real[] medlh = mediandev(vals);
+            y[n].push(medlh[0]);
+            ly.push(medlh[1]);
+            hy.push(medlh[2]);
+            //}
+        }
+    }
+   
+    pen p = Pen(n);
+    if(n == 2)
+        p = darkgreen;
+
+    pair[] z;
+    pair[] dp;
+    pair[] dm;
+    for(int i = 0; i < x[n].length; ++i) {
+        if(plotxval(x[n][i])) {
+            z.push((x[n][i] , y[n][i]));
+            dp.push((0 , y[n][i] - hy[i]));
+            dm.push((0 , y[n][i] - ly[i]));
+        }
+    }
+    errorbars(z, dp, dm, p);
+
+    if(n == 1) 
+        p += dashed;
+    if(n == 2) 
+        p += Dotted;
+    
+    guide g = scale(0.5mm) * unitcircle;
+    marker mark = marker(g, Draw(p + solid));
+
+    bool drawme[] = new bool[x[n].length];
+    for(int i = 0; i < drawme.length; ++i) {
+        drawme[i] = true;
+        if(!plotxval(x[n][i]))
+	    drawme[i] = false;
+        if(y[n][i] <= 0.0)
+	    drawme[i] = false;
+    }
+
+     
+    draw(graph(x[n], y[n], drawme), p,  
+         myleg ? legends[n] : texify(filename), mark);
 }
 
 if(doxticks)
@@ -144,9 +162,67 @@ else
    xaxis(xlabel);
 
 if(doyticks)
-   yaxis(ylabel,LeftRight,RightTicks);
+   yaxis(ylabel,Left,RightTicks);
 else
    yaxis(ylabel,LeftRight);
 
+
 if(dolegend)
-   attach(legend(),point(plain.E),20plain.E);
+    attach(legend(),point(plain.E),(speedup ? 60*plain.E + 40 *plain.N : 20*plain.E)  );
+
+
+if(speedup) {
+    string[] legends = listfromcsv(legendlist);
+    // TODO: error bars
+    // TODO: when there is data missing at one end, the axes might be weird
+
+    picture secondary=secondaryY(new void(picture pic) {
+            scale(pic,Log,Linear);
+            real ymin = inf;
+            real ymax = -inf;
+            for(int n = 0; n < testlist.length; n += 2)
+            {
+                real[] xval = new real[];
+                real[] yval = new real[];
+                for(int i = 0; i < x[n].length; ++i) {
+                    for(int j = 0; j < x[n+1].length; ++j) {
+                        if (x[n][i] == x[n+1][j]) {
+                            xval.push(x[n][i]);
+                            real val = y[n][i] / y[n+1][j];
+                            yval.push(val);
+                            ymin = min(val, ymin);
+                            ymax = max(val, ymax);
+                            break;
+                        }
+                    }
+                    
+                }
+                if(xval.length > 0){
+                    pen p = black+dashed;
+                    if(n == 2) {
+                        p = black + Dotted;
+                    }
+                    guide g = scale(0.5mm) * unitcircle;
+                    marker mark = marker(g, Draw(p + solid));
+                
+                    draw(pic,graph(pic,xval, yval),p,legends[n] + "/" + legends[n+1],mark);
+                }
+
+                {
+                    real[] fakex = {xmin, xmax};
+                    real[] fakey = {ymin, ymax};
+                    // draw an invisible graph to set up the limits correctly.
+                    draw(pic,graph(pic,fakex, fakey),invisible);
+
+                }
+                yequals(pic, 1.0, lightgrey);
+            }
+            yaxis(pic,"speedup",Right,  black,LeftTicks);
+            attach(legend(pic),point(plain.E), 60*plain.E - 40 *plain.N  );
+        });
+    
+
+    add(secondary);
+}
+
+
