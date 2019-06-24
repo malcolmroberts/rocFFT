@@ -24,103 +24,6 @@ Usage:
 \t\t-o          output directory
 '''
 
-def runcase(workingdir, xval, yval, zval, direction, rcfft, inplace, ntrial, nbatch):
-    progname = "rocfft-rider"
-    prog = os.path.join(workingdir, progname)
-    
-    cmd = []
-    cmd.append(prog)
-
-    cmd.append("-p")
-    cmd.append("10")
-
-    cmd.append("-x")
-    cmd.append(str(xval))
-
-    cmd.append("-y")
-    cmd.append(str(yval))
-
-    cmd.append("-z")
-    cmd.append(str(zval))
-
-    cmd.append("-N")
-    cmd.append(str(ntrial))
-
-    cmd.append("-n")
-    cmd.append(str(nbatch))
-    
-    ttype = -1
-    itype = ""
-    otype = ""
-    if rcfft:
-        if (direction == -1):
-            ttype = 2
-            itype = 2
-            otype = 3
-        if (direction == 1):
-            ttype = 3
-            itype = 3
-            otype = 2
-    else:
-        itype = 0
-        otype = 0
-        if (direction == -1):
-            ttype = 0
-        if (direction == 1):
-            ttype = 1
-    cmd.append("--transformType")
-    cmd.append(str(ttype))
-
-    cmd.append("--inArrType")
-    cmd.append(str(itype))
-
-    cmd.append("--outArrType")
-    cmd.append(str(otype))
-    
-    
-    print(cmd)
-   
-    fout = tempfile.TemporaryFile(mode="w+")
-    ferr = tempfile.TemporaryFile(mode="w+")
-
-    proc = subprocess.Popen(cmd, cwd=os.path.join(workingdir,"..",".."), stdout=fout, stderr=ferr, env=os.environ.copy())
-    proc.wait()
-    rc = proc.returncode
-
-    seconds = []
-    
-    if rc == 0:
-        
-        fout.seek(0)
-        cout = fout.read()
-
-        ferr.seek(0)
-        cerr = ferr.read()
-
-        searchstr = "Execution gpu time: "
-        for line in cout.split("\n"):
-            #print(line)
-            if line.startswith(searchstr):
-                # Line ends with "ms", so remove that.
-                ms_string = line[len(searchstr):-2]
-                #print(ms_string)
-                for val in ms_string.split():
-                    #print(val)
-                    seconds.append(1e-3 * float(val))
-                
-        #print("seconds: ", seconds)
-    else:
-        print("\twell, that didn't work")
-        print(rc)
-        print(" ".join(cmd))
-        return []
-                
-    fout.close()
-    ferr.close()
-    
-    return seconds
-    
-
 def main(argv):
     dirA = "."
     dirB = None
@@ -177,123 +80,134 @@ def main(argv):
             sizes.append([32768,100000])
         if dimension == 2:
             sizes = [[32768, 1]]
-            sizes.append([32768,100])
+            sizes.append([32768,1000])
             maxsize = 32768
         if dimension == 3:
             sizes = [[1024, 1]]
-            sizes.append([1024, 10])
+            sizes.append([1024, 100])
             
         for precision in "float", "double":
             for datatype in "c2c", "r2c":
-                for maxsize, nbatch in sizes:
-                    filelist = []
-                    labellist = []
-                    for direction in -1, 1:
-                        for wdir in dirlist:
-                            cmd = ["./timing.py"]
+                for inplace in True, False:
+                    for maxsize, nbatch in sizes:
+                        filelist = []
+                        labellist = []
+                        for direction in -1, 1:
+                            for wdir in dirlist:
+                                cmd = ["./timing.py"]
 
-                            outfile = "dirA" if wdir == dirA else "dirB"
-
-
-                            cmd.append("-w")
-                            cmd.append(wdir)
-
-                            cmd.append("-b")
-                            cmd.append(str(nbatch))
+                                outfile = "dirA" if wdir == dirA else "dirB"
 
 
-                            cmd.append("-x")
-                            cmd.append("2")
-                            cmd.append("-X")
-                            cmd.append(str(maxsize))
+                                cmd.append("-w")
+                                cmd.append(wdir)
 
-                            if dimension > 1:
-                                cmd.append("-y")
+                                cmd.append("-b")
+                                cmd.append(str(nbatch))
+
+
+                                cmd.append("-x")
                                 cmd.append("2")
-                                cmd.append("-Y")
+                                cmd.append("-X")
                                 cmd.append(str(maxsize))
 
-                            if dimension > 2:
-                                cmd.append("-z")
-                                cmd.append("2")
-                                cmd.append("-Z")
-                                cmd.append(str(maxsize))
+                                if dimension > 1:
+                                    cmd.append("-y")
+                                    cmd.append("2")
+                                    cmd.append("-Y")
+                                    cmd.append(str(maxsize))
 
-                            cmd.append("-D")
-                            cmd.append(str(direction))
-                            if direction == 1:
-                                outfile += "inv"
+                                if dimension > 2:
+                                    cmd.append("-z")
+                                    cmd.append("2")
+                                    cmd.append("-Z")
+                                    cmd.append(str(maxsize))
 
-                            cmd.append("-d")
-                            cmd.append(str(dimension))
+                                cmd.append("-D")
+                                cmd.append(str(direction))
+                                if direction == 1:
+                                    outfile += "inv"
 
-                            if datatype == "r2c":
-                                cmd.append("-R")
-                            outfile += datatype
+                                cmd.append("-d")
+                                cmd.append(str(dimension))
 
-                            outfile += str(dimension)
-                            outfile += precision
-                            outfile += "n" + str(nbatch)
-                            outfile += ".dat"
-                            outfile = os.path.join(outdir, outfile)
-                            filelist.append(outfile)
+                                if datatype == "r2c":
+                                    cmd.append("-R")
+                                outfile += datatype
 
-                            label = ""
-                            if wdir == dirA:
-                                label += "dirA" if labelA == "" else labelA
-                            else:
-                                label += "dirB" if labelB == "" else labelB
-                            label += " direct" if (direction == -1) else " inverse"
+                                if inplace:
+                                    cmd.append("-I")
+                                    outfile += "inplace"
+                                else:
+                                    outfile += "outofplace"
+                                   
+                                outfile += str(dimension)
+                                outfile += precision
+                                outfile += "n" + str(nbatch)
+                                outfile += ".dat"
+                                outfile = os.path.join(outdir, outfile)
+                                filelist.append(outfile)
 
-                            labellist.append(label)
+                                label = ""
+                                if wdir == dirA:
+                                    label += "dirA" if labelA == "" else labelA
+                                else:
+                                    label += "dirB" if labelB == "" else labelB
+                                label += " direct" if (direction == -1) else " inverse"
+                                label += " in-place " if inplace else " out-of-place "
+                                
+                                labellist.append(label)
 
-                            cmd.append("-o")
-                            cmd.append(outfile)
+                                cmd.append("-o")
+                                cmd.append(outfile)
 
-                            print(" ".join(cmd))
-                            if not dryrun:
-                                fout = tempfile.TemporaryFile(mode="w+")
-                                ferr = tempfile.TemporaryFile(mode="w+")
+                                print(" ".join(cmd))
+                                if not dryrun:
+                                    fout = tempfile.TemporaryFile(mode="w+")
+                                    ferr = tempfile.TemporaryFile(mode="w+")
 
-                                proc = subprocess.Popen(cmd, stdout=fout, stderr=ferr,
-                                                        env=os.environ.copy())
-                                proc.wait()
-                                rc = proc.returncode
-                                if rc != 0:
-                                    print("****fail****")
-                    asycmd = ["asy", "-f", "pdf", "datagraphs.asy"]
-                    asycmd.append("-u")
-                    asycmd.append('filenames="' + ",".join(filelist) + '"')
-
-                    asycmd.append("-u")
-                    asycmd.append('legendlist="' + ",".join(labellist) + '"')
-
-                    if dirB != None:
+                                    proc = subprocess.Popen(cmd, stdout=fout, stderr=ferr,
+                                                            env=os.environ.copy())
+                                    proc.wait()
+                                    rc = proc.returncode
+                                    if rc != 0:
+                                        print("****fail****")
+                        asycmd = ["asy", "-f", "pdf", "datagraphs.asy"]
                         asycmd.append("-u")
-                        asycmd.append('speedup=true')
+                        asycmd.append('filenames="' + ",".join(filelist) + '"')
 
-                    
-                    
-                    asycmd.append("-o")
+                        asycmd.append("-u")
+                        asycmd.append('legendlist="' + ",".join(labellist) + '"')
 
-                    outpdf = "time" + str(dimension) + datatype + precision + "n" + str(nbatch) + ".pdf"
-                    #outpdf = os.path.join(outdir,outpdf)
-                    asycmd.append(os.path.join(outdir,outpdf))
+                        if dirB != None:
+                            asycmd.append("-u")
+                            asycmd.append('speedup=true')
 
-                    print(" ".join(asycmd))
 
-                    asyproc =  subprocess.Popen(asycmd, env=os.environ.copy())
-                    asyproc.wait()
-                    asyrc = asyproc.returncode
-                    if asyrc != 0:
-                        print("****asy fail****")
-                    else:
-                        caption = "Dimension: " + str(dimension)
-                        caption += ", type: "+ ("complex" if datatype == "c2c" else "real/complex")
-                        caption += ", precision: "+ precision
-                        caption += ", batch size: "+ str(nbatch)
 
-                        pdflist.append([outpdf, caption ])
+                        asycmd.append("-o")
+
+                        outpdf = "time" + str(dimension) + datatype + precision + "n" + str(nbatch)
+                        outpdf += "inplace" if inplace else "outofplace"
+                        outpdf += ".pdf"
+                        #outpdf = os.path.join(outdir,outpdf)
+                        asycmd.append(os.path.join(outdir,outpdf))
+
+                        print(" ".join(asycmd))
+
+                        asyproc =  subprocess.Popen(asycmd, env=os.environ.copy())
+                        asyproc.wait()
+                        asyrc = asyproc.returncode
+                        if asyrc != 0:
+                            print("****asy fail****")
+                        else:
+                            caption = "Dimension: " + str(dimension)
+                            caption += ", type: "+ ("complex" if datatype == "c2c" else "real/complex")
+                            caption += ", in-place" if inplace else ", out-of-place"
+                            caption += ", precision: "+ precision
+                            caption += ", batch size: "+ str(nbatch)
+
+                            pdflist.append([outpdf, caption ])
 
     for stuff in pdflist:
         print(stuff)
