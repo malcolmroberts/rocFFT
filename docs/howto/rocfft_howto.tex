@@ -1,0 +1,98 @@
+\documentclass[12pt]{article}
+\usepackage{hyperref}
+
+\usepackage{graphicx}
+
+\usepackage{mathtools}
+\DeclarePairedDelimiter\ceil{\lceil}{\rceil}
+\DeclarePairedDelimiter\floor{\lfloor}{\rfloor}
+
+
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+
+\usepackage{listings}
+\lstset{language=C++,
+                basicstyle=\ttfamily,
+                keywordstyle=\color{blue}\ttfamily,
+                stringstyle=\color{red}\ttfamily,
+                commentstyle=\color{green}\ttfamily,
+                morecomment=[l][\color{magenta}]{\#}
+}
+
+\usepackage{breqn}
+\usepackage[]{algorithm2e}
+\usepackage{physics}
+
+\newcommand\fnurl[2]{%
+  \href{#2}{#1}\footnote{\url{#2}}%
+}
+
+\newcommand{\Four}{\mathcal{F}}
+\renewcommand{\(}{\left(}
+\renewcommand{\)}{\right)}
+
+\title{A brief rocFFT tutorial}
+
+
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+
+\texttt{rocFFT} is a software library for computing Fast Fourier
+Transforms (FFT) written in HIP. It is part of AMD's software
+ecosystem based on \href{https://github.com/RadeonOpenCompute}{ROCm}.
+
+\texttt{hipFFT} is a wrapper for \texttt{rocFFT} and \texttt{cuFFT},
+allowing one to use either library via a unified interface.
+
+\section{Installation}
+
+\texttt{rocFFT} runs on Linux, and requires a HIP compiler, such as
+\texttt{hipcc} (available as part of the ROCm ecosystem) or
+\texttt{hip-clang}.
+
+Pre-built binaries can be installed via \texttt{.deb} or \texttt{.rpm}
+packages, which can be found at
+\href{https://rocm.github.io/install.html#installing-from-amd-rocm-repositories}{ROCm's
+  package servers}.  One can also install from source; the lates
+release is available one
+\href{https://github.com/ROCmSoftwarePlatform/rocFFT/releases/latest}{github}.
+After downloading the \texttt{tar.gz}, one runs
+\begin{verbatim}
+tar -xvf v*.tar.gz
+cd rocFFT-*
+mkdir build && cd build
+cmake -DCMAKE_CXX_COMPILER=hcc -DCMAKE_INSTALL_PREFIX=~/rocfft ..
+make && make install
+\end{verbatim}
+Afterwards, one adds the resulting directories to one's
+\texttt{CMAKE_PREFIX_PATH} or \texttt{CPLUS_INCLUDE_PATH} and
+\texttt{LD_LIBRARY_PATH} as required.
+
+There is also an installation script, \texttt{install.sh}, which can
+also take care of dependencies on supported Linux distributions.
+
+\section{Example}
+
+FIXME: in-place, out-of-place?
+
+We are going to use hipfft examples here.
+
+\subsection{1D complex}
+
+
+\subsection{1D real}
+
+\subsection{1D complex}
+
+
+\subsection{1D real}
+
+
+
+
+\end{document}
