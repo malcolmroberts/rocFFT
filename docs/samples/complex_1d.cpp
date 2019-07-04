@@ -22,11 +22,11 @@
 
 #include <algorithm>
 #include <cmath>
+#include <complex>
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
 #include <vector>
-#include <complex>
 
 #include <hip/hip_runtime_api.h>
 
@@ -35,7 +35,7 @@
 int main()
 {
     std::cout << "Complex 1d in-place FFT example\n";
-        
+
     // The problem size
     const size_t N = 11;
 
@@ -79,7 +79,6 @@ int main()
     hipMalloc(&fbuffer, fbuffersize);
     rocfft_execution_info_set_work_buffer(forwardinfo, fbuffer, fbuffersize);
 
-    
     // Create backward plan
     rocfft_plan backward = NULL;
     rocfft_plan_create(&backward,
@@ -90,7 +89,7 @@ int main()
                        &N, // lengths
                        1, // Number of transforms
                        NULL); // Description
-    
+
     rocfft_execution_info backwardinfo;
     rocfft_execution_info_create(&backwardinfo);
     size_t bbuffersize = 0;
@@ -98,14 +97,13 @@ int main()
     void* bbuffer;
     hipMalloc(&bbuffer, bbuffersize);
     rocfft_execution_info_set_work_buffer(backwardinfo, bbuffer, bbuffersize);
-    
-    
+
     // Execute the forward transform
     rocfft_execute(forward,
                    (void**)&x, // in_buffer
                    NULL, // out_buffer
                    forwardinfo); // execution info
-    
+
     // Copy result back to host
     std::vector<std::complex<float>> cy(N);
     hipMemcpy(cy.data(), x, cy.size() * sizeof(decltype(cy)::value_type), hipMemcpyDeviceToHost);
@@ -135,9 +133,8 @@ int main()
     float       error = 0.0f;
     for(size_t i = 0; i < cx.size(); i++)
     {
-        float diff
-            = std::max(std::abs(cx[i].real() - cy[i].real() * overN),
-                       std::abs(cx[i].imag() - cy[i].imag() * overN));
+        float diff = std::max(std::abs(cx[i].real() - cy[i].real() * overN),
+                              std::abs(cx[i].imag() - cy[i].imag() * overN));
         if(diff > error)
         {
             error = diff;

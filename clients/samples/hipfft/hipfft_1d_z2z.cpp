@@ -29,17 +29,17 @@
 int main()
 {
     std::cout << "hipfft 1D double-precision complex-to-complex transform\n";
-    
-    const size_t N        = 11;
-    int direction = HIPFFT_FORWARD; // forward=-1, backward=1
-    
+
+    const size_t N         = 11;
+    int          direction = HIPFFT_FORWARD; // forward=-1, backward=1
+
     std::vector<std::complex<double>> cdata(N);
     size_t complex_bytes = sizeof(decltype(cdata)::value_type) * cdata.size();
 
     std::cout << "input:\n";
     for(size_t i = 0; i < cdata.size(); i++)
     {
-        cdata[i] = decltype(cdata)::value_type(i,0);
+        cdata[i] = decltype(cdata)::value_type(i, 0);
     }
     for(size_t i = 0; i < cdata.size(); i++)
     {
@@ -48,25 +48,25 @@ int main()
     std::cout << std::endl;
 
     hipfftResult rc = HIPFFT_SUCCESS;
-    
+
     // Create HIP device object and copy data to device:
     hipfftDoubleComplex* x; // hipfftDoubleComplex for single-precision
     hipMalloc(&x, complex_bytes);
     hipMemcpy(x, cdata.data(), complex_bytes, hipMemcpyHostToDevice);
 
     hipfftHandle plan = NULL;
-    rc = hipfftCreate(&plan);
+    rc                = hipfftCreate(&plan);
     assert(rc == HIPFFT_SUCCESS);
-    rc = hipfftPlan1d(&plan,      // plan handle
-                      N,          // transform length
+    rc = hipfftPlan1d(&plan, // plan handle
+                      N, // transform length
                       HIPFFT_Z2Z, // transform type (HIPFFT_C2C for single-precisoin)
-                      1);         // number of transforms
+                      1); // number of transforms
     assert(rc == HIPFFT_SUCCESS);
-    
+
     // Execute plan:
     rc = hipfftExecZ2Z(plan, x, x, direction); // Z2Z -> C2C for single-precision
     assert(rc == HIPFFT_SUCCESS);
-    
+
     std::cout << "output:\n";
     hipMemcpy(cdata.data(), x, complex_bytes, hipMemcpyDeviceToHost);
     for(size_t i = 0; i < cdata.size(); i++)
