@@ -28,65 +28,48 @@
 
 int main()
 {
-    std::cout << "hipfft 1D single-precision real-to-complex transform showing work memory usage\n";
-
-    int major_version;
-    hipfftGetProperty(MAJOR_VERSION, &major_version);
-    std::cout << "hipFFT major_version " << major_version << std::endl;
-
-    const size_t N        = 9;
-    const size_t Ncomplex = (N / 2 + 1);
-
-    std::vector<float>               rdata(N);
-    std::vector<std::complex<float>> cdata(Ncomplex);
-
-    size_t real_bytes    = sizeof(decltype(rdata)::value_type) * rdata.size();
+    std::cout << "hipfft 1D double-precision complex-to-complex transform\n";
+    
+    const size_t N        = 11;
+    int direction = HIPFFT_FORWARD; // forward=-1, backward=1
+    
+    std::vector<std::complex<double>> cdata(N);
     size_t complex_bytes = sizeof(decltype(cdata)::value_type) * cdata.size();
 
     std::cout << "input:\n";
-    for(size_t i = 0; i < N; i++)
+    for(size_t i = 0; i < cdata.size(); i++)
     {
-        rdata[i] = i;
+        cdata[i] = decltype(cdata)::value_type(i,0);
     }
-    for(size_t i = 0; i < N; i++)
+    for(size_t i = 0; i < cdata.size(); i++)
     {
-        std::cout << rdata[i] << " ";
+        std::cout << cdata[i] << " ";
     }
     std::cout << std::endl;
 
-    // Create HIP device object.
-    hipfftReal* x;
-    hipMalloc(&x, real_bytes);
-    hipfftComplex* y;
-    hipMalloc(&y, complex_bytes);
-
-    // Copy input data to device
-    hipMemcpy(x, rdata.data(), real_bytes, hipMemcpyHostToDevice);
-
-    size_t workSize;
-    hipfftEstimate1d(N, HIPFFT_R2C, 1, &workSize);
-    std::cout << "hipfftEstimate 1d workSize: " << workSize << std::endl;
+    hipfftResult rc = HIPFFT_SUCCESS;
+    
+    // Create HIP device object and copy data to device:
+    hipfftDoubleComplex* x; // hipfftDoubleComplex for single-precision
+    hipMalloc(&x, complex_bytes);
+    hipMemcpy(x, cdata.data(), complex_bytes, hipMemcpyHostToDevice);
 
     hipfftHandle plan = NULL;
-    hipfftCreate(&plan);
-    hipfftSetAutoAllocation(plan, 0);
-    hipfftMakePlan1d(plan, N, HIPFFT_R2C, 1, &workSize);
-
-    // Set work buffer
-    hipfftComplex* workBuf;
-    hipMalloc(&workBuf, workSize);
-    hipfftSetWorkArea(plan, workBuf);
-    hipfftGetSize(plan, &workSize);
-    std::cout << "hipfftGetSize workSize: " << workSize << std::endl;
-
-    // Execute plan
-    hipfftExecR2C(plan, x, (hipfftComplex*)y);
-
-    // Copy result back to host
-    hipMemcpy(cdata.data(), y, complex_bytes, hipMemcpyDeviceToHost);
-
+    rc = hipfftCreate(&plan);
+    assert(rc == HIPFFT_SUCCESS);
+    rc = hipfftPlan1d(&plan,      // plan handle
+                      N,          // transform length
+                      HIPFFT_Z2Z, // transform type (HIPFFT_C2C for single-precisoin)
+                      1);         // number of transforms
+    assert(rc == HIPFFT_SUCCESS);
+    
+    // Execute plan:
+    rc = hipfftExecZ2Z(plan, x, x, direction); // Z2Z -> C2C for single-precision
+    assert(rc == HIPFFT_SUCCESS);
+    
     std::cout << "output:\n";
-    for(size_t i = 0; i < Ncomplex; i++)
+    hipMemcpy(cdata.data(), x, complex_bytes, hipMemcpyDeviceToHost);
+    for(size_t i = 0; i < cdata.size(); i++)
     {
         std::cout << cdata[i] << " ";
     }
@@ -94,7 +77,6 @@ int main()
 
     hipfftDestroy(plan);
     hipFree(x);
-    hipFree(workBuf);
 
     return 0;
 }
