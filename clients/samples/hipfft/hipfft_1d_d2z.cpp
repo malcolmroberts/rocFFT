@@ -26,53 +26,78 @@
 #include <hip/hip_runtime.h>
 #include <hipfft.h>
 
+// Kernel for initializing the real-valued input data on the GPU.
+__global__
+void initdata(double* x, const int Nx)
+{
+    const int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if(idx < Nx) {
+        x[idx] = idx;
+    }
+}
+
+// Helper function for determining grid dimensions
+template<typename Tint1, typename Tint2>
+Tint1 ceildiv(const Tint1 nominator, const Tint2 denominator)
+{
+    return (nominator + denominator - 1) / denominator;
+}
+
 int main()
 {
     std::cout << "hipfft 1D double-precision real-to-complex transform\n";
 
-    const size_t N         = 8;
-    const size_t Ncomplex  = N / 2 + 1;
+    const size_t Nx         = 8;
+    const size_t Ncomplex  = Nx / 2 + 1;
     
-    std::vector<double> rdata(N);
+    std::vector<double> rdata(Nx);
     size_t real_bytes = sizeof(decltype(rdata)::value_type) * rdata.size();
     std::vector<std::complex<decltype(rdata)::value_type>> cdata(Ncomplex);
     size_t complex_bytes = sizeof(std::complex<decltype(rdata)::value_type>) * cdata.size();
 
+    // Create HIP device object:
+    double* x; 
+    hipMalloc(&x, complex_bytes);
+
+    // Inititalize the data on the device
+    hipError_t rt;
+    const dim3 blockdim(256);
+    const dim3 griddim(ceildiv(Nx, blockdim.x));
+    hipLaunchKernelGGL(initdata,
+                       blockdim,
+                       griddim,
+                       0, 0,
+                       x, Nx);
+    hipDeviceSynchronize();
+    rt = hipGetLastError();
+    assert(rt == hipSuccess);
+    
     std::cout << "input:\n";
-    for(size_t i = 0; i < rdata.size(); i++)
-    {
-        rdata[i] = i;
-    }
+    hipMemcpy(rdata.data(), x, real_bytes, hipMemcpyDefault);
     for(size_t i = 0; i < rdata.size(); i++)
     {
         std::cout << rdata[i] << " ";
     }
     std::cout << std::endl;
 
-    hipfftResult rc = HIPFFT_SUCCESS;
-
-    // Create HIP device object and copy data to device:
-    decltype(rdata)::value_type* x; 
-    hipMalloc(&x, complex_bytes);
-    hipMemcpy(x, rdata.data(), real_bytes, hipMemcpyHostToDevice);
-
+    // Create the plan
     hipfftHandle plan = NULL;
+    hipfftResult rc = HIPFFT_SUCCESS;
     rc                = hipfftCreate(&plan);
     assert(rc == HIPFFT_SUCCESS);
     rc = hipfftPlan1d(&plan,      // plan handle
-                      N,          // transform length
+                      Nx,         // transform length
                       HIPFFT_D2Z, // transform type (HIPFFT_R2C for single-precisoin)
-                      1);         // number of transforms
+                      1);         // number of transforms (deprecated)
     assert(rc == HIPFFT_SUCCESS);
 
     // Execute plan:
-    // D2Z: double precision, R2C: for single-precision
+    // hipfftExecD2Z: double precision, hipfftExecR2C: for single-precision
     // Direction is implied by real-to-complex direction
     rc = hipfftExecD2Z(plan, x, (hipfftDoubleComplex*) x); 
     assert(rc == HIPFFT_SUCCESS);
 
     std::cout << "output:\n";
-
     hipMemcpy(cdata.data(), x, complex_bytes, hipMemcpyDeviceToHost);
     for(size_t i = 0; i < cdata.size(); i++)
     {

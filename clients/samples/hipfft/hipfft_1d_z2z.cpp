@@ -26,46 +26,75 @@
 #include <hip/hip_runtime.h>
 #include <hipfft.h>
 
+
+// Kernel for initializing the real-valued input data on the GPU.
+__global__
+void initdata(hipfftDoubleComplex* x, const int Nx)
+{
+    const int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if(idx < Nx) {
+        x[idx].x = idx;
+        x[idx].y = 0.0;
+    }
+}
+
+// Helper function for determining grid dimensions
+template<typename Tint1, typename Tint2>
+Tint1 ceildiv(const Tint1 nominator, const Tint2 denominator)
+{
+    return (nominator + denominator - 1) / denominator;
+}
+
+
 int main()
 {
     std::cout << "hipfft 1D double-precision complex-to-complex transform\n";
 
-    const size_t N         = 8;
+    const int Nx         = 8;
     int          direction = HIPFFT_FORWARD; // forward=-1, backward=1
 
-    std::vector<std::complex<double>> cdata(N);
+    std::vector<std::complex<double>> cdata(Nx);
     size_t complex_bytes = sizeof(decltype(cdata)::value_type) * cdata.size();
 
+    // Create HIP device object and copy data to device:
+    // hipfftComplex for single-precision
+    hipfftDoubleComplex* x; 
+    hipMalloc(&x, complex_bytes);
+    
+    // Inititalize the data on the device
+    hipError_t rt;
+    const dim3 blockdim(256);
+    const dim3 griddim(ceildiv(Nx, blockdim.x));
+    hipLaunchKernelGGL(initdata,
+                       blockdim,
+                       griddim,
+                       0, 0,
+                       x, Nx);
+    hipDeviceSynchronize();
+    rt = hipGetLastError();
+    assert(rt == hipSuccess);
+    
     std::cout << "input:\n";
-    for(size_t i = 0; i < cdata.size(); i++)
-    {
-        cdata[i] = decltype(cdata)::value_type(i, 0);
-    }
+    hipMemcpy(cdata.data(), x, complex_bytes, hipMemcpyDefault);
     for(size_t i = 0; i < cdata.size(); i++)
     {
         std::cout << cdata[i] << " ";
     }
     std::cout << std::endl;
 
-    hipfftResult rc = HIPFFT_SUCCESS;
-
-    // Create HIP device object and copy data to device:
-    // hipfftComplex for single-precision
-    hipfftDoubleComplex* x; 
-    hipMalloc(&x, complex_bytes);
-    hipMemcpy(x, cdata.data(), complex_bytes, hipMemcpyHostToDevice);
-
+    // Create the plan
     hipfftHandle plan = NULL;
+    hipfftResult rc = HIPFFT_SUCCESS;
     rc                = hipfftCreate(&plan);
     assert(rc == HIPFFT_SUCCESS);
     rc = hipfftPlan1d(&plan,      // plan handle
-                      N,          // transform length
+                      Nx,          // transform length
                       HIPFFT_Z2Z, // transform type (HIPFFT_C2C for single-precisoin)
                       1);         // number of transforms
     assert(rc == HIPFFT_SUCCESS);
 
     // Execute plan:
-    // Z2Z: double precision, C2C: for single-precision
+    // hipfftExecZ2Z: double precision, hipfftExecC2C: for single-precision
     rc = hipfftExecZ2Z(plan, x, x, direction); 
     assert(rc == HIPFFT_SUCCESS);
 

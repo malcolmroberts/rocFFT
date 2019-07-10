@@ -26,32 +26,63 @@
 #include <hip/hip_runtime.h>
 #include <hipfft.h>
 
+
+// Kernel for initializing the real-valued input data on the GPU.
+__global__
+void initdata(hipfftDoubleComplex* x, const int Nx, const int Ny)
+{
+    const int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    const int idy = blockIdx.y * blockDim.y + threadIdx.y;
+    if(idx < Nx && idy < Ny) {
+        const int pos = idx * Ny + idy;
+        x[pos].x = idx + idy;
+        x[pos].y = 0.0;
+    }
+}
+
+// Helper function for determining grid dimensions
+template<typename Tint1, typename Tint2>
+Tint1 ceildiv(const Tint1 nominator, const Tint2 denominator)
+{
+    return (nominator + denominator - 1) / denominator;
+}
+
 int main()
 {
     std::cout << "hipfft 2D double-precision complex-to-complex transform\n";
 
-    const size_t Nx         = 4;
-    const size_t Ny         = 4;
+    const int Nx         = 4;
+    const int Ny         = 4;
     int          direction  = HIPFFT_FORWARD; // forward=-1, backward=1
 
     std::vector<std::complex<double>> cdata(Nx * Ny);
     size_t complex_bytes = sizeof(decltype(cdata)::value_type) * cdata.size();
 
-    std::cout << "input:\n";
-    for(size_t i = 0; i < Nx; i++)
-    {
-        for(size_t j = 0; j < Ny; j++)
-        {
-            auto pos = i * Ny + j;
-            cdata[pos] = decltype(cdata)::value_type(i, j);
-        }
-    }
+    // Create HIP device object and copy data to device:
+    // hipfftComplex for single-precision
+    hipfftDoubleComplex* x; 
+    hipMalloc(&x, complex_bytes);
+    
+    // Inititalize the data on the device
+    hipError_t rt;
+    const dim3 blockdim(32, 32);
+    const dim3 griddim(ceildiv(Nx, blockdim.x), ceildiv(Ny, blockdim.y));
+    hipLaunchKernelGGL(initdata,
+                       blockdim,
+                       griddim,
+                       0, 0,
+                       x, Nx, Ny);
+    hipDeviceSynchronize();
+    rt = hipGetLastError();
+    assert(rt == hipSuccess);
 
-    for(size_t i = 0; i < Nx; i++)
+    std::cout << "input:\n";
+    hipMemcpy(cdata.data(), x, complex_bytes, hipMemcpyDefault);
+    for(int i = 0; i < Nx; i++)
     {
-        for(size_t j = 0; j < Ny; j++)
+        for(int j = 0; j < Ny; j++)
         {
-            auto pos = i * Ny + j;
+            int pos = i * Ny + j;
             std::cout << cdata[pos] << " ";
         }
         std::cout << "\n";
@@ -60,11 +91,6 @@ int main()
 
     hipfftResult rc = HIPFFT_SUCCESS;
 
-    // Create HIP device object and copy data to device:
-    // hipfftComplex for single-precision
-    hipfftDoubleComplex* x; 
-    hipMalloc(&x, complex_bytes);
-    hipMemcpy(x, cdata.data(), complex_bytes, hipMemcpyHostToDevice);
 
     hipfftHandle plan = NULL;
     rc                = hipfftCreate(&plan);
@@ -76,7 +102,7 @@ int main()
     assert(rc == HIPFFT_SUCCESS);
 
     // Execute plan:
-    // Z2Z: double precision, C2C: for single-precision
+    // hipfftExecZ2Z: double precision, hipfftExecC2C: for single-precision
     rc = hipfftExecZ2Z(plan, x, x, direction); 
     assert(rc == HIPFFT_SUCCESS);
 

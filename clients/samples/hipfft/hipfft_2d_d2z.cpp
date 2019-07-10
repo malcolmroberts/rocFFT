@@ -1,4 +1,3 @@
-
 /******************************************************************************
 * Copyright (c) 2019 - present Advanced Micro Devices, Inc. All rights reserved.
 *
@@ -29,7 +28,7 @@
 
 // Kernel for initializing the real-valued input data on the GPU.
 __global__
-void initreal(double* x, const size_t Nx, const size_t Ny, const size_t rstride)
+void initdata(double* x, const size_t Nx, const size_t Ny, const size_t rstride)
 {
     const size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     const size_t idy = blockIdx.y * blockDim.y + threadIdx.y;
@@ -48,7 +47,7 @@ Tint1 ceildiv(const Tint1 nominator, const Tint2 denominator)
     
 int main()
 {
-    std::cout << "hipfft 2D double-precision creal-to-complex transform\n";
+    std::cout << "hipfft 2D double-precision real-to-complex transform\n";
 
     const size_t Nx         = 4;
     const size_t Ny         = 5;
@@ -63,15 +62,15 @@ int main()
     const size_t real_bytes = sizeof(double) * Nx * rstride;
     const size_t complex_bytes = 2 * sizeof(double) * Nx * Ny;
 
-    std::cout << "input:\n";
     double* x;
     hipError_t rt;
     rt = hipMalloc(&x, real_bytes);
     assert(rt == HIP_SUCCESS);
+
+    // Inititalize the data on the device
     const dim3 blockdim(32, 32);
     const dim3 griddim(ceildiv(Nx, blockdim.x), ceildiv(Ny, blockdim.y));
-
-    hipLaunchKernelGGL(initreal,
+    hipLaunchKernelGGL(initdata,
                        blockdim,
                        griddim,
                        0,0,
@@ -79,10 +78,13 @@ int main()
     hipDeviceSynchronize();
     rt = hipGetLastError();
     assert(rt == hipSuccess);
-    
+
+    // Copy the input data to the host and output:
     std::vector<double> rdata(Nx * rstride);
     rt = hipMemcpy(rdata.data(), x, real_bytes, hipMemcpyDefault);
     assert(rt == HIP_SUCCESS);
+    std::cout << "input:\n";
+
     for(size_t i = 0; i < Nx; i++)
     {
         for(size_t j = 0; j < Ny; j++)
@@ -94,8 +96,8 @@ int main()
     }
     std::cout << std::endl;
 
+    // Create plan:
     hipfftResult rc = HIPFFT_SUCCESS;
-
     hipfftHandle plan = NULL;
     rc                = hipfftCreate(&plan);
     assert(rc == HIPFFT_SUCCESS);
@@ -106,13 +108,14 @@ int main()
     assert(rc == HIPFFT_SUCCESS);
 
     // Execute plan:
-    // D2Z: double precision, R2C: single-precision
+    // hipfftExecD2Z: double precision, hipfftExecR2C: single-precision
     rc = hipfftExecD2Z(plan, x, (hipfftDoubleComplex*)x); 
     assert(rc == HIPFFT_SUCCESS);
 
-    std::cout << "output:\n";
+    // copy the output data to the host and output:
     std::vector<std::complex<double>> cdata(Nx * Ny);
     hipMemcpy(cdata.data(), x, complex_bytes, hipMemcpyDeviceToHost);
+    std::cout << "output:\n";
     for(size_t i = 0; i < Nx; i++)
     {
         for(size_t j = 0; j < Nycomplex; j++)
