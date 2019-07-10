@@ -28,48 +28,51 @@
 
 int main()
 {
-    std::cout << "hipfft 1D double-precision complex-to-complex transform\n";
+    std::cout << "hipfft 1D double-precision real-to-complex transform\n";
 
     const size_t N         = 8;
-    int          direction = HIPFFT_FORWARD; // forward=-1, backward=1
-
-    std::vector<std::complex<double>> cdata(N);
-    size_t complex_bytes = sizeof(decltype(cdata)::value_type) * cdata.size();
+    const size_t Ncomplex  = N / 2 + 1;
+    
+    std::vector<double> rdata(N);
+    size_t real_bytes = sizeof(decltype(rdata)::value_type) * rdata.size();
+    std::vector<std::complex<decltype(rdata)::value_type>> cdata(Ncomplex);
+    size_t complex_bytes = sizeof(std::complex<decltype(rdata)::value_type>) * cdata.size();
 
     std::cout << "input:\n";
-    for(size_t i = 0; i < cdata.size(); i++)
+    for(size_t i = 0; i < rdata.size(); i++)
     {
-        cdata[i] = decltype(cdata)::value_type(i, 0);
+        rdata[i] = i;
     }
-    for(size_t i = 0; i < cdata.size(); i++)
+    for(size_t i = 0; i < rdata.size(); i++)
     {
-        std::cout << cdata[i] << " ";
+        std::cout << rdata[i] << " ";
     }
     std::cout << std::endl;
 
     hipfftResult rc = HIPFFT_SUCCESS;
 
     // Create HIP device object and copy data to device:
-    // hipfftComplex for single-precision
-    hipfftDoubleComplex* x; 
+    decltype(rdata)::value_type* x; 
     hipMalloc(&x, complex_bytes);
-    hipMemcpy(x, cdata.data(), complex_bytes, hipMemcpyHostToDevice);
+    hipMemcpy(x, rdata.data(), real_bytes, hipMemcpyHostToDevice);
 
     hipfftHandle plan = NULL;
     rc                = hipfftCreate(&plan);
     assert(rc == HIPFFT_SUCCESS);
     rc = hipfftPlan1d(&plan,      // plan handle
                       N,          // transform length
-                      HIPFFT_Z2Z, // transform type (HIPFFT_C2C for single-precisoin)
+                      HIPFFT_D2Z, // transform type (HIPFFT_R2C for single-precisoin)
                       1);         // number of transforms
     assert(rc == HIPFFT_SUCCESS);
 
     // Execute plan:
-    // Z2Z: double precision, C2C: for single-precision
-    rc = hipfftExecZ2Z(plan, x, x, direction); 
+    // D2Z: double precision, R2C: for single-precision
+    // Direction is implied by real-to-complex direction
+    rc = hipfftExecD2Z(plan, x, (hipfftDoubleComplex*) x); 
     assert(rc == HIPFFT_SUCCESS);
 
     std::cout << "output:\n";
+
     hipMemcpy(cdata.data(), x, complex_bytes, hipMemcpyDeviceToHost);
     for(size_t i = 0; i < cdata.size(); i++)
     {
