@@ -33,7 +33,7 @@ real[] mediandev(real[] vals)
    medlh[0] = median;
    
    // Number of resamples to perform:
-   int nperm = 200;
+   int nperm = 2000;
    real medians[] = new real[nperm];
    for(int i = 0; i < nperm; ++i) {
       for(int j = 0; j < nsample; ++j) {
@@ -57,7 +57,7 @@ real[] ratiodev(real[] vA, real[] vB) {
     
     real ratio = getmedian(vA) / getmedian(vB);
 
-    int nboot = 1000;
+    int nboot = 2000;
     real[] ratios =new real[nboot];
     ratios[0] = ratio;
     for(int n = 1; n < nboot; ++n) {
