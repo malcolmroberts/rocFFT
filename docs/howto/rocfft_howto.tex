@@ -68,7 +68,7 @@ packages, which can be found at
 \href{https://rocm.github.io/install.html#installing-from-amd-rocm-repositories}{ROCm's
   package servers}\footnote{\url{https://rocm.github.io/install.html\#installing-from-amd-rocm-repositories}}.
 
-One can also install from source; the lates release is available one
+One can also install from source; the latest release is available one
 \href{https://github.com/ROCmSoftwarePlatform/rocFFT/releases/latest}{github}\footnote{\url{https://github.com/ROCmSoftwarePlatform/rocFFT/releases/latest}}.
 After downloading the \texttt{tar.gz}, one runs
 \begin{verbatim}
@@ -135,7 +135,7 @@ or \lstinline{HIPFFT_BACKWARD=1}.
 \subsection{1D real}
 
 For real-to-complex transforms, the transform type is
-\lstinline{HIPFFT_D2Z}, and hte plan is executed with
+\lstinline{HIPFFT_D2Z}, and the plan is executed with
 \lstinline{hipfftExecD2Z}, (\lstinline{HIPFFT_R2C} and
 \lstinline{hipfftExecR2C} for single-precision).  The direction is
 implied by the choice of execute function, with
@@ -143,7 +143,7 @@ implied by the choice of execute function, with
 backwards.  The transform takes \lstinline{Nx} real values to
 \lstinline{Nx/2+1} complex values.  As usual, in-place transforms need
 buffers large enough for both the input and the output, which means
-allocateing \lstinline{2*(Nx/2+1)} real values.
+allocating \lstinline{2*(Nx/2+1)} real values.
 
 \subsection{2D complex}
 2D complex/complex transforms are created via
@@ -189,3 +189,10 @@ subdirectory.
 
 
 \end{document}
+
+%%  LocalWords:  rocFFT FFT GPU AMD's ROCm hcc Pre amd rocm ROCm's gz
+%%  LocalWords:  github CMAKE CPLUS LD hipFFT FFTW FFTs discontiguous
+%%  LocalWords:  subdirectory hipfftDoubleComplex hipfftHandle rc Nx
+%%  LocalWords:  hipfftResult hipfftCreate hipfftPlan hipfftExecZ Ny
+%%  LocalWords:  hipfftDestroy hipfftExecC hipfftComplex hipfftExecD
+%%  LocalWords:  hipfftExecR ie Nz
