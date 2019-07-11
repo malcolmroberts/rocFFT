@@ -27,17 +27,17 @@
 #include <hipfft.h>
 
 // Kernel for initializing the real-valued input data on the GPU.
-__global__
-void initdata(double* x, const int Nx)
+__global__ void initdata(double* x, const int Nx)
 {
     const int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if(idx < Nx) {
+    if(idx < Nx)
+    {
         x[idx] = idx;
     }
 }
 
 // Helper function for determining grid dimensions
-template<typename Tint1, typename Tint2>
+template <typename Tint1, typename Tint2>
 Tint1 ceildiv(const Tint1 nominator, const Tint2 denominator)
 {
     return (nominator + denominator - 1) / denominator;
@@ -47,31 +47,28 @@ int main()
 {
     std::cout << "hipfft 1D double-precision real-to-complex transform\n";
 
-    const size_t Nx         = 8;
-    const size_t Ncomplex  = Nx / 2 + 1;
-    
+    const size_t Nx = 8;
+
+    const size_t Ncomplex = Nx / 2 + 1;
+
     std::vector<double> rdata(Nx);
-    size_t real_bytes = sizeof(decltype(rdata)::value_type) * rdata.size();
+    size_t              real_bytes = sizeof(decltype(rdata)::value_type) * rdata.size();
     std::vector<std::complex<decltype(rdata)::value_type>> cdata(Ncomplex);
     size_t complex_bytes = sizeof(std::complex<decltype(rdata)::value_type>) * cdata.size();
 
-    // Create HIP device object:
-    double* x; 
+    // Create HIP device object
+    double* x;
     hipMalloc(&x, complex_bytes);
 
     // Inititalize the data on the device
     hipError_t rt;
     const dim3 blockdim(256);
     const dim3 griddim(ceildiv(Nx, blockdim.x));
-    hipLaunchKernelGGL(initdata,
-                       blockdim,
-                       griddim,
-                       0, 0,
-                       x, Nx);
+    hipLaunchKernelGGL(initdata, blockdim, griddim, 0, 0, x, Nx);
     hipDeviceSynchronize();
     rt = hipGetLastError();
     assert(rt == hipSuccess);
-    
+
     std::cout << "input:\n";
     hipMemcpy(rdata.data(), x, real_bytes, hipMemcpyDefault);
     for(size_t i = 0; i < rdata.size(); i++)
@@ -82,19 +79,19 @@ int main()
 
     // Create the plan
     hipfftHandle plan = NULL;
-    hipfftResult rc = HIPFFT_SUCCESS;
+    hipfftResult rc   = HIPFFT_SUCCESS;
     rc                = hipfftCreate(&plan);
     assert(rc == HIPFFT_SUCCESS);
-    rc = hipfftPlan1d(&plan,      // plan handle
-                      Nx,         // transform length
+    rc = hipfftPlan1d(&plan, // plan handle
+                      Nx, // transform length
                       HIPFFT_D2Z, // transform type (HIPFFT_R2C for single-precisoin)
-                      1);         // number of transforms (deprecated)
+                      1); // number of transforms (deprecated)
     assert(rc == HIPFFT_SUCCESS);
 
     // Execute plan:
     // hipfftExecD2Z: double precision, hipfftExecR2C: for single-precision
     // Direction is implied by real-to-complex direction
-    rc = hipfftExecD2Z(plan, x, (hipfftDoubleComplex*) x); 
+    rc = hipfftExecD2Z(plan, x, (hipfftDoubleComplex*)x);
     assert(rc == HIPFFT_SUCCESS);
 
     std::cout << "output:\n";
