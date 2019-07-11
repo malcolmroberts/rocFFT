@@ -22,6 +22,7 @@ Usage:
 \t\t-b          label for directory B
 \t\t-T          do not perform FFTs; just compile generated data into PDFs
 \t\t-o          output directory
+\t\t-S          plot speedup (default: 1, disabeled: 0)
 '''
 
 def main(argv):
@@ -32,9 +33,10 @@ def main(argv):
     labelB = ""
     nbatch = 1
     outdir = "."
+    speedup = True
     
     try:
-        opts, args = getopt.getopt(argv,"hA:B:Ta:b:o:")
+        opts, args = getopt.getopt(argv,"hA:B:Ta:b:o:S:")
     except getopt.GetoptError:
         print("error in parsing arguments.")
         print(usage)
@@ -55,7 +57,12 @@ def main(argv):
             outdir = arg
         elif opt in ("-T"):
             dryrun = True
-
+        elif opt in ("-S"):
+            if int(arg) == 0:
+                speedup = False
+            if int(arg) == 1:
+                speedup = True
+            
 
     print("dirA: "+ dirA)
     print("labelA: "+ labelA)
@@ -179,10 +186,13 @@ def main(argv):
                         asycmd.append("-u")
                         asycmd.append('legendlist="' + ",".join(labellist) + '"')
 
-                        if dirB != None:
+                        if dirB != None and speedup:
                             asycmd.append("-u")
                             asycmd.append('speedup=true')
-
+                        else:
+                            asycmd.append("-u")
+                            asycmd.append('speedup=false')
+                        
 
 
                         asycmd.append("-o")

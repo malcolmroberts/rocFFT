@@ -171,7 +171,7 @@ else
    xaxis(xlabel);
 
 if(doyticks)
-   yaxis(ylabel,Left,RightTicks);
+    yaxis(ylabel,speedup ? Left : LeftRight,RightTicks);
 else
    yaxis(ylabel,LeftRight);
 
