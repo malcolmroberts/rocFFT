@@ -14,12 +14,23 @@
 
 \usepackage{listings}
 \lstset{language=C++,
-                basicstyle=\ttfamily,
-                keywordstyle=\color{blue}\ttfamily,
-                stringstyle=\color{red}\ttfamily,
-                commentstyle=\color{green}\ttfamily,
-                morecomment=[l][\color{magenta}]{\#}
+captionpos=b,
+%numbers=left,
+%numberstyle=\tiny,
+frame=single,
+showspaces=false,
+showtabs=false,
+breaklines=true,
+showstringspaces=false,
+breakatwhitespace=true,
+escapeinside={(*@}{@*)},
+commentstyle=\color{greencomments},
+morekeywords={partial, var, value, get, set},
+keywordstyle=\color{bluekeywords},
+stringstyle=\color{redstrings},
+basicstyle=\ttfamily\small,
 }
+
 
 \usepackage{breqn}
 \usepackage[]{algorithm2e}
@@ -35,6 +46,7 @@
 
 \title{A brief rocFFT tutorial}
 
+\date{}
 
 
 \begin{document}
@@ -42,25 +54,22 @@
 
 \section{Introduction}
 
-\texttt{rocFFT} is a software library for computing Fast Fourier
-Transforms (FFT) written in HIP. It is part of AMD's software
+\texttt{rocFFT} is a software library, written in HIP, for computing
+Fast Fourier Transforms (FFT) on the GPU. It is part of AMD's software
 ecosystem based on \href{https://github.com/RadeonOpenCompute}{ROCm}.
-
-\texttt{hipFFT} is a wrapper for \texttt{rocFFT} and \texttt{cuFFT},
-allowing one to use either library via a unified interface.
 
 \section{Installation}
 
 \texttt{rocFFT} runs on Linux, and requires a HIP compiler, such as
-\texttt{hipcc} (available as part of the ROCm ecosystem) or
-\texttt{hip-clang}.
+\texttt{hcc}.
 
 Pre-built binaries can be installed via \texttt{.deb} or \texttt{.rpm}
 packages, which can be found at
 \href{https://rocm.github.io/install.html#installing-from-amd-rocm-repositories}{ROCm's
-  package servers}.  One can also install from source; the lates
-release is available one
-\href{https://github.com/ROCmSoftwarePlatform/rocFFT/releases/latest}{github}.
+  package servers}\footnote{\url{https://rocm.github.io/install.html\#installing-from-amd-rocm-repositories}}.
+
+One can also install from source; the lates release is available one
+\href{https://github.com/ROCmSoftwarePlatform/rocFFT/releases/latest}{github}\footnote{\url{https://github.com/ROCmSoftwarePlatform/rocFFT/releases/latest}}.
 After downloading the \texttt{tar.gz}, one runs
 \begin{verbatim}
 tar -xvf v*.tar.gz
@@ -76,23 +85,107 @@ Afterwards, one adds the resulting directories to one's
 There is also an installation script, \texttt{install.sh}, which can
 also take care of dependencies on supported Linux distributions.
 
-\section{Example}
+\section{Usage}
 
-FIXME: in-place, out-of-place?
+The \texttt{hipFFT} interface to \texttt{rocFFT} provides an
+\texttt{FFTW}-like interface, with a simple interface for 1D, 2D, and
+3D FFTs, and an advanced interface for batched transforms which also
+allows for discontiguous data.  In-place and out-of-place transforms
+are supported.
 
-We are going to use hipfft examples here.
+In order to use the \texttt{hipFFT} interface one must:
+\begin{enumerate}
+\item Create a plan
+\item Execute the plan
+\item Destroy the plan
+\end{enumerate}
+Sample code is given in the \url{clients/samples/hipfft} subdirectory,
+with specific examples discussed below.
 
 \subsection{1D complex}
-
+For a 1D complex in-place transform, allocates
+\lstinline{hipfftDoubleComplex* x} on the device, initializes the data
+on the device, and creates and executes the plan via:
+\begin{lstlisting}
+hipfftHandle plan = NULL;
+hipfftResult rc   = HIPFFT_SUCCESS;
+rc                = hipfftCreate(&plan);
+assert(rc == HIPFFT_SUCCESS);
+rc = hipfftPlan1d(&plan,      // plan handle
+                  Nx,         // transform length
+                  HIPFFT_Z2Z, // transform type 
+                  1);         // batch size (deprecated)
+assert(rc == HIPFFT_SUCCESS);
+rc = hipfftExecZ2Z(plan,       // plan handle
+                   x,          // input data
+                   x,          // output data
+                   direction); // direction of transform
+assert(rc == HIPFFT_SUCCESS);
+hipfftDestroy(plan);
+\end{lstlisting}
+If one wants to perform a transform on \lstinline{float}s, one
+replaces \lstinline{HIPFFT_Z2Z} with \lstinline{HIPFFT_C2C},
+\lstinline{hipfftExecZ2Z} with \lstinline{hipfftExecC2C}, and declares
+\lstinline{x} to be a pointer to \lstinline{hipfftComplex}.  If the
+input data and output data arguments to \lstinline{hipfftExecZ2Z} are
+equal, then the transform is in-place; otherwise, it is out-of-place.
+The direction of the transform is either \lstinline{HIPFFT_FORWARD=-1}
+or \lstinline{HIPFFT_BACKWARD=1}.
 
 \subsection{1D real}
 
-\subsection{1D complex}
+For real-to-complex transforms, the transform type is
+\lstinline{HIPFFT_D2Z}, and hte plan is executed with
+\lstinline{hipfftExecD2Z}, (\lstinline{HIPFFT_R2C} and
+\lstinline{hipfftExecR2C} for single-precision).  The direction is
+implied by the choice of execute function, with
+\lstinline{hipfftExecD2Z} forwards and \lstinline{hipfftExecZ2D}
+backwards.  The transform takes \lstinline{Nx} real values to
+\lstinline{Nx/2+1} complex values.  As usual, in-place transforms need
+buffers large enough for both the input and the output, which means
+allocateing \lstinline{2*(Nx/2+1)} real values.
 
+\subsection{2D complex}
+2D complex/complex transforms are created via
+\begin{lstlisting}
+hipfftPlan2d(&plan,      // plan handle
+             Nx, Ny,     // transform lengths
+             HIPFFT_Z2Z, // transform type 
+             1);         // batch size (deprecated)
+\end{lstlisting}
+with the data in row-major order.  Executing the plan is the same as
+for the 1D case.
 
-\subsection{1D real}
+\subsection{2D real}
+2D real-to-complex transforms take
+$\text{\lstinline{Nx}}\times{}\text{\lstinline{Ny}}$ real values and
+produce $\text{\lstinline{Nx}}\times{}\text{\lstinline{Ny/2+1}}$
+complex values.  For in-place transforms, the input data at index
+$\(\text{\lstinline{i}},\text{\lstinline{j}}\)$ can be found at
+position \lstinline{i*2*(Ny/2+1)+j}, ie the stride is
+\lstinline{2*(Ny/2+1)}.  For out-of-place transforms, the input stride
+is just \lstinline{Ny}.
 
+\subsection{3D transforms}
+3D transform plans are created with \lstinline{hipfftPlan3d}, which
+takes 3 lengths.
 
+The real-to-complex transform maps
+$\text{\lstinline{Nx}}\times{}\text{\lstinline{Ny}}\times{}\text{\lstinline{Nz}}$
+real values to
+$\text{\lstinline{Nx}}\times{}\text{\lstinline{Ny}}\times{}\text{\lstinline{Nz/2+1}}$
+complex values.  For in-place transforms, the input data at index
+$\(\text{\lstinline{i}},\text{\lstinline{j}},\text{\lstinline{k}}\)$
+can be found at position \lstinline{(i*Ny+j)*2*(Nz/2+1)+k}, For
+out-of-place transforms the position is \lstinline{(i*Ny+j)*Nz+k}.
+
+\subsection{Batched transforms}
+
+The advanced interface allows for batched transforms, which is more
+efficient than repeatedly calling the basic interface when one has
+several small transforms to compute and a regular memory structure.
+Examples may be found in the \url{clients/samples/hipfft}
+subdirectory.
 
 
 \end{document}
