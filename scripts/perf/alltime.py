@@ -22,7 +22,8 @@ Usage:
 \t\t-b          label for directory B
 \t\t-T          do not perform FFTs; just compile generated data into PDFs
 \t\t-o          output directory
-\t\t-S          plot speedup (default: 1, disabeled: 0)
+\t\t-S          plot speedup (default: 1, disabled: 0)
+\t\t-t          data type: time (default) or gflops
 '''
 
 def main(argv):
@@ -34,9 +35,10 @@ def main(argv):
     nbatch = 1
     outdir = "."
     speedup = True
+    datatype = "time"
     
     try:
-        opts, args = getopt.getopt(argv,"hA:B:Ta:b:o:S:")
+        opts, args = getopt.getopt(argv,"hA:B:Tt:a:b:o:S:")
     except getopt.GetoptError:
         print("error in parsing arguments.")
         print(usage)
@@ -62,7 +64,12 @@ def main(argv):
                 speedup = False
             if int(arg) == 1:
                 speedup = True
-            
+        elif opt in ("-t"):
+            if arg not in ["time", "gflops"]:
+                print("data type must be time or gflops")
+                print(usage)
+                sys.exit(1)
+            datatype = arg
 
     print("dirA: "+ dirA)
     print("labelA: "+ labelA)
@@ -94,7 +101,7 @@ def main(argv):
             sizes.append([1024, 100])
             
         for precision in "float", "double":
-            for datatype in "c2c", "r2c":
+            for ffttype in "c2c", "r2c":
                 for inplace in True, False:
                     for maxsize, nbatch in sizes:
                         filelist = []
@@ -138,9 +145,12 @@ def main(argv):
                                 cmd.append("-d")
                                 cmd.append(str(dimension))
 
-                                if datatype == "r2c":
+                                cmd.append("-t")
+                                cmd.append(datatype)
+                                
+                                if ffttype == "r2c":
                                     cmd.append("-R")
-                                outfile += datatype
+                                outfile += ffttype
 
                                 if inplace:
                                     cmd.append("-I")
@@ -197,7 +207,7 @@ def main(argv):
 
                         asycmd.append("-o")
 
-                        outpdf = "time" + str(dimension) + datatype + precision + "n" + str(nbatch)
+                        outpdf = "time" + str(dimension) + ffttype + precision + "n" + str(nbatch)
                         outpdf += "inplace" if inplace else "outofplace"
                         outpdf += ".pdf"
                         #outpdf = os.path.join(outdir,outpdf)
@@ -212,7 +222,7 @@ def main(argv):
                             print("****asy fail****")
                         else:
                             caption = "Dimension: " + str(dimension)
-                            caption += ", type: "+ ("complex" if datatype == "c2c" else "real/complex")
+                            caption += ", type: "+ ("complex" if ffttype == "c2c" else "real/complex")
                             caption += ", in-place" if inplace else ", out-of-place"
                             caption += ", precision: "+ precision
                             caption += ", batch size: "+ str(nbatch)

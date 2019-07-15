@@ -26,9 +26,11 @@ Usage:
 \t\t-X <int>    maximum problem size in x direction
 \t\t-x <int>    minimum problem size in x direction
 \t\t-X <int>    maximum problem size in x direction
-\t\t-b <int>    batch size'''
+\t\t-b <int>    batch size
+\t\t-t <string> data type: time or gflops (default: time)'''
 
 def runcase(workingdir, xval, yval, zval, direction, rcfft, inplace, ntrial, precision, nbatch,
+            datatype,
             logfilename):
     progname = "rocfft-rider"
     prog = os.path.join(workingdir, progname)
@@ -94,7 +96,7 @@ def runcase(workingdir, xval, yval, zval, direction, rcfft, inplace, ntrial, pre
                             env=os.environ.copy())
     proc.wait()
     rc = proc.returncode
-    seconds = []
+    vals = []
     
     if rc == 0:
         
@@ -103,19 +105,31 @@ def runcase(workingdir, xval, yval, zval, direction, rcfft, inplace, ntrial, pre
 
         # ferr.seek(0)
         # cerr = ferr.read()
-
-        searchstr = "Execution gpu time: "
-        for line in cout.split("\n"):
-            #print(line)
-            if line.startswith(searchstr):
-                # Line ends with "ms", so remove that.
-                ms_string = line[len(searchstr):-2]
-                #print(ms_string)
-                for val in ms_string.split():
-                    #print(val)
-                    seconds.append(1e-3 * float(val))
-                
-        #print("seconds: ", seconds)
+        if datatype == "time":
+            searchstr = "Execution gpu time: "
+            for line in cout.split("\n"):
+                #print(line)
+                if line.startswith(searchstr):
+                    # Line ends with "ms", so remove that.
+                    ms_string = line[len(searchstr):-2]
+                    #print(ms_string)
+                    for val in ms_string.split():
+                        #print(val)
+                        vals.append(1e-3 * float(val))
+            print("seconds: ", vals)
+        elif datatype == "gflops":
+            searchstr = "Execution gflops (wall time): "
+            for line in cout.split("\n"):
+                #print(line)
+                if line.startswith(searchstr):
+                    gf_string = line[len(searchstr):]
+                    print(gf_string)
+                    for val in gf_string.split():
+                        #print(val)
+                        vals.append(1e-3 * float(val))
+            print("gflops: ", vals)
+                        
+                        
     else:
         print("\twell, that didn't work")
         print(rc)
@@ -124,7 +138,7 @@ def runcase(workingdir, xval, yval, zval, direction, rcfft, inplace, ntrial, pre
                 
     fout.close()
     
-    return seconds
+    return vals
     
 
 def main(argv):
@@ -143,9 +157,10 @@ def main(argv):
     inplace = False
     precision = "float"
     nbatch = 1
+    datatype = "time"
     
     try:
-        opts, args = getopt.getopt(argv,"hb:d:D:IN:o:Rw:x:X:y:Y:z:Z:f:")
+        opts, args = getopt.getopt(argv,"hb:d:D:IN:o:Rt:w:x:X:y:Y:z:Z:f:")
     except getopt.GetoptError:
         print("error in parsing arguments.")
         print(usage)
@@ -192,9 +207,17 @@ def main(argv):
         elif opt in ("-b"):
             nbatch = int(arg)
         elif opt in ("-f"):
+            if arg not in ["float", "double"]:
+                print("precision must be float or double")
+                print(usage)
+                sys.exit(1)
             precition = arg
-            if precision not in ["float", "double"]:
-                wirte("precision must be float or double")
+        elif opt in ("-t"):
+            if arg not in ["time", "gflops"]:
+                print("data type must be time or gflops")
+                print(usage)
+                sys.exit(1)
+            datatype = arg
 
             
     print("workingdir: "+ workingdir)
@@ -207,6 +230,7 @@ def main(argv):
     print("real/complex FFT? " + str(rcfft))
     print("in-place? " + str(inplace))
     print("batch-size: " + str(nbatch))
+    print("data type: " + datatype)
 
     progname = "rocfft-rider"
     prog = os.path.join(workingdir, progname)
@@ -225,7 +249,7 @@ def main(argv):
             outfile.write(str(xval))
             logfilename = outfilename + ".log"
             seconds = runcase(workingdir, xval, yval, zval, direction, rcfft, inplace, ntrial,
-                              precision, nbatch, logfilename)
+                              precision, nbatch, datatype, logfilename)
             #print(seconds)
             outfile.write("\t")
             outfile.write(str(len(seconds)))
