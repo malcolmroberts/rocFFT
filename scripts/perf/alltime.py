@@ -30,8 +30,8 @@ def main(argv):
     dirA = "."
     dirB = None
     dryrun = False
-    labelA = ""
-    labelB = ""
+    labelA = None
+    labelB = None
     nbatch = 1
     outdir = "."
     speedup = True
@@ -71,10 +71,16 @@ def main(argv):
                 sys.exit(1)
             datatype = arg
 
+    if labelA == None:
+        labelA = dirA
+        
     print("dirA: "+ dirA)
     print("labelA: "+ labelA)
     dirlist = [dirA]
     if not dirB == None:
+        if labelB == None:
+            labelB = dirB
+
         print("dirB: "+ dirB)
         print("labelB: "+ labelB)
         dirlist.append(dirB)
@@ -112,13 +118,11 @@ def main(argv):
 
                                 outfile = "dirA" if wdir == dirA else "dirB"
 
-
                                 cmd.append("-w")
                                 cmd.append(wdir)
 
                                 cmd.append("-b")
                                 cmd.append(str(nbatch))
-
 
                                 cmd.append("-x")
                                 cmd.append("2")
@@ -167,11 +171,11 @@ def main(argv):
 
                                 label = ""
                                 if wdir == dirA:
-                                    label += "dirA" if labelA == "" else labelA
+                                    label += labelA
                                 else:
-                                    label += "dirB" if labelB == "" else labelB
+                                    label += labelB
                                 label += " direct" if (direction == -1) else " inverse"
-                                label += " in-place " if inplace else " out-of-place "
+                                #label += " in-place " if inplace else " out-of-place "
                                 
                                 labellist.append(label)
 
@@ -189,6 +193,7 @@ def main(argv):
                                     rc = proc.returncode
                                     if rc != 0:
                                         print("****fail****")
+                                        
                         asycmd = ["asy", "-f", "pdf", "datagraphs.asy"]
                         asycmd.append("-u")
                         asycmd.append('filenames="' + ",".join(filelist) + '"')
@@ -202,8 +207,10 @@ def main(argv):
                         else:
                             asycmd.append("-u")
                             asycmd.append('speedup=false')
-                        
 
+                        if datatype == "gflops":
+                            asycmd.append("-u")
+                            asycmd.append('ylabel="GFLOPs"')
 
                         asycmd.append("-o")
 
@@ -245,10 +252,10 @@ def main(argv):
 '''
     texstring = header
 
-    texstring += "\\begin{tabular}{lll}"
-    texstring += "dirA: &\\url{"+ dirA+"} & " + labelA +"\\\\\n"
+    texstring += "\\begin{tabular}{ll}"
+    texstring += labelA +" &\\url{"+ dirA+"} \\\\\n"
     if not dirB == None:
-        texstring += "dirB: &\\url{"+ dirB+"} & " + labelB + "\\\\\n"
+        texstring += labelB +" &\\url{"+ dirB+"} \\\\\n"
     texstring += "\\end{tabular}"
         
     for pdffile, caption in pdflist:
