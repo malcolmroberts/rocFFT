@@ -24,6 +24,7 @@ Usage:
 \t\t-o          output directory
 \t\t-S          plot speedup (default: 1, disabled: 0)
 \t\t-t          data type: time (default) or gflops
+\t\t-s          short run
 '''
 
 def main(argv):
@@ -36,9 +37,10 @@ def main(argv):
     outdir = "."
     speedup = True
     datatype = "time"
+    shortrun = False
     
     try:
-        opts, args = getopt.getopt(argv,"hA:B:Tt:a:b:o:S:")
+        opts, args = getopt.getopt(argv,"hA:B:Tt:a:b:o:S:s")
     except getopt.GetoptError:
         print("error in parsing arguments.")
         print(usage)
@@ -59,6 +61,8 @@ def main(argv):
             outdir = arg
         elif opt in ("-T"):
             dryrun = True
+        elif opt in ("-s"):
+            shortrun = True
         elif opt in ("-S"):
             if int(arg) == 0:
                 speedup = False
@@ -85,170 +89,19 @@ def main(argv):
         print("labelB: "+ labelB)
         dirlist.append(dirB)
     print("outdir: " + outdir)
-
+    if shortrun:
+        print("short run")
+    
     
     if not os.path.exists(outdir):
         os.makedirs(outdir)
-        
-    pdflist = []
-    captionlist = []
-    for dimension in 1, 2, 3:
-        sizes = [[536870912, 1]]
-        #sizes = [[1024, 1]]
-        batchsizes = [1]
-        if dimension == 1:
-            sizes.append([32768,100000])
-        if dimension == 2:
-            sizes = [[32768, 1]]
-            sizes.append([32768,1000])
-            maxsize = 32768
-        if dimension == 3:
-            sizes = [[1024, 1]]
-            sizes.append([1024, 100])
-            
-        for precision in "float", "double":
-            for ffttype in "c2c", "r2c":
-                for inplace in True, False:
-                    for maxsize, nbatch in sizes:
-                        filelist = []
-                        labellist = []
-                        for direction in -1, 1:
-                            for wdir in dirlist:
-                                cmd = ["./timing.py"]
 
-                                outfile = "dirA" if wdir == dirA else "dirB"
-
-                                cmd.append("-w")
-                                cmd.append(wdir)
-
-                                cmd.append("-b")
-                                cmd.append(str(nbatch))
-
-                                cmd.append("-x")
-                                cmd.append("2")
-                                cmd.append("-X")
-                                cmd.append(str(maxsize))
-
-                                if dimension > 1:
-                                    cmd.append("-y")
-                                    cmd.append("2")
-                                    cmd.append("-Y")
-                                    cmd.append(str(maxsize))
-
-                                if dimension > 2:
-                                    cmd.append("-z")
-                                    cmd.append("2")
-                                    cmd.append("-Z")
-                                    cmd.append(str(maxsize))
-
-                                cmd.append("-D")
-                                cmd.append(str(direction))
-                                if direction == 1:
-                                    outfile += "inv"
-
-                                cmd.append("-d")
-                                cmd.append(str(dimension))
-
-                                cmd.append("-t")
-                                cmd.append(datatype)
-                                
-                                if ffttype == "r2c":
-                                    cmd.append("-R")
-                                outfile += ffttype
-
-                                if inplace:
-                                    cmd.append("-I")
-                                    outfile += "inplace"
-                                else:
-                                    outfile += "outofplace"
-                                   
-                                outfile += str(dimension)
-                                outfile += precision
-                                outfile += "n" + str(nbatch)
-                                outfile += ".dat"
-                                outfile = os.path.join(outdir, outfile)
-                                filelist.append(outfile)
-
-                                label = ""
-                                if wdir == dirA:
-                                    label += labelA
-                                else:
-                                    label += labelB
-                                label += " direct" if (direction == -1) else " inverse"
-                                #label += " in-place " if inplace else " out-of-place "
-                                
-                                labellist.append(label)
-
-                                cmd.append("-o")
-                                cmd.append(outfile)
-
-                                print(" ".join(cmd))
-                                if not dryrun:
-                                    fout = tempfile.TemporaryFile(mode="w+")
-                                    ferr = tempfile.TemporaryFile(mode="w+")
-
-                                    proc = subprocess.Popen(cmd, stdout=fout, stderr=ferr,
-                                                            env=os.environ.copy())
-                                    proc.wait()
-                                    rc = proc.returncode
-                                    if rc != 0:
-                                        print("****fail****")
-                                        
-                        asycmd = ["asy", "-f", "pdf", "datagraphs.asy"]
-                        asycmd.append("-u")
-                        asycmd.append('filenames="' + ",".join(filelist) + '"')
-
-                        asycmd.append("-u")
-                        asycmd.append('legendlist="' + ",".join(labellist) + '"')
-
-                        if dirB != None and speedup:
-                            asycmd.append("-u")
-                            asycmd.append('speedup=true')
-                        else:
-                            asycmd.append("-u")
-                            asycmd.append('speedup=false')
-
-                        if datatype == "gflops":
-                            asycmd.append("-u")
-                            asycmd.append('ylabel="GFLOPs"')
-
-                        asycmd.append("-o")
-
-                        outpdf = "time" + str(dimension) + ffttype + precision + "n" + str(nbatch)
-                        outpdf += "inplace" if inplace else "outofplace"
-                        outpdf += ".pdf"
-                        #outpdf = os.path.join(outdir,outpdf)
-                        asycmd.append(os.path.join(outdir,outpdf))
-
-                        print(" ".join(asycmd))
-
-                        asyproc =  subprocess.Popen(asycmd, env=os.environ.copy())
-                        asyproc.wait()
-                        asyrc = asyproc.returncode
-                        if asyrc != 0:
-                            print("****asy fail****")
-                        else:
-                            caption = "Dimension: " + str(dimension)
-                            caption += ", type: "+ ("complex" if ffttype == "c2c" else "real/complex")
-                            caption += ", in-place" if inplace else ", out-of-place"
-                            caption += ", precision: "+ precision
-                            caption += ", batch size: "+ str(nbatch)
-
-                            pdflist.append([outpdf, caption ])
-
-    for stuff in pdflist:
-        print(stuff)
 
     header = '''\documentclass[12pt]{article}
 \\usepackage{graphicx}
 \\usepackage{url}
 \\author{Malcolm Roberts}
-
 \\begin{document}
-'''
-    footer = '''
-
-\\end{document}
 '''
     texstring = header
 
@@ -257,17 +110,210 @@ def main(argv):
     if not dirB == None:
         texstring += labelB +" &\\url{"+ dirB+"} \\\\\n"
     texstring += "\\end{tabular}"
+
+    
+    pdflist = []
+    captionlist = []
+    for dimension in 1, 2, 3:
+        texstring += "\n\\section{Dimension " + str(dimension) + "}\n"
         
-    for pdffile, caption in pdflist:
-        texstring += '''\\begin{figure}[htbp]
-  \\centering
-  \\includegraphics[width=\\textwidth]{'''
-        texstring += pdffile
-        texstring += '''}
-  \\caption{''' + caption + '''}
+        sizes = None
+        aspectratios = None
+        if dimension == 1:
+            if shortrun:
+                sizes = [[1048576, 1]]
+                sizes.append([1024, 100000])
+            else:
+                sizes = [[536870912, 1]]
+                sizes.append([32768, 100000])
+            aspectratios = [[1]]
+        if dimension == 2:
+            if shortrun:
+                sizes = [[1024, 1]]
+                sizes.append([32768, 1000])
+            else:
+                sizes = [[1024, 1]]
+                sizes.append([32768, 1000])
+            aspectratios = [[1], [16]]
+        if dimension == 3:
+            if shortrun:
+                sizes = [[64, 1]]
+                sizes.append([64, 100])
+            else:
+                sizes = [[1024, 1]]
+                sizes.append([1024, 100])
+            aspectratios = [[1, 1], [1, 16], [16, 1], [16, 16]]
+            
+        for precision in "float", "double":
+            for ffttype in "c2c", "r2c":
+                for inplace in True, False:
+                    for maxsize, nbatch in sizes:
+                        for ratio in aspectratios:
+                            filelist = []
+                            labellist = []
+                            for direction in -1, 1:
+                                for wdir in dirlist:
+                                    cmd = ["./timing.py"]
+
+                                    outfile = "dirA" if wdir == dirA else "dirB"
+
+                                    cmd.append("-w")
+                                    cmd.append(wdir)
+
+                                    cmd.append("-b")
+                                    cmd.append(str(nbatch))
+
+                                    cmd.append("-x")
+                                    cmd.append("2")
+                                    cmd.append("-X")
+                                    cmd.append(str(maxsize))
+
+                                    if dimension > 1:
+                                        cmd.append("-y")
+                                        cmd.append(str(2 * ratio[0]))
+                                        cmd.append("-Y")
+                                        cmd.append(str(maxsize))
+
+                                    if dimension > 2: # FIXME: add ratios
+                                        cmd.append("-z")
+                                        cmd.append(str(2 * ratio[1]))
+                                        cmd.append("-Z")
+                                        cmd.append(str(maxsize))
+
+                                    cmd.append("-D")
+                                    cmd.append(str(direction))
+                                    if direction == 1:
+                                        outfile += "inv"
+
+                                    cmd.append("-d")
+                                    cmd.append(str(dimension))
+
+                                    if dimension > 1:
+                                        outfile += "ratio" + "_" + str(ratio[0])
+                                        if dimension > 2:
+                                            outfile += "_" + str(ratio[1])
+                                    
+                                    cmd.append("-t")
+                                    cmd.append(datatype)
+
+                                    if ffttype == "r2c":
+                                        cmd.append("-R")
+                                    outfile += ffttype
+
+                                    if inplace:
+                                        cmd.append("-I")
+                                        outfile += "inplace"
+                                    else:
+                                        outfile += "outofplace"
+
+                                    outfile += str(dimension)
+                                    outfile += precision
+                                    outfile += "n" + str(nbatch)
+                                    outfile += ".dat"
+                                    outfile = os.path.join(outdir, outfile)
+                                    filelist.append(outfile)
+
+                                    label = ""
+                                    if wdir == dirA:
+                                        label += labelA
+                                    else:
+                                        label += labelB
+                                    label += " direct" if (direction == -1) else " inverse"
+                                    #label += " in-place " if inplace else " out-of-place "
+                                    
+                                    # if dimension > 1:
+                                    #     label += " aspect ratio: 1:" + str(ratio[0])
+                                    #     if dimension > 2:
+                                    #         label += ":" + str(ratio[1])
+                                                                            
+                                    labellist.append(label)
+
+                                    cmd.append("-o")
+                                    cmd.append(outfile)
+
+                                    print(" ".join(cmd))
+                                    if not dryrun:
+                                        fout = tempfile.TemporaryFile(mode="w+")
+                                        ferr = tempfile.TemporaryFile(mode="w+")
+
+                                        proc = subprocess.Popen(cmd, stdout=fout, stderr=ferr,
+                                                                env=os.environ.copy())
+                                        proc.wait()
+                                        rc = proc.returncode
+                                        if rc != 0:
+                                            print("****fail****")
+
+                            asycmd = ["asy", "-f", "pdf", "datagraphs.asy"]
+                            asycmd.append("-u")
+                            asycmd.append('filenames="' + ",".join(filelist) + '"')
+
+                            asycmd.append("-u")
+                            asycmd.append('legendlist="' + ",".join(labellist) + '"')
+
+                            if dirB != None and speedup:
+                                asycmd.append("-u")
+                                asycmd.append('speedup=true')
+                            else:
+                                asycmd.append("-u")
+                                asycmd.append('speedup=false')
+
+                            if datatype == "gflops":
+                                asycmd.append("-u")
+                                asycmd.append('ylabel="GFLOPs"')
+
+                            asycmd.append("-o")
+
+                            outpdf = "time" + str(dimension) + ffttype + precision + "n" + str(nbatch)
+                            outpdf += "inplace" if inplace else "outofplace"
+                            if dimension > 1:
+                                outpdf += "ratio" + "_" + str(ratio[0])
+                                if dimension > 2:
+                                    outpdf += "_" + str(ratio[1])
+
+                            outpdf += ".pdf"
+                            #outpdf = os.path.join(outdir,outpdf)
+                            asycmd.append(os.path.join(outdir,outpdf))
+
+                            print(" ".join(asycmd))
+
+                            asyproc =  subprocess.Popen(asycmd, env=os.environ.copy())
+                            asyproc.wait()
+                            asyrc = asyproc.returncode
+                            if asyrc != 0:
+                                print("****asy fail****")
+                            else:
+                                caption = "Dimension: " + str(dimension)
+                                caption += ", type: "+ ("complex" if ffttype == "c2c" else "real/complex")
+                                caption += ", in-place" if inplace else ", out-of-place"
+                                caption += ", precision: "+ precision
+                                caption += ", batch size: "+ str(nbatch)
+                                if dimension > 1:
+                                    caption += ", aspect ratio 1:"  + str(ratio[0])
+                                    if dimension > 2:
+                                        caption += ":" + str(ratio[1])
+
+
+                                pdflist.append([outpdf, caption ])
+
+                                texstring += '''
+\\centering
+\\begin{figure}[htbp]
+   \\includegraphics[width=\\textwidth]{'''
+                                texstring += outpdf
+                                texstring += '''}
+   \\caption{''' + caption + '''}
 \\end{figure}
+\\newpage
+
 '''
 
+
+    for stuff in pdflist:
+        print(stuff)
+
+    footer = '''
+\\end{document}
+'''
     texstring += footer
    
     fname = os.path.join(outdir, 'figs.tex')
