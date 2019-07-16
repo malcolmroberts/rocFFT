@@ -197,13 +197,13 @@ def main(argv):
         elif opt in ("-X"):
             xmax = int(arg)
         elif opt in ("-y"):
-            xmin = int(arg)
+            ymin = int(arg)
         elif opt in ("-Y"):
-            xmax = int(arg)
+            ymax = int(arg)
         elif opt in ("-z"):
-            xmin = int(arg)
+            zmin = int(arg)
         elif opt in ("-Z"):
-            xmax = int(arg)
+            zmax = int(arg)
         elif opt in ("-b"):
             nbatch = int(arg)
         elif opt in ("-f"):
@@ -223,9 +223,12 @@ def main(argv):
     print("workingdir: "+ workingdir)
     print("outfilename: "+ outfilename)
     print("ntrial: " + str(ntrial))
+    print("dimension: " + str(dimension))
     print("xmin: "+ str(xmin) + " xmax: " + str(xmax))
-    print("ymin: "+ str(ymin) + " ymax: " + str(ymax))
-    print("zmin: "+ str(zmin) + " zmax: " + str(zmax))
+    if dimension > 1:
+        print("ymin: "+ str(ymin) + " ymax: " + str(ymax))
+    if dimension > 2:
+        print("zmin: "+ str(zmin) + " zmax: " + str(zmax))
     print("direction: " + str(direction))
     print("real/complex FFT? " + str(rcfft))
     print("in-place? " + str(inplace))
