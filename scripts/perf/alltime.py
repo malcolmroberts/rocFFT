@@ -20,11 +20,12 @@ Usage:
 \t\t-B          working directory B (optional)
 \t\t-a          label for directory A
 \t\t-b          label for directory B
-\t\t-T          do not perform FFTs; just compile generated data into PDFs
 \t\t-o          output directory
 \t\t-S          plot speedup (default: 1, disabled: 0)
 \t\t-t          data type: time (default) or gflops
 \t\t-s          short run
+\t\t-T          do not perform FFTs; just generate document
+\t\t-f          document format: pdf (default) or docx
 '''
 
 def main(argv):
@@ -38,9 +39,10 @@ def main(argv):
     speedup = True
     datatype = "time"
     shortrun = False
+    docformat = "pdf"
     
     try:
-        opts, args = getopt.getopt(argv,"hA:B:Tt:a:b:o:S:s")
+        opts, args = getopt.getopt(argv,"hA:f:B:Tt:a:b:o:S:s")
     except getopt.GetoptError:
         print("error in parsing arguments.")
         print(usage)
@@ -74,6 +76,13 @@ def main(argv):
                 print(usage)
                 sys.exit(1)
             datatype = arg
+        elif opt in ("-f"):
+            goodvals = ["pdf", "docx"]
+            if arg not in goodvals:
+                print("error: format must in " + " ".join(goodvals))
+                print(usage)
+                sys.exit(1)
+            docformat = arg
 
     if labelA == None:
         labelA = dirA
@@ -91,31 +100,14 @@ def main(argv):
     print("outdir: " + outdir)
     if shortrun:
         print("short run")
-    
+    print("output format: " + docformat)
     
     if not os.path.exists(outdir):
         os.makedirs(outdir)
-
-
-    header = '''\documentclass[12pt]{article}
-\\usepackage{graphicx}
-\\usepackage{url}
-\\author{Malcolm Roberts}
-\\begin{document}
-'''
-    texstring = header
-
-    texstring += "\\begin{tabular}{ll}"
-    texstring += labelA +" &\\url{"+ dirA+"} \\\\\n"
-    if not dirB == None:
-        texstring += labelB +" &\\url{"+ dirB+"} \\\\\n"
-    texstring += "\\end{tabular}"
-
     
     pdflist = []
-    captionlist = []
     for dimension in 1, 2, 3:
-        texstring += "\n\\section{Dimension " + str(dimension) + "}\n"
+        pdflist.append([])
         
         sizes = None
         aspectratios = None
@@ -142,7 +134,7 @@ def main(argv):
             else:
                 sizes = [[1024, 1]]
                 sizes.append([1024, 100])
-            aspectratios = [[1, 1], [1, 16], [16, 1], [16, 16]]
+            aspectratios = [[1, 1], [1, 16],  [8, 8]]
             
         for precision in "float", "double":
             for ffttype in "c2c", "r2c":
@@ -293,28 +285,53 @@ def main(argv):
                                         caption += ":" + str(ratio[1])
 
 
-                                pdflist.append([outpdf, caption ])
+                                pdflist[-1].append([outpdf, caption ])
 
-                                texstring += '''
+    maketex(pdflist, dirA, dirB, labelA, labelB, outdir)
+
+def maketex(pdflist, dirA, dirB, labelA, labelB, outdir):
+    
+    header = '''\documentclass[12pt]{article}
+\\usepackage{graphicx}
+\\usepackage{url}
+\\author{Malcolm Roberts}
+\\begin{document}
+'''
+    texstring = header
+
+    texstring += "\\begin{tabular}{ll}"
+    texstring += labelA +" &\\url{"+ dirA+"} \\\\\n"
+    if not dirB == None:
+        texstring += labelB +" &\\url{"+ dirB+"} \\\\\n"
+    texstring += "\\end{tabular}"
+
+    texstring += "\\begin{tabular}{ll}"
+    texstring += labelA +" &\\url{"+ dirA+"} \\\\\n"
+    if not dirB == None:
+        texstring += labelB +" &\\url{"+ dirB+"} \\\\\n"
+    texstring += "\\end{tabular}"
+
+    ## FIXME: how to deal with this?
+
+
+    for i in range(len(pdflist)):
+        dimension = i + 1
+        print(dimension)
+        texstring += "\n\\section{Dimension " + str(dimension) + "}\n"
+        for outpdf, caption in pdflist[i]:
+            print(outpdf, caption)
+            texstring += '''
 \\centering
 \\begin{figure}[htbp]
    \\includegraphics[width=\\textwidth]{'''
-                                texstring += outpdf
-                                texstring += '''}
+            texstring += outpdf
+            texstring += '''}
    \\caption{''' + caption + '''}
 \\end{figure}
 \\newpage
 
 '''
-
-
-    for stuff in pdflist:
-        print(stuff)
-
-    footer = '''
-\\end{document}
-'''
-    texstring += footer
+    texstring += "\n\\end{document}\n"
    
     fname = os.path.join(outdir, 'figs.tex')
 
@@ -331,11 +348,9 @@ def main(argv):
     texproc.wait()
     fout.close()
     ferr.close()
-    texrc = asyproc.returncode
+    texrc = texproc.returncode
     if texrc != 0:
         print("****tex fail****")
-                                                                
-    
 
 if __name__ == "__main__":
     main(sys.argv[1:])
