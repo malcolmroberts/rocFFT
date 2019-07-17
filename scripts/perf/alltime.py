@@ -242,6 +242,8 @@ def main(argv):
                             if docformat == "docx":
                                 asycmd.append("-f")
                                 asycmd.append("png")
+                                asycmd.append("-render")
+                                asycmd.append("32")
                             asycmd.append("datagraphs.asy")
                             
                             asycmd.append("-u")
