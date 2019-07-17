@@ -235,7 +235,15 @@ def main(argv):
                                         if rc != 0:
                                             print("****fail****")
 
-                            asycmd = ["asy", "-f", "pdf", "datagraphs.asy"]
+                            asycmd = ["asy"]
+                            if docformat == "pdf":
+                                asycmd.append("-f")
+                                asycmd.append("pdf")
+                            if docformat == "docx":
+                                asycmd.append("-f")
+                                asycmd.append("png")
+                            asycmd.append("datagraphs.asy")
+                            
                             asycmd.append("-u")
                             asycmd.append('filenames="' + ",".join(filelist) + '"')
 
@@ -262,7 +270,12 @@ def main(argv):
                                 if dimension > 2:
                                     outpdf += "_" + str(ratio[1])
 
-                            outpdf += ".pdf"
+                            if docformat == "pdf":
+                                outpdf += ".pdf"
+                                
+                            if docformat == "docx":
+                                outpdf += ".png"
+                                
                             #outpdf = os.path.join(outdir,outpdf)
                             asycmd.append(os.path.join(outdir,outpdf))
 
@@ -287,8 +300,12 @@ def main(argv):
 
                                 pdflist[-1].append([outpdf, caption ])
 
-    maketex(pdflist, dirA, dirB, labelA, labelB, outdir)
+    if docformat == "pdf":
+        maketex(pdflist, dirA, dirB, labelA, labelB, outdir)    
+    if docformat == "docx":
+        makedocx(pdflist, dirA, dirB, labelA, labelB, outdir)    
 
+        
 def maketex(pdflist, dirA, dirB, labelA, labelB, outdir):
     
     header = '''\documentclass[12pt]{article}
@@ -310,9 +327,6 @@ def maketex(pdflist, dirA, dirB, labelA, labelB, outdir):
     if not dirB == None:
         texstring += labelB +" &\\url{"+ dirB+"} \\\\\n"
     texstring += "\\end{tabular}"
-
-    ## FIXME: how to deal with this?
-
 
     for i in range(len(pdflist)):
         dimension = i + 1
@@ -352,6 +366,26 @@ def maketex(pdflist, dirA, dirB, labelA, labelB, outdir):
     if texrc != 0:
         print("****tex fail****")
 
+def makedocx(pdflist, dirA, dirB, labelA, labelB, outdir):
+    import docx
+
+    document = docx.Document()
+
+    document.add_heading('rocFFT benchmarks', 0)
+
+    document.add_paragraph('An introductory paragraph')
+    
+    for i in range(len(pdflist)):
+        dimension = i + 1
+        print(dimension)
+        document.add_heading('Dimension ' + str(dimension), level=1)
+        for outpdf, caption in pdflist[i]:
+            print(outpdf, caption)
+            document.add_picture(os.path.join(outdir,outpdf), width=docx.shared.Inches(4))
+            document.add_paragraph(caption)
+                         
+    document.save(os.path.join(outdir,'figs.docx'))
+    
 if __name__ == "__main__":
     main(sys.argv[1:])
                         
