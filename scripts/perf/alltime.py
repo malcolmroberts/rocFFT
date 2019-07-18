@@ -40,6 +40,7 @@ def main(argv):
     datatype = "time"
     shortrun = False
     docformat = "pdf"
+    devicenum = 0
     
     try:
         opts, args = getopt.getopt(argv,"hA:f:B:Tt:a:b:o:S:s")
@@ -104,7 +105,26 @@ def main(argv):
     
     if not os.path.exists(outdir):
         os.makedirs(outdir)
-    
+
+    if not dryrun:
+        import getspecs
+        specs = "Host info:\n"
+        specs += "\tcpu info: " + getspecs.getcpu() + "\n"
+        specs += "\tram: " + getspecs.getram() + "\n"
+        specs += "\tdistro: " + getspecs.getdistro() + "\n"
+        specs += "\tkernel version: " + getspecs.getkernel() + "\n"
+        specs += "\trocm version: " + getspecs.getrocmversion() + "\n"
+        specs += "Device info:\n"
+        specs += "\tdevice: " + getspecs.getdeviceinfo(devicenum) + "\n"
+        specs += "\tvbios version: " + getspecs.getvbios(devicenum) + "\n"
+        specs += "\tvram: " + getspecs.getvram(devicenum) + "\n"
+        specs += "\tperformance level: " + getspecs.getperflevel(devicenum) + "\n"
+        specs += "\tsystem clock: " + getspecs.getsclk(devicenum) + "\n"
+        specs += "\tmemory clock: " + getspecs.getmclk(devicenum) + "\n"
+
+        with open(os.path.join(outdir, "specs.txt"), "w+") as f:
+            f.write(specs)
+        
     pdflist = []
     for dimension in 1, 2, 3:
         pdflist.append([])
@@ -166,7 +186,7 @@ def main(argv):
                                         cmd.append("-Y")
                                         cmd.append(str(maxsize))
 
-                                    if dimension > 2: # FIXME: add ratios
+                                    if dimension > 2:
                                         cmd.append("-z")
                                         cmd.append(str(2 * ratio[1]))
                                         cmd.append("-Z")
@@ -330,6 +350,19 @@ def maketex(pdflist, dirA, dirB, labelA, labelB, outdir):
         texstring += labelB +" &\\url{"+ dirB+"} \\\\\n"
     texstring += "\\end{tabular}"
 
+    texstring += "\n\n"
+    
+    specfilename = os.path.join(outdir, "specs.txt")
+    if os.path.isfile(specfilename):
+        specs = ""
+        with open(specfilename, "r") as f:
+            specs = f.read()
+
+        for line in specs.split("\n"):
+            texstring += "\\noindent " + line + "\n\n"
+
+        texstring += "\n"
+        
     for i in range(len(pdflist)):
         dimension = i + 1
         print(dimension)
@@ -376,6 +409,14 @@ def makedocx(pdflist, dirA, dirB, labelA, labelB, outdir):
     document.add_heading('rocFFT benchmarks', 0)
 
     document.add_paragraph('An introductory paragraph')
+
+    specfilename = os.path.join(outdir, "specs.txt")
+    if os.path.isfile(specfilename):
+        with open(specfilename, "r") as f:
+            specs = f.read()
+        for line in specs.split("\n"):
+            document.add_paragraph(line)
+
     
     for i in range(len(pdflist)):
         dimension = i + 1
