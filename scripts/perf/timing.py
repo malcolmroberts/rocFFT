@@ -27,10 +27,11 @@ Usage:
 \t\t-x <int>    minimum problem size in x direction
 \t\t-X <int>    maximum problem size in x direction
 \t\t-b <int>    batch size
+\t\t-g <int>    device number
 \t\t-t <string> data type: time or gflops (default: time)'''
 
 def runcase(workingdir, xval, yval, zval, direction, rcfft, inplace, ntrial, precision, nbatch,
-            datatype, 
+            datatype, devicenum,
             logfilename):
     progname = "rocfft-rider"
     prog = os.path.join(workingdir, progname)
@@ -58,7 +59,11 @@ def runcase(workingdir, xval, yval, zval, direction, rcfft, inplace, ntrial, pre
 
     cmd.append("-b")
     cmd.append(str(nbatch))
-        
+
+    cmd.append("--device")
+    cmd.append(str(devicenum))
+
+    
     ttype = -1
     itype = ""
     otype = ""
@@ -159,9 +164,10 @@ def main(argv):
     nbatch = 1
     datatype = "time"
     radix = 2
+    devicenum = 0
     
     try:
-        opts, args = getopt.getopt(argv,"hb:d:D:IN:o:Rt:w:x:X:y:Y:z:Z:f:r:")
+        opts, args = getopt.getopt(argv,"hb:d:D:IN:o:Rt:w:x:X:y:Y:z:Z:f:r:g:")
     except getopt.GetoptError:
         print("error in parsing arguments.")
         print(usage)
@@ -221,6 +227,8 @@ def main(argv):
                 print(usage)
                 sys.exit(1)
             datatype = arg
+        elif opt in ("-g"):
+            devicenum = int(arg)
 
             
     print("workingdir: "+ workingdir)
@@ -238,7 +246,8 @@ def main(argv):
     print("batch-size: " + str(nbatch))
     print("data type: " + datatype)
     print("radix: " + str(radix))
-
+    print("device number: " + str(devicenum))
+    
     progname = "rocfft-rider"
     prog = os.path.join(workingdir, progname)
     if not os.path.isfile(prog):
@@ -256,7 +265,7 @@ def main(argv):
             outfile.write(str(xval))
             logfilename = outfilename + ".log"
             seconds = runcase(workingdir, xval, yval, zval, direction, rcfft, inplace, ntrial,
-                              precision, nbatch, datatype, logfilename)
+                              precision, nbatch, datatype, devicenum, logfilename)
             #print(seconds)
             outfile.write("\t")
             outfile.write(str(len(seconds)))

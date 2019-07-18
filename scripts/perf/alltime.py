@@ -26,6 +26,7 @@ Usage:
 \t\t-s          short run
 \t\t-T          do not perform FFTs; just generate document
 \t\t-f          document format: pdf (default) or docx
+\t\t-g          device number (default: 0)
 '''
 
 def main(argv):
@@ -43,7 +44,7 @@ def main(argv):
     devicenum = 0
     
     try:
-        opts, args = getopt.getopt(argv,"hA:f:B:Tt:a:b:o:S:s")
+        opts, args = getopt.getopt(argv,"hA:f:B:Tt:a:b:o:S:sg:")
     except getopt.GetoptError:
         print("error in parsing arguments.")
         print(usage)
@@ -66,6 +67,8 @@ def main(argv):
             dryrun = True
         elif opt in ("-s"):
             shortrun = True
+        elif opt in ("-g"):
+            devicenum = int(arg)
         elif opt in ("-S"):
             if int(arg) == 0:
                 speedup = False
@@ -102,6 +105,7 @@ def main(argv):
     if shortrun:
         print("short run")
     print("output format: " + docformat)
+    print("device number: " + str(devicenum))
     
     if not os.path.exists(outdir):
         os.makedirs(outdir)
