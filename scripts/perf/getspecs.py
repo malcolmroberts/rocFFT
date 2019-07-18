@@ -59,6 +59,7 @@ def getdistro():
         if line.startswith(searchstr):
             return line[len(searchstr):].strip()
 
+# Get the version number for rocm        
 def getrocmversion():
     import subprocess, tempfile
     cmd = ["apt", "show", "rocm-libs"]
@@ -103,6 +104,7 @@ def getdeviceinfo(devicenum):
     cout = fout.read()
     searchstr = "-display"
     indices = []
+    name = ""
     for idx, line in enumerate(cout.split("\n")):
         if re.search(searchstr, line) != None:
             indices.append(idx)
@@ -111,7 +113,25 @@ def getdeviceinfo(devicenum):
             searchstr = "product:"
             if re.search(searchstr, line) != None:
                 pos = line.find(":")
-                return line[pos+1:].strip()
+                name += line[pos+1:].strip()
+    # We also use rocm-smi to get more info
+    cmd = ["lshw", "-C", "video"]
+    cmd = ["/opt/rocm/bin/rocm-smi", "-i", "-d", str(devicenum)]
+    fout = tempfile.TemporaryFile(mode="w+")
+    ferr = tempfile.TemporaryFile(mode="w+")
+    p = subprocess.Popen(cmd,stdout=fout, stderr=ferr)
+    p.wait()
+    fout.seek(0)
+    cout = fout.read()
+    searchstr = "GPU["+str(devicenum)+"]"
+    for line in cout.split("\n"):
+        if line.startswith(searchstr):
+            line = line[len(searchstr):].strip()
+            line = re.sub(":", "", line)
+            line = re.sub("GPU ID", "", line)
+            name += " " + line.strip()
+            
+    return name
     
 # Get the vram for the specified device        
 def getvram(devicenum):

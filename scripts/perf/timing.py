@@ -30,7 +30,7 @@ Usage:
 \t\t-t <string> data type: time or gflops (default: time)'''
 
 def runcase(workingdir, xval, yval, zval, direction, rcfft, inplace, ntrial, precision, nbatch,
-            datatype,
+            datatype, 
             logfilename):
     progname = "rocfft-rider"
     prog = os.path.join(workingdir, progname)
@@ -158,9 +158,10 @@ def main(argv):
     precision = "float"
     nbatch = 1
     datatype = "time"
+    radix = 2
     
     try:
-        opts, args = getopt.getopt(argv,"hb:d:D:IN:o:Rt:w:x:X:y:Y:z:Z:f:")
+        opts, args = getopt.getopt(argv,"hb:d:D:IN:o:Rt:w:x:X:y:Y:z:Z:f:r:")
     except getopt.GetoptError:
         print("error in parsing arguments.")
         print(usage)
@@ -206,6 +207,8 @@ def main(argv):
             zmax = int(arg)
         elif opt in ("-b"):
             nbatch = int(arg)
+        elif opt in ("-r"):
+            radix = int(arg)
         elif opt in ("-f"):
             if arg not in ["float", "double"]:
                 print("precision must be float or double")
@@ -234,6 +237,7 @@ def main(argv):
     print("in-place? " + str(inplace))
     print("batch-size: " + str(nbatch))
     print("data type: " + datatype)
+    print("radix: " + str(radix))
 
     progname = "rocfft-rider"
     prog = os.path.join(workingdir, progname)
@@ -247,7 +251,7 @@ def main(argv):
         xval = xmin
         yval = ymin if dimension > 1 else 1
         zval = zmin if dimension > 2 else 1
-        while(xval <= xmax and yval < ymax and zval < zmax):
+        while(xval <= xmax and yval <= ymax and zval <= zmax):
             print(xval)
             outfile.write(str(xval))
             logfilename = outfilename + ".log"
@@ -260,11 +264,11 @@ def main(argv):
                 outfile.write("\t")
                 outfile.write(str(second))
             outfile.write("\n")
-            xval *= 2
+            xval *= radix
             if dimension > 1:
-                yval *= 2
+                yval *= radix
             if dimension > 2:
-                zval *= 2
+                zval *= radix
         
     
     
