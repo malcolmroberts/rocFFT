@@ -55,12 +55,12 @@ basicstyle=\ttfamily\small,
 \section{Introduction}
 
 \texttt{rocFFT} is a software library, written in HIP, for computing
-Fast Fourier Transforms (FFT) on the GPU. It is part of AMD's software
-ecosystem based on \href{https://github.com/RadeonOpenCompute}{ROCm}.
+Fast Fourier Transforms (FFT) on the GPU. It is part of AMD's
+\href{https://github.com/RadeonOpenCompute}{ROCm} software ecosystem.
 
 \section{Installation}
 
-\texttt{rocFFT} runs on Linux, and requires a HIP compiler, such as
+\texttt{rocFFT} runs on Linux, and requires a HIP compiler such as
 \texttt{hcc}.
 
 Pre-built binaries can be installed via \texttt{.deb} or \texttt{.rpm}
@@ -116,7 +116,7 @@ which creates a \lstinline{rocfft_plan}, with the following properties:
 \begin{itemize}
 \item \lstinline{placement}: in-place or out-of-place
 \item \lstinline{transform_type}: the transform
-  direction and if the tranform is complex/complex or real/complex,
+  direction and if the tranform is complex to complex or real to complex,
 \item \lstinline{precision}: allows for single- or
   double-precision transforms,
 \item \lstinline{dimensions}: the dimension (=1, 2, or 3) of the
@@ -144,7 +144,7 @@ buffers, and \lstinline{info} is a nullable parameter which allows one
 to specify work buffers and stream information.  It's a generally good
 idea to make use of a \lstinline{rocfft_execution_info} when executing
 plans, as some transforms require work memory and will fail if this is
-not provided via a \lstinline{rocfft_execution_info}.
+not provided.
 
 \subsubsection{Data layout}
 \label{ssdatalayout}
@@ -160,9 +160,9 @@ for(int j = 0; j < Ny; j++)
 If one desires row-major ordering, one can simply reverse the
 dimensions of the plan, eg specifying a
 $\text{\lstinline{Nx}}\times\text{\lstinline{Ny}}$ transform by
-passing \lstinline|{Ny, Nx}| (instead of \lstinline|{Nx, Ny}|) for the
+passing \lstinline|{Ny,Nx}| (instead of \lstinline|{Nx,Ny}|) for the
 \lstinline|lengths| arguments.  With this convention, which we will
-use in the document, the data is accessed via 
+use in this document, the data is accessed via 
 \begin{lstlisting}
 for(int i = 0; i < Nx; i++)
   for(int j = 0; j < Ny; j++)
@@ -180,23 +180,23 @@ status = rocfft_plan_create( &forward_plan,
                        rocfft_placement_inplace,
                        rocfft_transform_type_complex_forward,
                        rocfft_precision_double,
-                       1, // Dimensions
-                       &N, // lengths
-                       1, // Number of transforms
+                       1,     // Dimensions
+                       &N,    // lengths
+                       1,     // Number of transforms
                        NULL); // Description
 rocfft_execute( forward_plan,
                 (void**)&x, // in_buffer
-                NULL, // out_buffer
-                NULL); // execution info
+                NULL,       // out_buffer
+                NULL);      // execution info
 rocfft_plan_destroy(forward_plan);
 rocfft_cleanup();
 \end{lstlisting}
-The \lstinline{rocfft_setup()} and \lstinline{rocfft_cleanup()}
+Note that \lstinline{rocfft_setup()} and \lstinline{rocfft_cleanup()}
 functions need only be called once per program.
 
 
 \subsubsection{Using \lstinline{rocfft_execution_info}}
-If we set \lstinline{size_t N=11} in the above example, the transform
+If we set \lstinline{N=11} in the above example, the transform
 must be performed via Bluestein's algorithm and requires extra work
 memory.  This is passed to \lstinline{rocfft_execute} via the
 execution info, as shown below:
@@ -227,8 +227,8 @@ specify advanced features of the transform.  It is created with
   \lstinline{rocfft_plan_description_set_scale_double}
 \item Set the device to be used via
   \lstinline{rocfft_plan_description_set_devices}
-\item And set the data layout, including strides, offsets, distances
-  between batches, and input/output type, via 
+\item Set the data layout, including strides, offsets, distances
+  between batches, and input/output type, via
   \lstinline{rocfft_plan_description_set_data_layout}.
 \end{itemize}
 
@@ -236,7 +236,7 @@ specify advanced features of the transform.  It is created with
 If we wish to compute a 1D, double-precision real-to-complex, in-place
 transform of length \lstinline{size_t N}, the input consists of
 \lstinline{N} \lstinline{double}s are mapped to
-$\text{\lstinline{N}}/2 + 1$ complex \lstinline{double}s (the division
+$\text{\lstinline{N/2+1}}$ complex \lstinline{double}s (the division
 is rounded down).  For in-place transforms, the device buffer must be
 large enough to accomadate the size of the output
 data. \lstinline{N=8}, the output is \lstinline{5} complex
@@ -249,9 +249,9 @@ status = rocfft_plan_create( &forward_plan,
                        rocfft_placement_inplace,
                        rocfft_transform_type_complex_forward,
                        rocfft_precision_double,
-                       1, // Dimensions
-                       &N, // lengths
-                       1, // Number of transforms
+                       1,      // Dimensions
+                       &N,     // lengths
+                       1,      // Number of transforms
                        NULL ); // Description
 \end{lstlisting}
 Real/complex transforms are executed the same way as with
@@ -268,10 +268,10 @@ status = rocfft_plan_create( &forward_plan,
                        rocfft_placement_inplace,
                        rocfft_transform_type_real_forward,
                        rocfft_precision_double,
-                       2, // Dimensions
+                       2,       // Dimensions
                        lengths, // lengths
-                       1, // Number of transforms
-                       NULL ); // Description
+                       1,       // Number of transforms
+                       NULL );  // Description
 \end{lstlisting}
 which, as described in section~\ref{ssdatalayout}, uses row-major
 ordering.
@@ -386,7 +386,7 @@ for the 1D case.
 \subsubsection{2D real}
 2D real-to-complex transforms take
 $\text{\lstinline{Nx}}\times{}\text{\lstinline{Ny}}$ real values and
-produce $\text{\lstinline{Nx}}\times{}\text{\lstinline{Ny/2+1}}$
+produce $\text{\lstinline{Nx}}\times{}(\text{\lstinline{Ny/2+1}})$
 complex values.  For in-place transforms, the input data at index
 $\(\text{\lstinline{i}},\text{\lstinline{j}}\)$ can be found at
 position \lstinline{i*2*(Ny/2+1)+j}, ie the stride is
@@ -400,7 +400,7 @@ takes 3 lengths.
 The real-to-complex transform maps
 $\text{\lstinline{Nx}}\times{}\text{\lstinline{Ny}}\times{}\text{\lstinline{Nz}}$
 real values to
-$\text{\lstinline{Nx}}\times{}\text{\lstinline{Ny}}\times{}\text{\lstinline{Nz/2+1}}$
+$\text{\lstinline{Nx}}\times{}\text{\lstinline{Ny}}\times{}(\text{\lstinline{Nz/2+1}})$
 complex values.  For in-place transforms, the input data at index
 $\(\text{\lstinline{i}},\text{\lstinline{j}},\text{\lstinline{k}}\)$
 can be found at position \lstinline{(i*Ny+j)*2*(Nz/2+1)+k}, For
