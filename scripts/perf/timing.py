@@ -31,8 +31,7 @@ Usage:
 \t\t-t <string> data type: time or gflops (default: time)'''
 
 def runcase(workingdir, xval, yval, zval, direction, rcfft, inplace, ntrial, precision, nbatch,
-            datatype, devicenum,
-            logfilename):
+            datatype, devicenum, logfilename):
     progname = "rocfft-rider"
     prog = os.path.join(workingdir, progname)
     
@@ -95,19 +94,21 @@ def runcase(workingdir, xval, yval, zval, direction, rcfft, inplace, ntrial, pre
     
     print(cmd)
 
-    print(logfilename)
-    fout = open(logfilename, 'w+')
+    fout = tempfile.TemporaryFile(mode="w+")
     proc = subprocess.Popen(cmd, cwd=os.path.join(workingdir,"..",".."), stdout=fout, stderr=fout,
                             env=os.environ.copy())
     proc.wait()
     rc = proc.returncode
     vals = []
+
+    fout.seek(0)
+
+    cout = fout.read()
+    logfile = open(logfilename, "a")
+    logfile.write(cout)
+    logfile.close()
     
     if rc == 0:
-        
-        fout.seek(0)
-        cout = fout.read()
-
         # ferr.seek(0)
         # cerr = ferr.read()
         if datatype == "time":
@@ -254,30 +255,40 @@ def main(argv):
         print("**** Error: unable to find " + prog)
         sys.exit(1)
 
+    logfilename = outfilename + ".log"
+    print("log filename: "  + logfilename)
+    logfile = open(logfilename, "w+")
+    metadatastring = "# " + " ".join(sys.argv)  + "\n"
+    logfile.write(metadatastring)
+    logfile.close()
 
-    with open(outfilename, 'w+') as outfile:
-        # TODO: add metadata to output file
-        xval = xmin
-        yval = ymin if dimension > 1 else 1
-        zval = zmin if dimension > 2 else 1
-        while(xval <= xmax and yval <= ymax and zval <= zmax):
-            print(xval)
+    outfile = open(outfilename, "w+")
+    outfile.write(metadatastring)
+    outfile.close()
+
+    xval = xmin
+    yval = ymin if dimension > 1 else 1
+    zval = zmin if dimension > 2 else 1
+    while(xval <= xmax and yval <= ymax and zval <= zmax):
+        print(xval)
+
+
+        seconds = runcase(workingdir, xval, yval, zval, direction, rcfft, inplace, ntrial,
+                          precision, nbatch, datatype, devicenum, logfilename)
+        #print(seconds)
+        with open(outfilename, 'a') as outfile:
             outfile.write(str(xval))
-            logfilename = outfilename + ".log"
-            seconds = runcase(workingdir, xval, yval, zval, direction, rcfft, inplace, ntrial,
-                              precision, nbatch, datatype, devicenum, logfilename)
-            #print(seconds)
             outfile.write("\t")
             outfile.write(str(len(seconds)))
             for second in seconds:
                 outfile.write("\t")
                 outfile.write(str(second))
             outfile.write("\n")
-            xval *= radix
-            if dimension > 1:
-                yval *= radix
-            if dimension > 2:
-                zval *= radix
+        xval *= radix
+        if dimension > 1:
+            yval *= radix
+        if dimension > 2:
+            zval *= radix
         
     
     
