@@ -116,7 +116,7 @@ which creates a \lstinline{rocfft_plan}, with the following properties:
 \begin{itemize}
 \item \lstinline{placement}: in-place or out-of-place
 \item \lstinline{transform_type}: the transform
-  direction and if the tranform is complex to complex or real to complex,
+  direction and if the transform is complex to complex or real to complex,
 \item \lstinline{precision}: allows for single- or
   double-precision transforms,
 \item \lstinline{dimensions}: the dimension (=1, 2, or 3) of the
@@ -238,7 +238,7 @@ transform of length \lstinline{size_t N}, the input consists of
 \lstinline{N} \lstinline{double}s are mapped to
 $\text{\lstinline{N/2+1}}$ complex \lstinline{double}s (the division
 is rounded down).  For in-place transforms, the device buffer must be
-large enough to accomadate the size of the output
+large enough to accommodate the size of the output
 data. \lstinline{N=8}, the output is \lstinline{5} complex
 values, which is stored in \lstinline{10} real values.
 
@@ -257,9 +257,9 @@ status = rocfft_plan_create( &forward_plan,
 Real/complex transforms are executed the same way as with
 complex/complex transforms.
 
-\subsubsection{Multi-dimensional tranforms}
+\subsubsection{Multi-dimensional transforms}
 
-For 2D complex-complex ransforms of size
+For 2D complex-complex transforms of size
 $\text{\lstinline{Nx}}\times\text{\lstinline{Ny}}$, we create a plan
 as below:
 \begin{lstlisting}
@@ -585,4 +585,6 @@ subdirectory.
 %%  LocalWords:  subdirectory hipfftDoubleComplex hipfftHandle rc Nx
 %%  LocalWords:  hipfftResult hipfftCreate hipfftPlan hipfftExecZ Ny
 %%  LocalWords:  hipfftDestroy hipfftExecC hipfftComplex hipfftExecD
-%%  LocalWords:  hipfftExecR ie Nz
+%%  LocalWords:  hipfftExecR ie Nz rocfft const nullable Fortran eg
+%%  LocalWords:  clFFT inplace Bluestein's workmem hipMalloc worksize
+%%  LocalWords:  hipFree Multi MKL cuFFT
