@@ -54,13 +54,14 @@ basicstyle=\ttfamily\small,
 
 \section{Introduction}
 
-\texttt{rocFFT} is a software library, written in HIP, for computing
-Fast Fourier Transforms (FFT) on the GPU. It is part of AMD's
-\href{https://github.com/RadeonOpenCompute}{ROCm} software ecosystem.
+\texttt{rocFFT} is an open-source software library written in HIP, for
+computing Fast Fourier Transforms (FFT) on the GPU. It is part of
+AMD's \href{https://github.com/RadeonOpenCompute}{ROCm} software
+ecosystem.
 
 \section{Installation}
 
-\texttt{rocFFT} runs on Linux, and requires a HIP compiler such as
+\texttt{rocFFT} runs on Linux and requires a HIP compiler such as
 \texttt{hcc}.
 
 Pre-built binaries can be installed via \texttt{.deb} or \texttt{.rpm}
@@ -128,7 +129,7 @@ which creates a \lstinline{rocfft_plan}, with the following properties:
   working memory and data layout options.
 \end{itemize}
 \lstinline{rocfft_plan_create} returns a \lstinline{rocfft_status},
-which is set to \lstinline{rocfft_status_success} if no errors were
+which is set to \lstinline{rocfft_status_success} if no errors are
 encountered.  Plans are destroyed with
 \lstinline{rocfft_plan_destroy}.  Plans are executed with
 \begin{lstlisting}
@@ -149,7 +150,7 @@ not provided.
 \subsubsection{Data layout}
 \label{ssdatalayout}
 The data is column-major (``\texttt{Fortran}'') ordered, matching
-\texttt{clFFT}.  For example, 2D data for a transform of size
+\texttt{clFFT}.  For example, with 2D data for a transform of size
 $\text{\lstinline{Nx}}\times\text{\lstinline{Ny}}$, one accesses the
 data via
 \begin{lstlisting}
@@ -234,9 +235,9 @@ specify advanced features of the transform.  It is created with
 
 \subsubsection{Simple 1D real-to-complex example}
 If we wish to compute a 1D, double-precision real-to-complex, in-place
-transform of length \lstinline{size_t N}, the input consists of
+transform of length \lstinline{N}, the input consists of
 \lstinline{N} \lstinline{double}s are mapped to
-$\text{\lstinline{N/2+1}}$ complex \lstinline{double}s (the division
+$\text{\lstinline{N/2+1}}$ complex \lstinline{double}s (division
 is rounded down).  For in-place transforms, the device buffer must be
 large enough to accommodate the size of the output
 data. \lstinline{N=8}, the output is \lstinline{5} complex
@@ -247,7 +248,7 @@ below:
 \begin{lstlisting}
 status = rocfft_plan_create( &forward_plan,
                        rocfft_placement_inplace,
-                       rocfft_transform_type_complex_forward,
+                       rocfft_transform_type_real_forward,
                        rocfft_precision_double,
                        1,      // Dimensions
                        &N,     // lengths
@@ -266,7 +267,7 @@ as below:
 size_t lengths[2] = {Ny, Nx};
 status = rocfft_plan_create( &forward_plan,
                        rocfft_placement_inplace,
-                       rocfft_transform_type_real_forward,
+                       rocfft_transform_type_complex_forward,
                        rocfft_precision_double,
                        2,       // Dimensions
                        lengths, // lengths
@@ -298,7 +299,7 @@ are created by passing \lstinline|size_t lengths[3]={Nz, Ny, Nx}| to
 \lstinline{rocfft_plan_create}.  Real-to-complex transforms map
 $\text{\lstinline{Nx}}\times\text{\lstinline{Ny}}\times\text{\lstinline{Nz}}$
 real values to
-$\text{\lstinline{Nx}}\times\text{\lstinline{Ny}}\times\text{\lstinline{Nz/2+1}}$
+$\text{\lstinline{Nx}}\times\text{\lstinline{Ny}}\times(\text{\lstinline{Nz/2+1}})$
 complex values.  In-place transforms are padded in a fashion similar
 to the 2D case, with input data accessed via
 
@@ -330,7 +331,7 @@ Sample code is given in the \url{clients/samples/hipfft} subdirectory,
 with specific examples discussed below.
 
 \subsubsection{1D complex}
-For a 1D complex in-place transform, allocates
+For a 1D complex in-place transform, one allocates
 \lstinline{hipfftDoubleComplex* x} on the device, initializes the data
 on the device, and creates and executes the plan via:
 \begin{lstlisting}
