@@ -1,4 +1,4 @@
-\documentclass[12pt]{article}
+\documentclass[10pt]{article}
 \usepackage{hyperref}
 
 \usepackage{graphicx}
@@ -87,11 +87,238 @@ also take care of dependencies on supported Linux distributions.
 
 \section{Usage}
 
+\subsection{rocFFT}
+
+In order to use the \texttt{rocFFT} interface one must:
+\begin{enumerate}
+\item Initialize \texttt{rocFFT} 
+\item Create a plan
+\item Execute the plan
+\item Destroy the plan
+\item Clean up \texttt{rocFFT}
+\end{enumerate}
+Sample code is given in the \url{docs/samples} subdirectory, with
+specific examples discussed below.
+
+Plans are created with the function
+\begin{lstlisting}
+rocfft_status rocfft_plan_create(
+        rocfft_plan*                  plan,
+        rocfft_result_placement       placement,
+        rocfft_transform_type         transform_type,
+        rocfft_precision              precision,
+        size_t                        dimensions,
+        const size_t*                 lengths,
+        size_t                        number_of_transforms,
+        const rocfft_plan_description description );
+\end{lstlisting}
+which creates a \lstinline{rocfft_plan}, with the following properties:
+\begin{itemize}
+\item \lstinline{placement}: in-place or out-of-place
+\item \lstinline{transform_type}: the transform
+  direction and if the tranform is complex/complex or real/complex,
+\item \lstinline{precision}: allows for single- or
+  double-precision transforms,
+\item \lstinline{dimensions}: the dimension (=1, 2, or 3) of the
+  transform,
+\item \lstinline{lengths}: the length of the transform in each dimension
+\item \lstinline{number_of_transforms}: the number of transforms to be
+  computed in batch
+\item \lstinline{description}: additional plan parameters, such as
+  working memory and data layout options.
+\end{itemize}
+\lstinline{rocfft_plan_create} returns a \lstinline{rocfft_status},
+which is set to \lstinline{rocfft_status_success} if no errors were
+encountered.  Plans are destroyed with
+\lstinline{rocfft_plan_destroy}.  Plans are executed with
+\begin{lstlisting}
+rocfft_status rocfft_execute(const rocfft_plan     plan,
+                             void*          in_buffer[],
+                             void*          out_buffer[],
+                             rocfft_execution_info info);
+\end{lstlisting}
+where \lstinline{plan} was created with
+\lstinline{rocfft_plan_create}, \lstinline{in_buffer} and
+\lstinline{out_buffer} are pointers to the device input and output
+buffers, and \lstinline{info} is a nullable parameter which allows one
+to specify work buffers and stream information.  It's a generally good
+idea to make use of a \lstinline{rocfft_execution_info} when executing
+plans, as some transforms require work memory and will fail if this is
+not provided via a \lstinline{rocfft_execution_info}.
+
+\subsubsection{Data layout}
+\label{ssdatalayout}
+The data is column-major (``\texttt{Fortran}'') ordered, matching
+\texttt{clFFT}.  For example, 2D data for a transform of size
+$\text{\lstinline{Nx}}\times\text{\lstinline{Ny}}$, one accesses the
+data via
+\begin{lstlisting}
+for(int j = 0; j < Ny; j++)
+  for(int i = 0; i < Nx; i++)
+    // access data at j * Nx + i;
+\end{lstlisting}
+If one desires row-major ordering, one can simply reverse the
+dimensions of the plan, eg specifying a
+$\text{\lstinline{Nx}}\times\text{\lstinline{Ny}}$ transform by
+passing \lstinline|{Ny, Nx}| (instead of \lstinline|{Nx, Ny}|) for the
+\lstinline|lengths| arguments.  With this convention, which we will
+use in the document, the data is accessed via 
+\begin{lstlisting}
+for(int i = 0; i < Nx; i++)
+  for(int j = 0; j < Ny; j++)
+    // access data at i * Ny + j;
+\end{lstlisting}
+
+\subsubsection{Simple 1D complex-to-complex example}
+The code to compute a 1D, double-precision complex-to-complex in-place
+transform of length \lstinline{size_t N=8} on the device buffer
+\lstinline{x} is given below:
+\begin{lstlisting}
+rocfft_setup();
+rocfft_plan forward = NULL;
+status = rocfft_plan_create( &forward_plan,
+                       rocfft_placement_inplace,
+                       rocfft_transform_type_complex_forward,
+                       rocfft_precision_double,
+                       1, // Dimensions
+                       &N, // lengths
+                       1, // Number of transforms
+                       NULL); // Description
+rocfft_execute( forward_plan,
+                (void**)&x, // in_buffer
+                NULL, // out_buffer
+                NULL); // execution info
+rocfft_plan_destroy(forward_plan);
+rocfft_cleanup();
+\end{lstlisting}
+The \lstinline{rocfft_setup()} and \lstinline{rocfft_cleanup()}
+functions need only be called once per program.
+
+
+\subsubsection{Using \lstinline{rocfft_execution_info}}
+If we set \lstinline{size_t N=11} in the above example, the transform
+must be performed via Bluestein's algorithm and requires extra work
+memory.  This is passed to \lstinline{rocfft_execute} via the
+execution info, as shown below:
+\begin{lstlisting}
+rocfft_execution_info forward_info = NULL;
+rocfft_execution_info_create( &forward_info );
+void* forward_workmem = NULL;
+hipMalloc( &forward_workmem, forward_worksize );
+rocfft_execution_info_set_work_buffer( forward_info,
+                                       forward_workmem,
+                                       forward_worksize );
+rocfft_execute( forward_plan,
+                (void**)&x, NULL,
+                forward_info );
+hipFree( forward_workmem );
+\end{lstlisting}
+
+\subsubsection{Using \lstinline{rocfft_plan_description}}
+
+The structure \lstinline{rocfft_plan_description} can be used to
+specify advanced features of the transform.  It is created with
+\lstinline{rocfft_plan_description_create} and destroyed with
+\lstinline{rocfft_plan_description_destroy}.  Using
+\lstinline{rocfft_plan_description}, one can
+\begin{itemize}
+\item Set the normalization of the transform via
+  \lstinline{rocfft_plan_description_set_scale_float} or
+  \lstinline{rocfft_plan_description_set_scale_double}
+\item Set the device to be used via
+  \lstinline{rocfft_plan_description_set_devices}
+\item And set the data layout, including strides, offsets, distances
+  between batches, and input/output type, via 
+  \lstinline{rocfft_plan_description_set_data_layout}.
+\end{itemize}
+
+\subsubsection{Simple 1D real-to-complex example}
+If we wish to compute a 1D, double-precision real-to-complex, in-place
+transform of length \lstinline{size_t N}, the input consists of
+\lstinline{N} \lstinline{double}s are mapped to
+$\text{\lstinline{N}}/2 + 1$ complex \lstinline{double}s (the division
+is rounded down).  For in-place transforms, the device buffer must be
+large enough to accomadate the size of the output
+data. \lstinline{N=8}, the output is \lstinline{5} complex
+values, which is stored in \lstinline{10} real values.
+
+The plan creation is similar to the complex-to-complex case, as shown
+below:
+\begin{lstlisting}
+status = rocfft_plan_create( &forward_plan,
+                       rocfft_placement_inplace,
+                       rocfft_transform_type_complex_forward,
+                       rocfft_precision_double,
+                       1, // Dimensions
+                       &N, // lengths
+                       1, // Number of transforms
+                       NULL ); // Description
+\end{lstlisting}
+Real/complex transforms are executed the same way as with
+complex/complex transforms.
+
+\subsubsection{Multi-dimensional tranforms}
+
+For 2D complex-complex ransforms of size
+$\text{\lstinline{Nx}}\times\text{\lstinline{Ny}}$, we create a plan
+as below:
+\begin{lstlisting}
+size_t lengths[2] = {Ny, Nx};
+status = rocfft_plan_create( &forward_plan,
+                       rocfft_placement_inplace,
+                       rocfft_transform_type_real_forward,
+                       rocfft_precision_double,
+                       2, // Dimensions
+                       lengths, // lengths
+                       1, // Number of transforms
+                       NULL ); // Description
+\end{lstlisting}
+which, as described in section~\ref{ssdatalayout}, uses row-major
+ordering.
+
+For real-to-complex FFTs, the input consists of
+$\text{\lstinline{Nx}}\times\text{\lstinline{Ny}}$ real values which
+are transformed to
+$\text{\lstinline{Nx}}\times(\text{\lstinline{Ny/2+1}})$ complex
+values.  For in-place transforms, the input data must be formatted so
+that each row starts with \lstinline{Ny} contiguous real values, and
+each row must be able to contain \lstinline{Ny/2+1} complex values.
+That is, for in-place real-to-complex transforms, the data is accessed
+via
+\begin{lstlisting}
+int stride = 2 * (Ny / 2 + 1)
+for(int i = 0; i < Nx; i++)
+  for(int j = 0; j < Ny; j++)
+    // access data at i * stride + j;
+\end{lstlisting}
+
+3D complex transforms plans of size
+$\text{\lstinline{Nx}}\times\text{\lstinline{Ny}}\times\text{\lstinline{Nz}}$
+are created by passing \lstinline|size_t lengths[3]={Nz, Ny, Nx}| to
+\lstinline{rocfft_plan_create}.  Real-to-complex transforms map
+$\text{\lstinline{Nx}}\times\text{\lstinline{Ny}}\times\text{\lstinline{Nz}}$
+real values to
+$\text{\lstinline{Nx}}\times\text{\lstinline{Ny}}\times\text{\lstinline{Nz/2+1}}$
+complex values.  In-place transforms are padded in a fashion similar
+to the 2D case, with input data accessed via
+
+\begin{lstlisting}
+int stride = 2 * (Nz / 2 + 1)
+for(int i = 0; i < Nx; i++)
+  for(int j = 0; j < Ny; j++)
+    for(int k = 0; k < Nz; k++)
+      // access data at (i * Ny + j) * stride + k;
+\end{lstlisting}
+
+\subsection{hipFFT}
+
+
 The \texttt{hipFFT} interface to \texttt{rocFFT} provides an
 \texttt{FFTW}-like interface, with a simple interface for 1D, 2D, and
 3D FFTs, and an advanced interface for batched transforms which also
 allows for discontiguous data.  In-place and out-of-place transforms
-are supported.
+are supported.  The data ordering is \texttt{C}-style row-major, matching
+\texttt{FFTW}, \texttt{MKL}, and \texttt{cuFFT}.
 
 In order to use the \texttt{hipFFT} interface one must:
 \begin{enumerate}
@@ -102,7 +329,7 @@ In order to use the \texttt{hipFFT} interface one must:
 Sample code is given in the \url{clients/samples/hipfft} subdirectory,
 with specific examples discussed below.
 
-\subsection{1D complex}
+\subsubsection{1D complex}
 For a 1D complex in-place transform, allocates
 \lstinline{hipfftDoubleComplex* x} on the device, initializes the data
 on the device, and creates and executes the plan via:
@@ -132,7 +359,7 @@ equal, then the transform is in-place; otherwise, it is out-of-place.
 The direction of the transform is either \lstinline{HIPFFT_FORWARD=-1}
 or \lstinline{HIPFFT_BACKWARD=1}.
 
-\subsection{1D real}
+\subsubsection{1D real}
 
 For real-to-complex transforms, the transform type is
 \lstinline{HIPFFT_D2Z}, and the plan is executed with
@@ -145,7 +372,7 @@ backwards.  The transform takes \lstinline{Nx} real values to
 buffers large enough for both the input and the output, which means
 allocating \lstinline{2*(Nx/2+1)} real values.
 
-\subsection{2D complex}
+\subsubsection{2D complex}
 2D complex/complex transforms are created via
 \begin{lstlisting}
 hipfftPlan2d(&plan,      // plan handle
@@ -156,7 +383,7 @@ hipfftPlan2d(&plan,      // plan handle
 with the data in row-major order.  Executing the plan is the same as
 for the 1D case.
 
-\subsection{2D real}
+\subsubsection{2D real}
 2D real-to-complex transforms take
 $\text{\lstinline{Nx}}\times{}\text{\lstinline{Ny}}$ real values and
 produce $\text{\lstinline{Nx}}\times{}\text{\lstinline{Ny/2+1}}$
@@ -166,7 +393,7 @@ position \lstinline{i*2*(Ny/2+1)+j}, ie the stride is
 \lstinline{2*(Ny/2+1)}.  For out-of-place transforms, the input stride
 is just \lstinline{Ny}.
 
-\subsection{3D transforms}
+\subsubsection{3D transforms}
 3D transform plans are created with \lstinline{hipfftPlan3d}, which
 takes 3 lengths.
 
@@ -179,7 +406,170 @@ $\(\text{\lstinline{i}},\text{\lstinline{j}},\text{\lstinline{k}}\)$
 can be found at position \lstinline{(i*Ny+j)*2*(Nz/2+1)+k}, For
 out-of-place transforms the position is \lstinline{(i*Ny+j)*Nz+k}.
 
-\subsection{Batched transforms}
+\subsubsection{Batched transforms}
+
+The advanced interface allows for batched transforms, which is more
+efficient than repeatedly calling the basic interface when one has
+several small transforms to compute and a regular memory structure.
+Examples may be found in the \url{clients/samples/hipfft}
+subdirectory.
+
+
+\end{document}
+
+Additional information for plan execution can be passed via a
+\lstinline{rocfft_execution_info} structure.  It is generally advised
+to create this structure, as certain problems, such as prime-length
+transforms, require extra working memory; this memory is associated
+with an information structure.
+
+The data is column-major (``\texttt{Fortran}'') ordered, matching
+\texttt{clFFT}.  For example, 2D data for a transform of size
+$\text{\lstinline{Nx}}\times\text{\lstinline{Ny}}$, one accesses the
+data via
+\begin{lstlisting}
+for(int j = 0; j < Ny; j++)
+  for(int i = 0; i < Nx; i++)
+    // access data at j * Nx + i;
+\end{lstlisting}
+If one desires row-major ordering, one can simply reverse the
+dimensions of the plan, eg specifying a
+$\text{\lstinline{Nx}}\times\text{\lstinline{Ny}}$ transform by
+passing \lstinline|{Ny, Nx}| (instead of \lstinline|{Nx, Ny}|) for the
+\lstinline|lengths| arguments.  With this convention, which we will
+use in this document, the data is accessed via 
+\begin{lstlisting}
+for(int i = 0; i < Nx; i++)
+  for(int j = 0; j < Ny; j++)
+    // access data at i * Ny + j;
+\end{lstlisting}
+
+\subsubsection{Simple 1D complex-to-complex example}
+The code to compute a 1D, complex-to-complex in-place transform of
+length \lstinline{size_t N=8} on the device buffer \lstinline{x} is
+given below:
+\begin{lstlisting}
+rocfft_setup();
+rocfft_plan forward = NULL;
+status = rocfft_plan_create( &forward,
+                       rocfft_placement_inplace,
+                       rocfft_transform_type_complex_forward,
+                       rocfft_precision_single,
+                       1, // Dimensions
+                       &N, // lengths
+                       1, // Number of transforms
+                       NULL); // Description
+rocfft_execute( backward_plan,
+                (void**)&x, // in_buffer
+                NULL, // out_buffer
+                NULL); // execution info
+rocfft_plan_destroy(forward_plan);
+rocfft_cleanup();
+\end{lstlisting}
+The \lstinline{rocfft_setup()} and \lstinline{rocfft_cleanup()}
+functions need only be called once per program.
+
+
+\subsubsection{Using \lstinline{rocfft_plan_description}}
+
+
+
+\subsection{hipFFT}
+
+The \texttt{hipFFT} interface to \texttt{rocFFT} provides an
+\texttt{FFTW}-like interface, with a simple interface for 1D, 2D, and
+3D FFTs, and an advanced interface for batched transforms which also
+allows for discontiguous data.  In-place and out-of-place transforms
+are supported.  The data ordering is \texttt{C}-style row-major, matching
+\texttt{FFTW}, \texttt{MKL}, and \texttt{cuFFT}.
+
+In order to use the \texttt{hipFFT} interface one must:
+\begin{enumerate}
+\item Create a plan
+\item Execute the plan
+\item Destroy the plan
+\end{enumerate}
+Sample code is given in the \url{clients/samples/hipfft} subdirectory,
+with specific examples discussed below.
+
+\subsubsection{1D complex}
+For a 1D complex in-place transform, allocates
+\lstinline{hipfftDoubleComplex* x} on the device, initializes the data
+on the device, and creates and executes the plan via:
+\begin{lstlisting}
+hipfftHandle plan = NULL;
+hipfftResult rc   = HIPFFT_SUCCESS;
+rc                = hipfftCreate(&plan);
+assert(rc == HIPFFT_SUCCESS);
+rc = hipfftPlan1d(&plan,      // plan handle
+                  Nx,         // transform length
+                  HIPFFT_Z2Z, // transform type 
+                  1);         // batch size (deprecated)
+assert(rc == HIPFFT_SUCCESS);
+rc = hipfftExecZ2Z(plan,       // plan handle
+                   x,          // input data
+                   x,          // output data
+                   direction); // direction of transform
+assert(rc == HIPFFT_SUCCESS);
+hipfftDestroy(plan);
+\end{lstlisting}
+If one wants to perform a transform on \lstinline{float}s, one
+replaces \lstinline{HIPFFT_Z2Z} with \lstinline{HIPFFT_C2C},
+\lstinline{hipfftExecZ2Z} with \lstinline{hipfftExecC2C}, and declares
+\lstinline{x} to be a pointer to \lstinline{hipfftComplex}.  If the
+input data and output data arguments to \lstinline{hipfftExecZ2Z} are
+equal, then the transform is in-place; otherwise, it is out-of-place.
+The direction of the transform is either \lstinline{HIPFFT_FORWARD=-1}
+or \lstinline{HIPFFT_BACKWARD=1}.
+
+\subsubsection{1D real}
+
+For real-to-complex transforms, the transform type is
+\lstinline{HIPFFT_D2Z}, and the plan is executed with
+\lstinline{hipfftExecD2Z}, (\lstinline{HIPFFT_R2C} and
+\lstinline{hipfftExecR2C} for single-precision).  The direction is
+implied by the choice of execute function, with
+\lstinline{hipfftExecD2Z} forwards and \lstinline{hipfftExecZ2D}
+backwards.  The transform takes \lstinline{Nx} real values to
+\lstinline{Nx/2+1} complex values.  As usual, in-place transforms need
+buffers large enough for both the input and the output, which means
+allocating \lstinline{2*(Nx/2+1)} real values.
+
+\subsubsection{2D complex}
+2D complex/complex transforms are created via
+\begin{lstlisting}
+hipfftPlan2d(&plan,      // plan handle
+             Nx, Ny,     // transform lengths
+             HIPFFT_Z2Z, // transform type 
+             1);         // batch size (deprecated)
+\end{lstlisting}
+with the data in row-major order.  Executing the plan is the same as
+for the 1D case.
+
+\subsubsection{2D real}
+2D real-to-complex transforms take
+$\text{\lstinline{Nx}}\times{}\text{\lstinline{Ny}}$ real values and
+produce $\text{\lstinline{Nx}}\times{}\text{\lstinline{Ny/2+1}}$
+complex values.  For in-place transforms, the input data at index
+$\(\text{\lstinline{i}},\text{\lstinline{j}}\)$ can be found at
+position \lstinline{i*2*(Ny/2+1)+j}, ie the stride is
+\lstinline{2*(Ny/2+1)}.  For out-of-place transforms, the input stride
+is just \lstinline{Ny}.
+
+\subsubsection{3D transforms}
+3D transform plans are created with \lstinline{hipfftPlan3d}, which
+takes 3 lengths.
+
+The real-to-complex transform maps
+$\text{\lstinline{Nx}}\times{}\text{\lstinline{Ny}}\times{}\text{\lstinline{Nz}}$
+real values to
+$\text{\lstinline{Nx}}\times{}\text{\lstinline{Ny}}\times{}\text{\lstinline{Nz/2+1}}$
+complex values.  For in-place transforms, the input data at index
+$\(\text{\lstinline{i}},\text{\lstinline{j}},\text{\lstinline{k}}\)$
+can be found at position \lstinline{(i*Ny+j)*2*(Nz/2+1)+k}, For
+out-of-place transforms the position is \lstinline{(i*Ny+j)*Nz+k}.
+
+\subsubsection{Batched transforms}
 
 The advanced interface allows for batched transforms, which is more
 efficient than repeatedly calling the basic interface when one has
