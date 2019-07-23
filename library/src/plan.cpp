@@ -40,8 +40,7 @@
 #define VERSION_STRING (TO_STR(rocfft_version_major) "." \
                         TO_STR(rocfft_version_minor) "." \
                         TO_STR(rocfft_version_patch) "." \
-                        TO_STR(rocfft_version_tweak) "-" \
-			TO_STR(rocfft_version_commit_id))
+                        TO_STR(rocfft_version_tweak) )
 
 std::string PrintScheme(ComputeScheme cs)
 {
@@ -1247,7 +1246,8 @@ void TreeNode::RecursiveBuildTree()
         Build1D();
         break;
 
-    case 2: {
+    case 2:
+    {
         if(scheme == CS_KERNEL_TRANSPOSE)
             return;
 
@@ -1266,7 +1266,8 @@ void TreeNode::RecursiveBuildTree()
 
         switch(scheme)
         {
-        case CS_2D_RTRT: {
+        case CS_2D_RTRT:
+        {
             // first row fft
             TreeNode* row1Plan = TreeNode::CreateNode(this);
 
@@ -1330,7 +1331,8 @@ void TreeNode::RecursiveBuildTree()
             childNodes.push_back(trans2Plan);
         }
         break;
-        case CS_2D_RC: {
+        case CS_2D_RC:
+        {
             // row fft
             TreeNode* rowPlan = TreeNode::CreateNode(this);
 
@@ -1362,7 +1364,8 @@ void TreeNode::RecursiveBuildTree()
             childNodes.push_back(colPlan);
         }
         break;
-        case CS_KERNEL_2D_SINGLE: {
+        case CS_KERNEL_2D_SINGLE:
+        {
         }
         break;
 
@@ -1372,7 +1375,8 @@ void TreeNode::RecursiveBuildTree()
     }
     break;
 
-    case 3: {
+    case 3:
+    {
         if(MultiDimFuseKernelsAvailable)
         {
             // conditions to choose which scheme
@@ -1388,7 +1392,8 @@ void TreeNode::RecursiveBuildTree()
 
         switch(scheme)
         {
-        case CS_3D_RTRT: {
+        case CS_3D_RTRT:
+        {
             // 2d fft
             TreeNode* xyPlan = TreeNode::CreateNode(this);
 
@@ -1456,7 +1461,8 @@ void TreeNode::RecursiveBuildTree()
             childNodes.push_back(trans2Plan);
         }
         break;
-        case CS_3D_RC: {
+        case CS_3D_RC:
+        {
             // 2d fft
             TreeNode* xyPlan = TreeNode::CreateNode(this);
 
@@ -1490,7 +1496,8 @@ void TreeNode::RecursiveBuildTree()
             childNodes.push_back(zPlan);
         }
         break;
-        case CS_KERNEL_3D_SINGLE: {
+        case CS_KERNEL_3D_SINGLE:
+        {
         }
         break;
 
@@ -1561,7 +1568,8 @@ void TreeNode::TraverseTreeAssignBuffersLogicA(OperatingBuffer& flipIn,
 
     switch(scheme)
     {
-    case CS_REAL_TRANSFORM_USING_CMPLX: {
+    case CS_REAL_TRANSFORM_USING_CMPLX:
+    {
         assert(parent == nullptr);
         assert(childNodes.size() == 3);
 
@@ -1593,7 +1601,8 @@ void TreeNode::TraverseTreeAssignBuffersLogicA(OperatingBuffer& flipIn,
         childNodes[2]->obOut = obOut;
     }
     break;
-    case CS_REAL_TRANSFORM_EVEN: {
+    case CS_REAL_TRANSFORM_EVEN:
+    {
         assert(parent == nullptr);
 
         obIn  = OB_USER_IN;
@@ -1645,7 +1654,8 @@ void TreeNode::TraverseTreeAssignBuffersLogicA(OperatingBuffer& flipIn,
         }
     }
     break;
-    case CS_BLUESTEIN: {
+    case CS_BLUESTEIN:
+    {
         OperatingBuffer savFlipIn  = flipIn;
         OperatingBuffer savFlipOut = flipOut;
         OperatingBuffer savOutBuf  = obOutBuf;
@@ -1694,7 +1704,8 @@ void TreeNode::TraverseTreeAssignBuffersLogicA(OperatingBuffer& flipIn,
         obOutBuf = savOutBuf;
     }
     break;
-    case CS_L1D_TRTRT: {
+    case CS_L1D_TRTRT:
+    {
         childNodes[0]->obIn
             = (parent == nullptr)
                   ? ((placement == rocfft_placement_inplace) ? obOutBuf : OB_USER_IN)
@@ -1807,7 +1818,8 @@ void TreeNode::TraverseTreeAssignBuffersLogicA(OperatingBuffer& flipIn,
         }
     }
     break;
-    case CS_L1D_CC: {
+    case CS_L1D_CC:
+    {
         if((obIn == OB_UNINIT) && (obOut == OB_UNINIT))
         {
             if(parent == nullptr)
@@ -1845,7 +1857,8 @@ void TreeNode::TraverseTreeAssignBuffersLogicA(OperatingBuffer& flipIn,
         }
     }
     break;
-    case CS_L1D_CRT: {
+    case CS_L1D_CRT:
+    {
         if((obIn == OB_UNINIT) && (obOut == OB_UNINIT))
         {
             if(parent == nullptr)
@@ -1892,7 +1905,8 @@ void TreeNode::TraverseTreeAssignBuffersLogicA(OperatingBuffer& flipIn,
     }
     break;
     case CS_2D_RTRT:
-    case CS_3D_RTRT: {
+    case CS_3D_RTRT:
+    {
         childNodes[0]->obIn = (parent == nullptr)
                                   ? (placement == rocfft_placement_inplace) ? obOutBuf : OB_USER_IN
                                   : obOutBuf;
@@ -1921,7 +1935,8 @@ void TreeNode::TraverseTreeAssignBuffersLogicA(OperatingBuffer& flipIn,
     }
     break;
     case CS_2D_RC:
-    case CS_3D_RC: {
+    case CS_3D_RC:
+    {
         if(parent == nullptr)
             childNodes[0]->obIn = (placement == rocfft_placement_inplace) ? obOutBuf : OB_USER_IN;
         else
@@ -2055,7 +2070,8 @@ void TreeNode::TraverseTreeAssignParamsLogicA()
 
     switch(scheme)
     {
-    case CS_REAL_TRANSFORM_USING_CMPLX: {
+    case CS_REAL_TRANSFORM_USING_CMPLX:
+    {
         assert(childNodes.size() == 3);
         TreeNode* copyHeadPlan = childNodes[0];
         TreeNode* fftPlan      = childNodes[1];
@@ -2086,7 +2102,8 @@ void TreeNode::TraverseTreeAssignParamsLogicA()
         copyTailPlan->oDist     = oDist;
     }
     break;
-    case CS_REAL_TRANSFORM_EVEN: {
+    case CS_REAL_TRANSFORM_EVEN:
+    {
         assert(childNodes.size() == 2);
 
         if(direction == -1)
@@ -2139,7 +2156,8 @@ void TreeNode::TraverseTreeAssignParamsLogicA()
         }
     }
     break;
-    case CS_BLUESTEIN: {
+    case CS_BLUESTEIN:
+    {
         TreeNode* chirpPlan  = childNodes[0];
         TreeNode* padmulPlan = childNodes[1];
         TreeNode* fftiPlan   = childNodes[2];
@@ -2196,7 +2214,8 @@ void TreeNode::TraverseTreeAssignParamsLogicA()
         resmulPlan->oDist     = oDist;
     }
     break;
-    case CS_L1D_TRTRT: {
+    case CS_L1D_TRTRT:
+    {
         size_t biggerDim = childNodes[0]->length[0] > childNodes[0]->length[1]
                                ? childNodes[0]->length[0]
                                : childNodes[0]->length[1];
@@ -2397,7 +2416,8 @@ void TreeNode::TraverseTreeAssignParamsLogicA()
             trans3Plan->outStride.push_back(outStride[index]);
     }
     break;
-    case CS_L1D_CC: {
+    case CS_L1D_CC:
+    {
         TreeNode* col2colPlan = childNodes[0];
         TreeNode* row2colPlan = childNodes[1];
 
@@ -2523,7 +2543,8 @@ void TreeNode::TraverseTreeAssignParamsLogicA()
         }
     }
     break;
-    case CS_L1D_CRT: {
+    case CS_L1D_CRT:
+    {
         TreeNode* col2colPlan = childNodes[0];
         TreeNode* row2rowPlan = childNodes[1];
         TreeNode* transPlan   = childNodes[2];
@@ -2661,7 +2682,8 @@ void TreeNode::TraverseTreeAssignParamsLogicA()
         }
     }
     break;
-    case CS_2D_RTRT: {
+    case CS_2D_RTRT:
+    {
         TreeNode* row1Plan   = childNodes[0];
         TreeNode* trans1Plan = childNodes[1];
         TreeNode* row2Plan   = childNodes[2];
@@ -2720,7 +2742,8 @@ void TreeNode::TraverseTreeAssignParamsLogicA()
     }
     break;
     case CS_2D_RC:
-    case CS_2D_STRAIGHT: {
+    case CS_2D_STRAIGHT:
+    {
         TreeNode* rowPlan = childNodes[0];
         TreeNode* colPlan = childNodes[1];
 
@@ -2749,7 +2772,8 @@ void TreeNode::TraverseTreeAssignParamsLogicA()
         colPlan->oDist     = colPlan->iDist;
     };
     break;
-    case CS_3D_RTRT: {
+    case CS_3D_RTRT:
+    {
         TreeNode* xyPlan     = childNodes[0];
         TreeNode* trans1Plan = childNodes[1];
         TreeNode* zPlan      = childNodes[2];
@@ -2811,7 +2835,8 @@ void TreeNode::TraverseTreeAssignParamsLogicA()
     }
     break;
     case CS_3D_RC:
-    case CS_3D_STRAIGHT: {
+    case CS_3D_STRAIGHT:
+    {
         TreeNode* xyPlan = childNodes[0];
         TreeNode* zPlan  = childNodes[1];
 
