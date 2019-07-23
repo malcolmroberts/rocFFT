@@ -1662,11 +1662,11 @@ void TreeNode::TraverseTreeAssignBuffersLogicA(OperatingBuffer& flipIn,
         assert(childNodes.size() == 7);
 
         assert(childNodes[0]->scheme == CS_KERNEL_CHIRP);
-        childNodes[0]->obIn  = obIn;
+        childNodes[0]->obIn  = OB_TEMP_BLUESTEIN;
         childNodes[0]->obOut = OB_TEMP_BLUESTEIN;
 
         assert(childNodes[1]->scheme == CS_KERNEL_PAD_MUL);
-        childNodes[1]->obIn  = OB_TEMP_BLUESTEIN;
+        childNodes[1]->obIn  = obIn;
         childNodes[1]->obOut = OB_TEMP_BLUESTEIN;
 
         childNodes[2]->obIn  = OB_TEMP_BLUESTEIN;
@@ -1970,7 +1970,13 @@ void TreeNode::TraverseTreeAssignBuffersLogicA(OperatingBuffer& flipIn,
     // Assert that the kernel chain is connected
     for(int i = 1; i < childNodes.size(); ++i)
     {
-        assert(childNodes[i - 1]->obOut == childNodes[i]->obIn);
+      if( childNodes[i - 1]->scheme == CS_KERNEL_CHIRP) {
+	// The Bluestein algorithm uses a separate buffer which is
+	// convoluted with the input; the chain assumption isn't true here.
+	// NB: we assume that the CS_KERNEL_CHIRP is first in the chain.
+	continue;
+      }
+      assert(childNodes[i - 1]->obOut == childNodes[i]->obIn);
     }
 }
 
@@ -2270,8 +2276,11 @@ void TreeNode::TraverseTreeAssignParamsLogicA()
         }
         else
         {
-            assert((row1Plan->obOut == OB_USER_OUT) || (row1Plan->obOut == OB_TEMP_CMPLX_FOR_REAL)
-                   || (row1Plan->obOut == OB_TEMP_BLUESTEIN));
+	  // TODO: add documentation for assert.
+            assert( (row1Plan->obOut == OB_USER_IN)
+		   || (row1Plan->obOut == OB_USER_OUT)
+		   || (row1Plan->obOut == OB_TEMP_CMPLX_FOR_REAL)
+                   || (row1Plan->obOut == OB_TEMP_BLUESTEIN) );
 
             row1Plan->outStride.push_back(outStride[0]);
             row1Plan->outStride.push_back(outStride[0] * row1Plan->length[0]);
@@ -2434,8 +2443,10 @@ void TreeNode::TraverseTreeAssignParamsLogicA()
             // here we don't have B info right away, we get it through its parent
 
             // TODO: what is this assert for?
-            assert(parent->obOut == OB_USER_OUT || parent->obOut == OB_TEMP_CMPLX_FOR_REAL
-                   || parent->scheme == CS_REAL_TRANSFORM_EVEN);
+            assert( parent->obOut == OB_USER_IN
+		   || parent->obOut == OB_USER_OUT
+		   || parent->obOut == OB_TEMP_CMPLX_FOR_REAL
+                   || parent->scheme == CS_REAL_TRANSFORM_EVEN );
 
             // T-> B
             col2colPlan->inStride.push_back(inStride[0] * col2colPlan->length[1]);
