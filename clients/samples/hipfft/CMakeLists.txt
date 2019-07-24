@@ -10,6 +10,9 @@ find_package(rocfft)
 set( sample_list hipfft_1d_z2z hipfft_1d_d2z hipfft_2d_z2z hipfft_2d_d2z hipfft_3d_z2z
   hipfft_3d_d2z hipfft_planmany_2d_z2z hipfft_planmany_2d_r2c hipfft_setworkarea)
 
+
+set(CMAKE_CXX_FLAG = "${CMAKE_CXX_FLAG} -hc")
+
 foreach( sample ${sample_list} )
 
   add_executable( ${sample} ${sample}.cpp )
