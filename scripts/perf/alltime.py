@@ -26,6 +26,7 @@ Usage:
 \t\t-s          short run
 \t\t-T          do not perform FFTs; just generate document
 \t\t-f          document format: pdf (default) or docx
+\t\t-g          generate graphs via Asymptote: 0(default) or 1
 '''
 
 def main(argv):
@@ -41,9 +42,10 @@ def main(argv):
     shortrun = False
     docformat = "pdf"
     devicenum = 0
+    doAsy = True
     
     try:
-        opts, args = getopt.getopt(argv,"hA:f:B:Tt:a:b:o:S:s")
+        opts, args = getopt.getopt(argv,"hA:f:B:Tt:a:b:o:S:sg:")
     except getopt.GetoptError:
         print("error in parsing arguments.")
         print(usage)
@@ -66,6 +68,11 @@ def main(argv):
             dryrun = True
         elif opt in ("-s"):
             shortrun = True
+        elif opt in ("-g"):
+            if int(arg) == 0:
+                doAsy = False
+            if int(arg) == 1:
+                doAsy = True
         elif opt in ("-S"):
             if int(arg) == 0:
                 speedup = False
@@ -90,6 +97,11 @@ def main(argv):
         
     print("dirA: "+ dirA)
     print("labelA: "+ labelA)
+    if not binaryisok(dirA, "rocfft-rider"):
+        print("unable to find " + "rocfft-rider" + " in " + dirA)
+        print("please specify with -A")
+        sys.exit(1)
+        
     dirlist = [dirA]
     if not dirB == None:
         if labelB == None:
@@ -97,6 +109,11 @@ def main(argv):
 
         print("dirB: "+ dirB)
         print("labelB: "+ labelB)
+        if not binaryisok(dirB, "rocfft-rider"):
+            print("unable to find " + "rocfft-rider" + " in " + dirB)
+            print("please specify with -B")
+            sys.exit(1)
+
         dirlist.append(dirB)
     print("outdir: " + outdir)
     if shortrun:
@@ -126,7 +143,8 @@ def main(argv):
             f.write(specs)
         
     pdflist = []
-    for dimension in 1, 2, 3:
+    dimensions = [1, 2, 3]
+    for dimension in dimensions:
         pdflist.append([])
 
         # Sizes firmat: minvalue, maxvalue, batch size, ratio between elements, aspect ratio(s)
@@ -272,7 +290,7 @@ def main(argv):
                             asycmd.append("-f")
                             asycmd.append("png")
                             asycmd.append("-render")
-                            asycmd.append("32")
+                            asycmd.append("16")
                         asycmd.append("datagraphs.asy")
 
                         asycmd.append("-u")
@@ -312,32 +330,35 @@ def main(argv):
                         asycmd.append(os.path.join(outdir,outpdf))
 
                         print(" ".join(asycmd))
+                    
+                        if doAsy:
+                            asyproc =  subprocess.Popen(asycmd, env=os.environ.copy())
+                            asyproc.wait()
+                            asyrc = asyproc.returncode
+                            if asyrc != 0:
+                                print("****asy fail****")
 
-                        asyproc =  subprocess.Popen(asycmd, env=os.environ.copy())
-                        asyproc.wait()
-                        asyrc = asyproc.returncode
-                        if asyrc != 0:
-                            print("****asy fail****")
-                        else:
-                            caption = "Dimension: " + str(dimension)
-                            caption += ", type: "+ ("complex" if ffttype == "c2c" else "real/complex")
-                            caption += ", in-place" if inplace else ", out-of-place"
-                            caption += ", precision: "+ precision
-                            caption += ", batch size: "+ str(nbatch)
-                            caption += ", radix: "+ str(radix)
-                            if dimension > 1:
-                                caption += ", aspect ratio 1:"  + str(ratio[0])
-                                if dimension > 2:
-                                    caption += ":" + str(ratio[1])
+                        caption = "Dimension: " + str(dimension)
+                        caption += ", type: "+ ("complex" if ffttype == "c2c" else "real/complex")
+                        caption += ", in-place" if inplace else ", out-of-place"
+                        caption += ", precision: "+ precision
+                        caption += ", batch size: "+ str(nbatch)
+                        caption += ", radix: "+ str(radix)
+                        if dimension > 1:
+                            caption += ", aspect ratio 1:"  + str(ratio[0])
+                            if dimension > 2:
+                                caption += ":" + str(ratio[1])
 
-
-                            pdflist[-1].append([outpdf, caption ])
+                        pdflist[-1].append([outpdf, caption ])
 
     if docformat == "pdf":
         maketex(pdflist, dirA, dirB, labelA, labelB, outdir)    
     if docformat == "docx":
         makedocx(pdflist, dirA, dirB, labelA, labelB, outdir)    
 
+def binaryisok(dirname, progname):
+    prog = os.path.join(dirname, progname)
+    return os.path.isfile(prog)
         
 def maketex(pdflist, dirA, dirB, labelA, labelB, outdir):
     
@@ -349,19 +370,19 @@ def maketex(pdflist, dirA, dirB, labelA, labelB, outdir):
 '''
     texstring = header
 
+    texstring += "\n\\section{Introduction}\n"
+    
+    texstring += "Each data point represents the median of 10 values, with error bars showing the 95\\% confidence interval for the median.\n\n"
+
+    texstring += "\\vspace{1cm}\n"
+    
     texstring += "\\begin{tabular}{ll}"
     texstring += labelA +" &\\url{"+ dirA+"} \\\\\n"
     if not dirB == None:
         texstring += labelB +" &\\url{"+ dirB+"} \\\\\n"
-    texstring += "\\end{tabular}"
+    texstring += "\\end{tabular}\n\n"
 
-    texstring += "\\begin{tabular}{ll}"
-    texstring += labelA +" &\\url{"+ dirA+"} \\\\\n"
-    if not dirB == None:
-        texstring += labelB +" &\\url{"+ dirB+"} \\\\\n"
-    texstring += "\\end{tabular}"
-
-    texstring += "\n\n"
+    texstring += "\\vspace{1cm}\n"
     
     specfilename = os.path.join(outdir, "specs.txt")
     if os.path.isfile(specfilename):
@@ -370,9 +391,20 @@ def maketex(pdflist, dirA, dirB, labelA, labelB, outdir):
             specs = f.read()
 
         for line in specs.split("\n"):
-            texstring += "\\noindent " + line + "\n\n"
-
+            if line.startswith("Host info"):
+                texstring += "\\noindent " + line
+                texstring += "\\begin{itemize}\n"
+            elif line.startswith("Device info"):
+                texstring += "\\end{itemize}\n"
+                texstring += line 
+                texstring += "\\begin{itemize}\n"
+            else:
+                if line.strip() != "":
+                    texstring += "\\item " + line + "\n"
+        texstring += "\\end{itemize}\n"
         texstring += "\n"
+        
+    texstring += "\\clearpage\n"
         
     for i in range(len(pdflist)):
         dimension = i + 1
@@ -388,9 +420,12 @@ def maketex(pdflist, dirA, dirB, labelA, labelB, outdir):
             texstring += '''}
    \\caption{''' + caption + '''}
 \\end{figure}
-\\newpage
 
 '''
+            
+        texstring += "\\clearpage\n"
+            
+            
     texstring += "\n\\end{document}\n"
    
     fname = os.path.join(outdir, 'figs.tex')
@@ -419,7 +454,7 @@ def makedocx(pdflist, dirA, dirB, labelA, labelB, outdir):
 
     document.add_heading('rocFFT benchmarks', 0)
 
-    document.add_paragraph('An introductory paragraph')
+    document.add_paragraph('Each data point represents the median of 10 values, with error bars showing the 95% confidence interval for the median')
 
     specfilename = os.path.join(outdir, "specs.txt")
     if os.path.isfile(specfilename):
