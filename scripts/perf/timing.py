@@ -24,8 +24,11 @@ Usage:
 \t\t-d <1,2,3>  default: 1dimension of transform
 \t\t-x <int>    minimum problem size in x direction
 \t\t-X <int>    maximum problem size in x direction
-\t\t-x <int>    minimum problem size in x direction
-\t\t-X <int>    maximum problem size in x direction
+\t\t-y <int>    minimum problem size in y direction
+\t\t-Y <int>    maximum problem size in Y direction
+\t\t-z <int>    minimum problem size in z direction
+\t\t-Z <int>    maximum problem size in Z direction
+\t\t-f <string> precision: float(default) or double
 \t\t-b <int>    batch size
 \t\t-g <int>    device number
 \t\t-t <string> data type: time or gflops (default: time)'''
