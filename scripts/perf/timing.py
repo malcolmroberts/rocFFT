@@ -27,11 +27,11 @@ Usage:
 \t\t-x <int>    minimum problem size in x direction
 \t\t-X <int>    maximum problem size in x direction
 \t\t-b <int>    batch size
+\t\t-g <int>    device number
 \t\t-t <string> data type: time or gflops (default: time)'''
 
 def runcase(workingdir, xval, yval, zval, direction, rcfft, inplace, ntrial, precision, nbatch,
-            datatype, 
-            logfilename):
+            datatype, devicenum, logfilename):
     progname = "rocfft-rider"
     prog = os.path.join(workingdir, progname)
     
@@ -58,7 +58,11 @@ def runcase(workingdir, xval, yval, zval, direction, rcfft, inplace, ntrial, pre
 
     cmd.append("-b")
     cmd.append(str(nbatch))
-        
+
+    cmd.append("--device")
+    cmd.append(str(devicenum))
+
+    
     ttype = -1
     itype = ""
     otype = ""
@@ -90,19 +94,21 @@ def runcase(workingdir, xval, yval, zval, direction, rcfft, inplace, ntrial, pre
     
     print(cmd)
 
-    print(logfilename)
-    fout = open(logfilename, 'w+')
+    fout = tempfile.TemporaryFile(mode="w+")
     proc = subprocess.Popen(cmd, cwd=os.path.join(workingdir,"..",".."), stdout=fout, stderr=fout,
                             env=os.environ.copy())
     proc.wait()
     rc = proc.returncode
     vals = []
+
+    fout.seek(0)
+
+    cout = fout.read()
+    logfile = open(logfilename, "a")
+    logfile.write(cout)
+    logfile.close()
     
     if rc == 0:
-        
-        fout.seek(0)
-        cout = fout.read()
-
         # ferr.seek(0)
         # cerr = ferr.read()
         if datatype == "time":
@@ -159,9 +165,10 @@ def main(argv):
     nbatch = 1
     datatype = "time"
     radix = 2
+    devicenum = 0
     
     try:
-        opts, args = getopt.getopt(argv,"hb:d:D:IN:o:Rt:w:x:X:y:Y:z:Z:f:r:")
+        opts, args = getopt.getopt(argv,"hb:d:D:IN:o:Rt:w:x:X:y:Y:z:Z:f:r:g:")
     except getopt.GetoptError:
         print("error in parsing arguments.")
         print(usage)
@@ -221,6 +228,8 @@ def main(argv):
                 print(usage)
                 sys.exit(1)
             datatype = arg
+        elif opt in ("-g"):
+            devicenum = int(arg)
 
             
     print("workingdir: "+ workingdir)
@@ -238,37 +247,48 @@ def main(argv):
     print("batch-size: " + str(nbatch))
     print("data type: " + datatype)
     print("radix: " + str(radix))
-
+    print("device number: " + str(devicenum))
+    
     progname = "rocfft-rider"
     prog = os.path.join(workingdir, progname)
     if not os.path.isfile(prog):
         print("**** Error: unable to find " + prog)
         sys.exit(1)
 
+    logfilename = outfilename + ".log"
+    print("log filename: "  + logfilename)
+    logfile = open(logfilename, "w+")
+    metadatastring = "# " + " ".join(sys.argv)  + "\n"
+    logfile.write(metadatastring)
+    logfile.close()
 
-    with open(outfilename, 'w+') as outfile:
-        # TODO: add metadata to output file
-        xval = xmin
-        yval = ymin if dimension > 1 else 1
-        zval = zmin if dimension > 2 else 1
-        while(xval <= xmax and yval <= ymax and zval <= zmax):
-            print(xval)
+    outfile = open(outfilename, "w+")
+    outfile.write(metadatastring)
+    outfile.close()
+
+    xval = xmin
+    yval = ymin if dimension > 1 else 1
+    zval = zmin if dimension > 2 else 1
+    while(xval <= xmax and yval <= ymax and zval <= zmax):
+        print(xval)
+
+
+        seconds = runcase(workingdir, xval, yval, zval, direction, rcfft, inplace, ntrial,
+                          precision, nbatch, datatype, devicenum, logfilename)
+        #print(seconds)
+        with open(outfilename, 'a') as outfile:
             outfile.write(str(xval))
-            logfilename = outfilename + ".log"
-            seconds = runcase(workingdir, xval, yval, zval, direction, rcfft, inplace, ntrial,
-                              precision, nbatch, datatype, logfilename)
-            #print(seconds)
             outfile.write("\t")
             outfile.write(str(len(seconds)))
             for second in seconds:
                 outfile.write("\t")
                 outfile.write(str(second))
             outfile.write("\n")
-            xval *= radix
-            if dimension > 1:
-                yval *= radix
-            if dimension > 2:
-                zval *= radix
+        xval *= radix
+        if dimension > 1:
+            yval *= radix
+        if dimension > 2:
+            zval *= radix
         
     
     

@@ -27,6 +27,7 @@ Usage:
 \t\t-T          do not perform FFTs; just generate document
 \t\t-f          document format: pdf (default) or docx
 \t\t-g          generate graphs via Asymptote: 0(default) or 1
+\t\t-d          device number (default: 0)
 '''
 
 def main(argv):
@@ -73,6 +74,8 @@ def main(argv):
                 doAsy = False
             if int(arg) == 1:
                 doAsy = True
+        elif opt in ("-d"):
+            devicenum = int(arg)
         elif opt in ("-S"):
             if int(arg) == 0:
                 speedup = False
@@ -119,6 +122,7 @@ def main(argv):
     if shortrun:
         print("short run")
     print("output format: " + docformat)
+    print("device number: " + str(devicenum))
     
     if not os.path.exists(outdir):
         os.makedirs(outdir)
