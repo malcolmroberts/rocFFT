@@ -21,10 +21,9 @@
 *******************************************************************************/
 
 #include <complex>
-#include <iostream>
-
 #include <hip/hip_runtime_api.h>
 #include <hipfft.h>
+#include <iostream>
 
 int main()
 {
