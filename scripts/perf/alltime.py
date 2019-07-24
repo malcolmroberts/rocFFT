@@ -46,7 +46,7 @@ def main(argv):
     doAsy = True
     
     try:
-        opts, args = getopt.getopt(argv,"hA:f:B:Tt:a:b:o:S:sg:")
+        opts, args = getopt.getopt(argv,"hA:f:B:Tt:a:b:o:S:sg:d:")
     except getopt.GetoptError:
         print("error in parsing arguments.")
         print(usage)
