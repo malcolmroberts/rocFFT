@@ -115,7 +115,6 @@ def getdeviceinfo(devicenum):
                 pos = line.find(":")
                 name += line[pos+1:].strip()
     # We also use rocm-smi to get more info
-    cmd = ["lshw", "-C", "video"]
     cmd = ["/opt/rocm/bin/rocm-smi", "-i", "-d", str(devicenum)]
     fout = tempfile.TemporaryFile(mode="w+")
     ferr = tempfile.TemporaryFile(mode="w+")
