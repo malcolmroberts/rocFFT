@@ -11,6 +11,11 @@ scale(Log, Log);
 //scale(Log,Linear);
 //scale(Linear,Log);
 
+// TODO:
+// ai for real/complex transforms
+// ai for 2D, 3D transforms
+// get list of devices and set hw specs automatically
+
 
 string[] listfromcsv(string input)
 {

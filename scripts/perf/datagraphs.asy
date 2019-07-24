@@ -37,6 +37,8 @@ write("filenames:\"", filenames+"\"");
 if(filenames == "")
     filenames = getstring("filenames");
 
+if (legendlist == "")
+    legendlist=filenames;
 bool myleg = ((legendlist == "") ? false: true);
 string[] legends=set_legends(legendlist);
 
