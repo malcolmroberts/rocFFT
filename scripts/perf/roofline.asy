@@ -58,8 +58,8 @@ string ylabel = "GFLOPS, [s${}^{-1}$]";
 bool normalize = false;
 
 real bw = 1024;
-real floatgflops = 2784;
-real doublegflops = 2784;
+real floatgflops = 13571.47;
+real doublegflops = 3426.89;
 
 usersetting();
 
