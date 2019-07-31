@@ -30,6 +30,185 @@ Usage:
 \t\t-d          device number (default: 0)
 '''
 
+def nextpow(val, radix):
+    x = 1
+    while(x <= val):
+        x *= radix
+    return x
+
+class rundata:
+    
+    def __init__(self, wdir, diridx, label,
+                 dimension, minsize, maxsize, nbatch, radix, ratio, ffttype):
+        self.wdir = wdir
+        self.diridx = diridx
+        self.dimension = dimension
+        self.minsize = minsize
+        self.maxsize = maxsize
+        self.nbatch = nbatch
+        self.radix = radix
+        self.ratio = ratio
+        self.ffttype = ffttype
+        self.precision = "double"
+        self.inplace = True
+        self.direction = -1
+        self.label = label
+            
+
+    def outfilename(self, outdir):
+        outfile = "dir" + str(self.diridx)
+        if self.direction == 1:
+            outfile += "_inv"
+        if self.dimension > 1:
+            outfile += "_ratio" + "_" + str(self.ratio[0])
+        if self.dimension > 2:
+            outfile += "_" + str(self.ratio[1])
+        outfile += "_" + self.ffttype
+        if self.inplace:
+            outfile += "_inplace"
+        else:
+            outfile += "_outofplace"
+        outfile += "_radix" + str(self.radix)
+        outfile += "_dim" + str(self.dimension)
+        outfile += "_" + self.precision
+        outfile += "_n" + str(self.nbatch)
+        outfile += ".dat"
+        outfile = os.path.join(outdir, outfile)
+        return outfile
+        
+    def runcmd(self, outdir):
+        cmd = ["./timing.py"]
+        
+        cmd.append("-w")
+        cmd.append(self.wdir)
+        
+        cmd.append("-b")
+        cmd.append(str(self.nbatch))
+        
+        cmd.append("-x")
+        cmd.append(str(self.minsize))
+        cmd.append("-X")
+        cmd.append(str(self.maxsize))
+
+        if self.dimension > 1:
+            cmd.append("-y")
+            cmd.append(str(self.minsize))
+            cmd.append("-Y")
+            cmd.append(str(self.maxsize))
+
+        if self.dimension > 2:
+            cmd.append("-z")
+            cmd.append(str(self.minsize))
+            cmd.append("-Z")
+            cmd.append(str(self.maxsize))
+
+        cmd.append("-r")
+        cmd.append(str(self.radix))
+
+        cmd.append("-D")
+        cmd.append(str(self.direction))
+        
+        cmd.append("-d")
+        cmd.append(str(self.dimension))
+
+        cmd.append("-f")
+        cmd.append(self.precision)
+        
+        if self.ffttype == "r2c":
+            cmd.append("-R")
+            
+        cmd.append("-o")
+        cmd.append(self.outfilename(outdir))
+            
+        return cmd
+
+    def executerun(self, outdir):
+        fout = tempfile.TemporaryFile(mode="w+")
+        ferr = tempfile.TemporaryFile(mode="w+")
+            
+        proc = subprocess.Popen(self.runcmd(outdir), stdout=fout, stderr=ferr,
+                                env=os.environ.copy())
+        proc.wait()
+        rc = proc.returncode
+        if rc != 0:
+            print("****fail****")
+        return rc
+
+
+class figure:
+    def __init__(self, name, caption):
+        self.name = name
+        self.runs = []
+        self.caption = caption
+    
+    def inputfiles(self, outdir):
+        files = []
+        for run in self.runs:
+            files.append(run.outfilename(outdir))
+        return files
+
+    def labels(self):
+        labels = []
+        for run in self.runs:
+            labels.append(run.label)
+        return labels
+    
+    def filename(self, outdir, docformat):
+        outfigure = self.name
+        if docformat == "pdf":
+            outfigure += ".pdf"
+        if docformat == "docx":
+            outfigure += ".png"
+        return os.path.join(outdir, outfigure)
+
+        
+    def asycmd(self, outdir, docformat, datatype):
+        asycmd = ["asy"]
+        if docformat == "pdf":
+            asycmd.append("-f")
+            asycmd.append("pdf")
+        if docformat == "docx":
+            asycmd.append("-f")
+            asycmd.append("png")
+            asycmd.append("-render")
+            asycmd.append("16")
+        asycmd.append("datagraphs.asy")
+
+        asycmd.append("-u")
+        asycmd.append('filenames="' + ",".join(self.inputfiles(outdir)) + '"')
+
+        asycmd.append("-u")
+        asycmd.append('legendlist="' + ",".join(self.labels()) + '"')
+
+        # if dirB != None and speedup: # disabled for now
+        #     asycmd.append("-u")
+        #     asycmd.append('speedup=true')
+        # else:
+        #     asycmd.append("-u")
+        #     asycmd.append('speedup=false')
+
+        asycmd.append("-u")
+        asycmd.append('speedup=false')
+            
+        if datatype == "gflops":
+            asycmd.append("-u")
+            asycmd.append('ylabel="GFLOPs"')
+
+        asycmd.append("-o")
+        asycmd.append(self.filename(outdir, docformat) )
+                    
+        return asycmd
+
+    def executeasy(self, outdir, docformat, datatype):
+        asyproc =  subprocess.Popen(self.asycmd(outdir, docformat, datatype),
+                                    env=os.environ.copy())
+        asyproc.wait()
+        asyrc = asyproc.returncode
+        if asyrc != 0:
+            print("****asy fail****")
+        return asyrc
+
+        
 def main(argv):
     dirA = "."
     dirB = None
@@ -145,226 +324,144 @@ def main(argv):
 
         with open(os.path.join(outdir, "specs.txt"), "w+") as f:
             f.write(specs)
-        
-    pdflist = []
-    dimensions = [1, 2, 3]
-    for dimension in dimensions:
-        pdflist.append([])
 
-        # Sizes firmat: minvalue, maxvalue, batch size, ratio between elements, aspect ratio(s)
-        sizes = []
-        if dimension == 1:
-            if shortrun:
-                sizes.append( [1024, 16384,   1, 2, [1]] )
-                sizes.append( [729,   2187,   1, 3, [1]] )
-                sizes.append( [625,  15625,   1, 5, [1]] )
-                sizes.append( [2,     1024, 100, 2, [1]] )
-            else:
-                sizes.append( [1024, 536870912, 1,      2, [1]] )
-                sizes.append( [729,  129140163, 1,      3, [1]] )
-                sizes.append( [625,  244140625, 1,      5, [1]] )
-                sizes.append( [2,        32768, 100000, 2, [1]] )
-        if dimension == 2:
-            if shortrun:
-                sizes.append( [64,  8192,  1, 2, [1]] )
-                sizes.append( [64,  8192,  1, 2, [2]] )
-                sizes.append( [2,  1024,  10, 2, [1]] )
-            else:
-                sizes.append( [16, 32768,    1, 2, [1]] )
-                sizes.append( [2,   1024, 1000, 2, [1]] )
-        if dimension == 3:
-            if shortrun:
-                sizes.append( [2,  64, 1, 2, [1,1]] )
-                sizes.append( [2, 128, 1, 2, [1,2]] )
-            else:
-                sizes.append( [128, 1024,  1, 2, [1, 1]] )
-                sizes.append( [2,   1024, 10, 2, [1, 1]] )
-                sizes.append( [2,   1024, 10, 2, [1,16]] )
-                sizes.append( [2,   1024, 10, 2, [8, 8]] )
+    figs = []
 
-            
-        for precision in "float", "double":
-            for ffttype in "c2c", "r2c":
-                for inplace in True, False:
-                    for minsize, maxsize, nbatch, radix, ratio in sizes:
-                        filelist = []
-                        labellist = []
-                        for direction in -1, 1:
-                            for wdir in dirlist:
-                                cmd = ["./timing.py"]
 
-                                outfile = "dirA" if wdir == dirA else "dirB"
+    dimension = 1
 
-                                cmd.append("-w")
-                                cmd.append(wdir)
+    
+    nbatch = 1
 
-                                cmd.append("-b")
-                                cmd.append(str(nbatch))
+    min1d = 256 if shortrun else 1024
+    max1d = 4000 if shortrun else 536870912
+    
+    fig = figure("1d_c2c", "1D complex transforms")
+    for idx, wdir in enumerate(dirlist):
+        fig.runs.append( rundata(wdir, idx, "radix 2",
+                                 dimension, nextpow(min1d, 2), max1d, nbatch, 2, [], "c2c") )
+        fig.runs.append( rundata(wdir, idx, "radix 3", 
+                                 dimension, nextpow(min1d, 3),  max1d, nbatch, 3, [], "c2c") )
+        fig.runs.append( rundata(wdir, idx, "radix 5", 
+                                 dimension, nextpow(min1d, 5),  max1d, nbatch, 5, [], "c2c") )
+        fig.runs.append( rundata(wdir, idx, "radix 7", 
+                                 dimension, nextpow(min1d, 7),  max1d, nbatch, 7, [], "c2c") )
+    figs.append(fig)
 
-                                cmd.append("-x")
-                                cmd.append(str(minsize))
-                                cmd.append("-X")
-                                cmd.append(str(maxsize))
+    fig = figure("1d_r2c", "1D real-to-complex transforms")
+    for idx, wdir in enumerate(dirlist):
+        fig.runs.append( rundata(wdir, idx, "radix 2", 
+                                 dimension, nextpow(min1d, 2), max1d, nbatch, 2, [], "r2c") )
+        fig.runs.append( rundata(wdir, idx, "radix 3",
+                                 dimension, nextpow(min1d, 3),  max1d, nbatch, 3, [], "r2c") )
+        fig.runs.append( rundata(wdir, idx, "radix 5", 
+                                 dimension, nextpow(min1d, 5),  max1d, nbatch, 5, [], "r2c") )
+        fig.runs.append( rundata(wdir, idx, "radix 7", 
+                                 dimension, nextpow(min1d, 7),  max1d, nbatch, 7, [], "r2c") )
+    figs.append(fig)
 
-                                if dimension > 1:
-                                    cmd.append("-y")
-                                    cmd.append(str(minsize))
-                                    cmd.append("-Y")
-                                    cmd.append(str(maxsize))
+    
+    nbatch = 100 if shortrun else 100000
 
-                                if dimension > 2:
-                                    cmd.append("-z")
-                                    cmd.append(str(minsize))
-                                    cmd.append("-Z")
-                                    cmd.append(str(maxsize))
+    max1d = 1024 if shortrun else 32768
+    fig = figure("1d_batch_c2c", "1D batched complex transforms")
+    for idx, wdir in enumerate(dirlist):
+        fig.runs.append( rundata(wdir, idx, "radix 2, batch size " + str(nbatch),
+                                 dimension, 2, max1d, nbatch, 2, [], "c2c") )
+    figs.append(fig)
 
-                                cmd.append("-r")
-                                cmd.append(str(radix))
+    fig = figure("1d_batch_r2c", "1D batched real-to-complex transforms")
+    for idx, wdir in enumerate(dirlist):
+        fig.runs.append( rundata(wdir, idx, "radix 2, batch size" + str(nbatch),
+                                 dimension, 2, max1d, nbatch, 2, [], "r2c") )
+    figs.append(fig)
 
-                                cmd.append("-D")
-                                cmd.append(str(direction))
-                                if direction == 1:
-                                    outfile += "inv"
+    dimension = 2
 
-                                cmd.append("-d")
-                                cmd.append(str(dimension))
+    nbatch = 1
+    min2d = 64 if shortrun else 16
+    max2d = 8192 if shortrun else 32768
 
-                                if dimension > 1:
-                                    outfile += "ratio" + "_" + str(ratio[0])
-                                    if dimension > 2:
-                                        outfile += "_" + str(ratio[1])
+    fig = figure("2d_c2c", "2D complex transforms")
+    for idx, wdir in enumerate(dirlist):
+        fig.runs.append( rundata(wdir, idx, "radix 2",
+                                 dimension, min2d, max2d, nbatch, 2, [1], "c2c") )
+    figs.append(fig)
 
-                                cmd.append("-t")
-                                cmd.append(datatype)
+    fig = figure("2d_r2c", "2D real-to-complex transforms")
+    for idx, wdir in enumerate(dirlist):
+        fig.runs.append( rundata(wdir, idx, "radix 2",
+                                 dimension, min2d, max2d, nbatch, 2, [1], "r2c") )
+    figs.append(fig)
 
-                                if ffttype == "r2c":
-                                    cmd.append("-R")
-                                outfile += ffttype
 
-                                if inplace:
-                                    cmd.append("-I")
-                                    outfile += "inplace"
-                                else:
-                                    outfile += "outofplace"
+    fig = figure("2d_c2c_r2", "2D complex transforms with aspect ratio 1:2")
+    for idx, wdir in enumerate(dirlist):
+        fig.runs.append( rundata(wdir, idx, "radix 2",
+                                 dimension, min2d, max2d, nbatch, 2, [2], "c2c") )
+    figs.append(fig)
 
-                                outfile += "_radix" + str(radix)
+    fig = figure("2d_r2c_r2", "2D real-to-complex transforms with aspect ratio 1:2")
+    for idx, wdir in enumerate(dirlist):
+        fig.runs.append( rundata(wdir, idx, "radix 2",
+                                 dimension, min2d, max2d, nbatch, 2, [2], "r2c") )
+    figs.append(fig)
 
-                                outfile += "_dim" + str(dimension)
-                                outfile += "_" + precision
-                                outfile += "_n" + str(nbatch)
-                                outfile += ".dat"
-                                outfile = os.path.join(outdir, outfile)
-                                filelist.append(outfile)
+    
+    
 
-                                label = ""
-                                if wdir == dirA:
-                                    label += labelA
-                                else:
-                                    label += labelB
-                                label += " direct" if (direction == -1) else " inverse"
-                                #label += " in-place " if inplace else " out-of-place "
+    dimension = 3
+    min3d = 2
+    max3d = 64 if shortrun else 1024
 
-                                # if dimension > 1:
-                                #     label += " aspect ratio: 1:" + str(ratio[0])
-                                #     if dimension > 2:
-                                #         label += ":" + str(ratio[1])
+    fig = figure("3d_c2c", "3D complex transforms")
+    for idx, wdir in enumerate(dirlist):
+        fig.runs.append( rundata(wdir, idx, "radix 2",
+                                 dimension, min3d, max3d, nbatch, 2, [1,1], "c2c") )
+    figs.append(fig)
 
-                                labellist.append(label)
+    fig = figure("3d_r2c", "3D real-to-complex transforms")
+    for idx, wdir in enumerate(dirlist):
+        fig.runs.append( rundata(wdir, idx, "radix 2",
+                                 dimension, min3d, max3d, nbatch, 2, [1,1], "r2c") )
+    figs.append(fig)
 
-                                cmd.append("-o")
-                                cmd.append(outfile)
+    
+    fig = figure("3d_c2c", "3D complex transforms with aspect ratio 1:1:16")
+    for idx, wdir in enumerate(dirlist):
+        fig.runs.append( rundata(wdir, idx, "radix 2",
+                                 dimension, min3d, max3d, nbatch, 2, [1,16], "c2c") )
+    figs.append(fig)
 
-                                print(" ".join(cmd))
-                                if not dryrun:
-                                    fout = tempfile.TemporaryFile(mode="w+")
-                                    ferr = tempfile.TemporaryFile(mode="w+")
+    fig = figure("3d_r2c", "3D real-to-complex transforms with aspect ratio 1:1:16")
+    for idx, wdir in enumerate(dirlist):
+        fig.runs.append( rundata(wdir, idx, "radix 2",
+                                 dimension, min3d, max3d, nbatch, 2, [1,16], "r2c") )
+    figs.append(fig)
 
-                                    proc = subprocess.Popen(cmd, stdout=fout, stderr=ferr,
-                                                            env=os.environ.copy())
-                                    proc.wait()
-                                    rc = proc.returncode
-                                    if rc != 0:
-                                        print("****fail****")
 
-                        asycmd = ["asy"]
-                        if docformat == "pdf":
-                            asycmd.append("-f")
-                            asycmd.append("pdf")
-                        if docformat == "docx":
-                            asycmd.append("-f")
-                            asycmd.append("png")
-                            asycmd.append("-render")
-                            asycmd.append("16")
-                        asycmd.append("datagraphs.asy")
+    
+    for fig in figs:
+        print(fig.name)
+        for run in fig.runs:
+            print(" ".join(run.runcmd(outdir)))
+            if not dryrun:
+                run.executerun(outdir)
 
-                        asycmd.append("-u")
-                        asycmd.append('filenames="' + ",".join(filelist) + '"')
-
-                        asycmd.append("-u")
-                        asycmd.append('legendlist="' + ",".join(labellist) + '"')
-
-                        if dirB != None and speedup:
-                            asycmd.append("-u")
-                            asycmd.append('speedup=true')
-                        else:
-                            asycmd.append("-u")
-                            asycmd.append('speedup=false')
-
-                        if datatype == "gflops":
-                            asycmd.append("-u")
-                            asycmd.append('ylabel="GFLOPs"')
-
-                        asycmd.append("-o")
-
-                        outpdf = "time" + str(dimension) + ffttype + precision + "n" + str(nbatch)
-                        outpdf += "inplace" if inplace else "outofplace"
-                        if dimension > 1:
-                            outpdf += "ratio" + "_" + str(ratio[0])
-                            if dimension > 2:
-                                outpdf += "_" + str(ratio[1])
-                        outpdf += "_radix" + str(radix)
-
-                        if docformat == "pdf":
-                            outpdf += ".pdf"
-
-                        if docformat == "docx":
-                            outpdf += ".png"
-
-                        #outpdf = os.path.join(outdir,outpdf)
-                        asycmd.append(os.path.join(outdir,outpdf))
-
-                        print(" ".join(asycmd))
-                    
-                        if doAsy:
-                            asyproc =  subprocess.Popen(asycmd, env=os.environ.copy())
-                            asyproc.wait()
-                            asyrc = asyproc.returncode
-                            if asyrc != 0:
-                                print("****asy fail****")
-
-                        caption = "Dimension: " + str(dimension)
-                        caption += ", type: "+ ("complex" if ffttype == "c2c" else "real/complex")
-                        caption += ", in-place" if inplace else ", out-of-place"
-                        caption += ", precision: "+ precision
-                        caption += ", batch size: "+ str(nbatch)
-                        caption += ", radix: "+ str(radix)
-                        if dimension > 1:
-                            caption += ", aspect ratio 1:"  + str(ratio[0])
-                            if dimension > 2:
-                                caption += ":" + str(ratio[1])
-
-                        pdflist[-1].append([outpdf, caption ])
+        print(fig.labels())
+        print(fig.asycmd(outdir, docformat, datatype))
+        fig.executeasy(outdir, docformat, datatype)
 
     if docformat == "pdf":
-        maketex(pdflist, dirA, dirB, labelA, labelB, outdir)    
+        maketex(figs, outdir)    
     if docformat == "docx":
-        makedocx(pdflist, dirA, dirB, labelA, labelB, outdir)    
+        makedocx(figs, outdir)    
 
 def binaryisok(dirname, progname):
     prog = os.path.join(dirname, progname)
     return os.path.isfile(prog)
         
-def maketex(pdflist, dirA, dirB, labelA, labelB, outdir):
+def maketex(figs, outdir):
     
     header = '''\documentclass[12pt]{article}
 \\usepackage{graphicx}
@@ -380,13 +477,13 @@ def maketex(pdflist, dirA, dirB, labelA, labelB, outdir):
 
     texstring += "\\vspace{1cm}\n"
     
-    texstring += "\\begin{tabular}{ll}"
-    texstring += labelA +" &\\url{"+ dirA+"} \\\\\n"
-    if not dirB == None:
-        texstring += labelB +" &\\url{"+ dirB+"} \\\\\n"
-    texstring += "\\end{tabular}\n\n"
+    # texstring += "\\begin{tabular}{ll}"
+    # texstring += labelA +" &\\url{"+ dirA+"} \\\\\n"
+    # if not dirB == None:
+    #     texstring += labelB +" &\\url{"+ dirB+"} \\\\\n"
+    # texstring += "\\end{tabular}\n\n"
 
-    texstring += "\\vspace{1cm}\n"
+    # texstring += "\\vspace{1cm}\n"
     
     specfilename = os.path.join(outdir, "specs.txt")
     if os.path.isfile(specfilename):
@@ -409,26 +506,21 @@ def maketex(pdflist, dirA, dirB, labelA, labelB, outdir):
         texstring += "\n"
         
     texstring += "\\clearpage\n"
-        
-    for i in range(len(pdflist)):
-        dimension = i + 1
-        print(dimension)
-        texstring += "\n\\section{Dimension " + str(dimension) + "}\n"
-        for outpdf, caption in pdflist[i]:
-            print(outpdf, caption)
-            texstring += '''
+
+    texstring += "\n\\section{Figures}\n"
+    
+    for fig in figs:
+        print(fig.filename(outdir, "pdf"))
+        print(fig.caption)
+        texstring += '''
 \\centering
 \\begin{figure}[htbp]
    \\includegraphics[width=\\textwidth]{'''
-            texstring += outpdf
-            texstring += '''}
-   \\caption{''' + caption + '''}
+        texstring += fig.filename("", "pdf")
+        texstring += '''}
+   \\caption{''' + fig.caption + '''}
 \\end{figure}
-
 '''
-            
-        texstring += "\\clearpage\n"
-            
             
     texstring += "\n\\end{document}\n"
    
@@ -451,7 +543,7 @@ def maketex(pdflist, dirA, dirB, labelA, labelB, outdir):
     if texrc != 0:
         print("****tex fail****")
 
-def makedocx(pdflist, dirA, dirB, labelA, labelB, outdir):
+def makedocx(figs, outdir):
     import docx
 
     document = docx.Document()
@@ -467,15 +559,11 @@ def makedocx(pdflist, dirA, dirB, labelA, labelB, outdir):
         for line in specs.split("\n"):
             document.add_paragraph(line)
 
-    
-    for i in range(len(pdflist)):
-        dimension = i + 1
-        print(dimension)
-        document.add_heading('Dimension ' + str(dimension), level=1)
-        for outpdf, caption in pdflist[i]:
-            print(outpdf, caption)
-            document.add_picture(os.path.join(outdir,outpdf), width=docx.shared.Inches(4))
-            document.add_paragraph(caption)
+    for fig in figs:
+        print(fig.filename(outdir, "docx"))
+        print(fig.caption)
+        document.add_picture(fig.filename(outdir, "docx"), width=docx.shared.Inches(4))
+        document.add_paragraph(fig.caption)
                          
     document.save(os.path.join(outdir,'figs.docx'))
     
