@@ -22,7 +22,7 @@ real xmax = inf;
 
 bool doxticks = true;
 bool doyticks = true;
-string xlabel = "Problem size";
+string xlabel = "Problem size N";
 string ylabel = "Time [s]";
 
 bool normalize = false;
@@ -44,7 +44,7 @@ string[] legends=set_legends(legendlist);
 
 if(normalize) {
    scale(Log, Linear);
-   ylabel = "Time / problem size, [s]";
+   ylabel = "Time / problem size N, [s]";
 }
 
 bool plotxval(real x) {

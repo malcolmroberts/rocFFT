@@ -1,7 +1,5 @@
 #!/usr/bin/python3
 
-# a timing script for FFTs and convolutions using OpenMP
-
 import sys, getopt
 import numpy as np
 from math import *
@@ -28,6 +26,7 @@ Usage:
 \t\t-f          document format: pdf (default) or docx
 \t\t-g          generate graphs via Asymptote: 0(default) or 1
 \t\t-d          device number (default: 0)
+\t\t-N          Number of samples (default: 10)
 '''
 
 def nextpow(val, radix):
@@ -76,11 +75,14 @@ class rundata:
         outfile = os.path.join(outdir, outfile)
         return outfile
         
-    def runcmd(self, outdir):
+    def runcmd(self, outdir, nsample):
         cmd = ["./timing.py"]
         
         cmd.append("-w")
         cmd.append(self.wdir)
+
+        cmd.append("-N")
+        cmd.append(str(nsample))
         
         cmd.append("-b")
         cmd.append(str(self.nbatch))
@@ -122,11 +124,11 @@ class rundata:
             
         return cmd
 
-    def executerun(self, outdir):
+    def executerun(self, outdir, nsample):
         fout = tempfile.TemporaryFile(mode="w+")
         ferr = tempfile.TemporaryFile(mode="w+")
             
-        proc = subprocess.Popen(self.runcmd(outdir), stdout=fout, stderr=ferr,
+        proc = subprocess.Popen(self.runcmd(outdir, nsample), stdout=fout, stderr=ferr,
                                 env=os.environ.copy())
         proc.wait()
         rc = proc.returncode
@@ -223,9 +225,10 @@ def main(argv):
     docformat = "pdf"
     devicenum = 0
     doAsy = True
+    nsample = 10
     
     try:
-        opts, args = getopt.getopt(argv,"hA:f:B:Tt:a:b:o:S:sg:d:")
+        opts, args = getopt.getopt(argv,"hA:f:B:Tt:a:b:o:S:sg:d:N:")
     except getopt.GetoptError:
         print("error in parsing arguments.")
         print(usage)
@@ -255,6 +258,8 @@ def main(argv):
                 doAsy = True
         elif opt in ("-d"):
             devicenum = int(arg)
+        elif opt in ("-N"):
+            nsample = int(arg)
         elif opt in ("-S"):
             if int(arg) == 0:
                 speedup = False
@@ -338,102 +343,97 @@ def main(argv):
     
     fig = figure("1d_c2c", "1D complex transforms")
     for idx, wdir in enumerate(dirlist):
-        fig.runs.append( rundata(wdir, idx, "radix 2",
-                                 dimension, nextpow(min1d, 2), max1d, nbatch, 2, [], "c2c") )
-        fig.runs.append( rundata(wdir, idx, "radix 3", 
-                                 dimension, nextpow(min1d, 3),  max1d, nbatch, 3, [], "c2c") )
-        fig.runs.append( rundata(wdir, idx, "radix 5", 
-                                 dimension, nextpow(min1d, 5),  max1d, nbatch, 5, [], "c2c") )
-        fig.runs.append( rundata(wdir, idx, "radix 7", 
-                                 dimension, nextpow(min1d, 7),  max1d, nbatch, 7, [], "c2c") )
+        for radix in [2, 3, 5, 7]:
+            fig.runs.append( rundata(wdir, idx, "radix " + str(radix) ,
+                                     dimension, nextpow(min1d, radix), max1d, nbatch, radix, [], "c2c") )
     figs.append(fig)
 
     fig = figure("1d_r2c", "1D real-to-complex transforms")
     for idx, wdir in enumerate(dirlist):
-        fig.runs.append( rundata(wdir, idx, "radix 2", 
-                                 dimension, nextpow(min1d, 2), max1d, nbatch, 2, [], "r2c") )
-        fig.runs.append( rundata(wdir, idx, "radix 3",
-                                 dimension, nextpow(min1d, 3),  max1d, nbatch, 3, [], "r2c") )
-        fig.runs.append( rundata(wdir, idx, "radix 5", 
-                                 dimension, nextpow(min1d, 5),  max1d, nbatch, 5, [], "r2c") )
-        fig.runs.append( rundata(wdir, idx, "radix 7", 
-                                 dimension, nextpow(min1d, 7),  max1d, nbatch, 7, [], "r2c") )
+        for radix in [2, 3, 5, 7]:
+            fig.runs.append( rundata(wdir, idx, "radix " + str(radix) ,
+                                     dimension, nextpow(min1d, radix), max1d, nbatch, radix, [], "r2c") )
     figs.append(fig)
 
     
     nbatch = 100 if shortrun else 100000
-
+    min1d = 8
     max1d = 1024 if shortrun else 32768
-    fig = figure("1d_batch_c2c", "1D batched complex transforms")
+    fig = figure("1d_batch_c2c", "1D complex transforms batch size "+ str(nbatch))
     for idx, wdir in enumerate(dirlist):
-        fig.runs.append( rundata(wdir, idx, "radix 2, batch size " + str(nbatch),
-                                 dimension, 2, max1d, nbatch, 2, [], "c2c") )
+        for radix in [2, 3, 5]:
+            fig.runs.append( rundata(wdir, idx, "radix " + str(radix) ,
+                                     dimension, nextpow(min1d, radix), max1d, nbatch, radix, [], "c2c") )
+            
     figs.append(fig)
 
-    fig = figure("1d_batch_r2c", "1D batched real-to-complex transforms")
+    fig = figure("1d_batch_r2c", "1D real-to-complex transforms batch size " + str(nbatch))
     for idx, wdir in enumerate(dirlist):
-        fig.runs.append( rundata(wdir, idx, "radix 2, batch size" + str(nbatch),
-                                 dimension, 2, max1d, nbatch, 2, [], "r2c") )
+        for radix in [2, 3, 5]:
+            fig.runs.append( rundata(wdir, idx, "radix " + str(radix) ,
+                                     dimension, nextpow(min1d, radix), max1d, nbatch, radix, [], "r2c") )
     figs.append(fig)
 
     dimension = 2
 
     nbatch = 1
-    min2d = 64 if shortrun else 16
+    min2d = 64 if shortrun else 128
     max2d = 8192 if shortrun else 32768
 
     fig = figure("2d_c2c", "2D complex transforms")
     for idx, wdir in enumerate(dirlist):
-        fig.runs.append( rundata(wdir, idx, "radix 2",
-                                 dimension, min2d, max2d, nbatch, 2, [1], "c2c") )
+        for radix in [2, 3, 5]:
+            fig.runs.append( rundata(wdir, idx, "radix " + str(radix), dimension,
+                                     nextpow(min2d, radix), max2d, nbatch, radix, [1], "c2c") )
     figs.append(fig)
 
     fig = figure("2d_r2c", "2D real-to-complex transforms")
     for idx, wdir in enumerate(dirlist):
-        fig.runs.append( rundata(wdir, idx, "radix 2",
-                                 dimension, min2d, max2d, nbatch, 2, [1], "r2c") )
+        for radix in [2, 3, 5]:
+            fig.runs.append( rundata(wdir, idx, "radix " + str(radix), dimension,
+                                     nextpow(min2d, radix), max2d, nbatch, radix, [1], "r2c") )
     figs.append(fig)
 
 
-    fig = figure("2d_c2c_r2", "2D complex transforms with aspect ratio 1:2")
+    fig = figure("2d_c2c_r2", "2D complex transforms with aspect ratio N:2N")
     for idx, wdir in enumerate(dirlist):
         fig.runs.append( rundata(wdir, idx, "radix 2",
                                  dimension, min2d, max2d, nbatch, 2, [2], "c2c") )
     figs.append(fig)
 
-    fig = figure("2d_r2c_r2", "2D real-to-complex transforms with aspect ratio 1:2")
+    fig = figure("2d_r2c_r2", "2D real-to-complex transforms with aspect ratio N:2N")
     for idx, wdir in enumerate(dirlist):
         fig.runs.append( rundata(wdir, idx, "radix 2",
                                  dimension, min2d, max2d, nbatch, 2, [2], "r2c") )
     figs.append(fig)
 
     
-    
-
     dimension = 3
-    min3d = 2
-    max3d = 64 if shortrun else 1024
+    min3d = 16
+    max3d = 128 if shortrun else 1024
 
     fig = figure("3d_c2c", "3D complex transforms")
     for idx, wdir in enumerate(dirlist):
-        fig.runs.append( rundata(wdir, idx, "radix 2",
-                                 dimension, min3d, max3d, nbatch, 2, [1,1], "c2c") )
+        for radix in [2, 3, 5]:
+            fig.runs.append( rundata(wdir, idx, "radix " + str(radix), dimension,
+                                     nextpow(min3d, radix), max3d, nbatch, radix, [1,1], "c2c") )
     figs.append(fig)
 
     fig = figure("3d_r2c", "3D real-to-complex transforms")
     for idx, wdir in enumerate(dirlist):
-        fig.runs.append( rundata(wdir, idx, "radix 2",
-                                 dimension, min3d, max3d, nbatch, 2, [1,1], "r2c") )
+        for radix in [2, 3, 5]:
+            fig.runs.append( rundata(wdir, idx, "radix " + str(radix), dimension,
+                                     nextpow(min3d, radix), max3d, nbatch, radix, [1,1], "r2c") )
     figs.append(fig)
 
     
-    fig = figure("3d_c2c", "3D complex transforms with aspect ratio 1:1:16")
+    fig = figure("3d_c2c_aspect", "3D complex transforms with aspect ratio N:N:16N")
     for idx, wdir in enumerate(dirlist):
         fig.runs.append( rundata(wdir, idx, "radix 2",
                                  dimension, min3d, max3d, nbatch, 2, [1,16], "c2c") )
     figs.append(fig)
 
-    fig = figure("3d_r2c", "3D real-to-complex transforms with aspect ratio 1:1:16")
+    fig = figure("3d_r2c_aspect", "3D real-to-complex transforms with aspect ratio N:N:16N")
     for idx, wdir in enumerate(dirlist):
         fig.runs.append( rundata(wdir, idx, "radix 2",
                                  dimension, min3d, max3d, nbatch, 2, [1,16], "r2c") )
@@ -444,24 +444,24 @@ def main(argv):
     for fig in figs:
         print(fig.name)
         for run in fig.runs:
-            print(" ".join(run.runcmd(outdir)))
+            print(" ".join(run.runcmd(outdir, nsample)))
             if not dryrun:
-                run.executerun(outdir)
+                run.executerun(outdir, nsample)
 
         print(fig.labels())
         print(fig.asycmd(outdir, docformat, datatype))
         fig.executeasy(outdir, docformat, datatype)
 
     if docformat == "pdf":
-        maketex(figs, outdir)    
+        maketex(figs, outdir, nsample)    
     if docformat == "docx":
-        makedocx(figs, outdir)    
+        makedocx(figs, outdir, nsample)    
 
 def binaryisok(dirname, progname):
     prog = os.path.join(dirname, progname)
     return os.path.isfile(prog)
         
-def maketex(figs, outdir):
+def maketex(figs, outdir, nsample):
     
     header = '''\documentclass[12pt]{article}
 \\usepackage{graphicx}
@@ -473,8 +473,10 @@ def maketex(figs, outdir):
 
     texstring += "\n\\section{Introduction}\n"
     
-    texstring += "Each data point represents the median of 10 values, with error bars showing the 95\\% confidence interval for the median.\n\n"
+    texstring += "Each data point represents the median of " + str(nsample) + " values, with error bars showing the 95\\% confidence interval for the median.  All transforms are double-precision, in-place, and forward.\n\n"
 
+
+    
     texstring += "\\vspace{1cm}\n"
     
     # texstring += "\\begin{tabular}{ll}"
@@ -543,14 +545,14 @@ def maketex(figs, outdir):
     if texrc != 0:
         print("****tex fail****")
 
-def makedocx(figs, outdir):
+def makedocx(figs, outdir, nsample):
     import docx
 
     document = docx.Document()
 
     document.add_heading('rocFFT benchmarks', 0)
 
-    document.add_paragraph('Each data point represents the median of 10 values, with error bars showing the 95% confidence interval for the median')
+    document.add_paragraph("Each data point represents the median of " + str(nsample) + " values, with error bars showing the 95% confidence interval for the median")
 
     specfilename = os.path.join(outdir, "specs.txt")
     if os.path.isfile(specfilename):
