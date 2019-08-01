@@ -157,23 +157,27 @@ class figure:
     
     def filename(self, outdir, docformat):
         outfigure = self.name
-        if docformat == "pdf":
-            outfigure += ".pdf"
-        if docformat == "docx":
-            outfigure += ".png"
+        outfigure += ".pdf"
+        # if docformat == "pdf":
+        #     outfigure += ".pdf"
+        # if docformat == "docx":
+        #     outfigure += ".png"
         return os.path.join(outdir, outfigure)
 
         
     def asycmd(self, outdir, docformat, datatype):
         asycmd = ["asy"]
-        if docformat == "pdf":
-            asycmd.append("-f")
-            asycmd.append("pdf")
-        if docformat == "docx":
-            asycmd.append("-f")
-            asycmd.append("png")
-            asycmd.append("-render")
-            asycmd.append("16")
+        
+        asycmd.append("-f")
+        asycmd.append("pdf")
+        # if docformat == "pdf":
+        #     asycmd.append("-f")
+        #     asycmd.append("pdf")
+        # if docformat == "docx":
+        #     asycmd.append("-f")
+        #     asycmd.append("png")
+        #     asycmd.append("-render")
+        #     asycmd.append("8")
         asycmd.append("datagraphs.asy")
 
         asycmd.append("-u")
@@ -281,10 +285,12 @@ def main(argv):
 
     if labelA == None:
         labelA = dirA
+
         
     print("dirA: "+ dirA)
     print("labelA: "+ labelA)
-    if not binaryisok(dirA, "rocfft-rider"):
+    
+    if not dryrun and not binaryisok(dirA, "rocfft-rider"):
         print("unable to find " + "rocfft-rider" + " in " + dirA)
         print("please specify with -A")
         sys.exit(1)
@@ -545,6 +551,25 @@ def maketex(figs, outdir, nsample):
     if texrc != 0:
         print("****tex fail****")
 
+def pdf2emf(pdfname):
+    svgname = pdfname.replace(".pdf",".svg")
+    cmd_pdf2svg = ["pdf2svg", pdfname, svgname]
+    proc = subprocess.Popen(cmd_pdf2svg, env=os.environ.copy())
+    proc.wait()
+    if proc.returncode != 0:
+        print("pdf2svg failed!")
+        sys.exit(1)
+
+    emfname = pdfname.replace(".pdf",".emf")
+    cmd_svg2emf = ["inkscape", svgname, "-M", emfname]
+    proc = subprocess.Popen(cmd_svg2emf, env=os.environ.copy())
+    proc.wait()
+    if proc.returncode != 0:
+        print("svg2emf failed!")
+        sys.exit(1)
+    
+    return emfname
+        
 def makedocx(figs, outdir, nsample):
     import docx
 
@@ -552,7 +577,7 @@ def makedocx(figs, outdir, nsample):
 
     document.add_heading('rocFFT benchmarks', 0)
 
-    document.add_paragraph("Each data point represents the median of " + str(nsample) + " values, with error bars showing the 95% confidence interval for the median")
+    document.add_paragraph("Each data point represents the median of " + str(nsample) + " values, with error bars showing the 95% confidence interval for the median.  Transforms are double-precision, forward, and in-place.")
 
     specfilename = os.path.join(outdir, "specs.txt")
     if os.path.isfile(specfilename):
@@ -564,7 +589,10 @@ def makedocx(figs, outdir, nsample):
     for fig in figs:
         print(fig.filename(outdir, "docx"))
         print(fig.caption)
-        document.add_picture(fig.filename(outdir, "docx"), width=docx.shared.Inches(4))
+        emfname = pdf2emf(fig.filename(outdir, "docx"))
+        # NB: emf support does not work; adding the filename as a placeholder
+        document.add_paragraph(emfname)
+        #document.add_picture(emfname, width=docx.shared.Inches(6))
         document.add_paragraph(fig.caption)
                          
     document.save(os.path.join(outdir,'figs.docx'))
