@@ -31,9 +31,8 @@
 #include <dlfcn.h>
 #include <functional>
 #include <iostream>
-#include <stdlib.h>
 #include <numeric>
-
+#include <stdlib.h>
 
 #define LOCAL_FFTW_FORWARD (-1)
 #define LOCAL_FFTW_BACKWARD (+1)
