@@ -46,24 +46,26 @@ Tint1 ceildiv(const Tint1 nominator, const Tint2 denominator)
     return (nominator + denominator - 1) / denominator;
 }
 
-int main()
+int main(int argc, char* argv[])
 {
     std::cout << "hipfft 2D double-precision complex-to-complex transform\n";
 
-    const int Nx        = 4;
-    const int Ny        = 4;
-    int       direction = HIPFFT_FORWARD; // forward=-1, backward=1
+    const size_t Nx = (argc < 1) ? 4 : atoi(argv[1]);
+    const size_t Ny = (argc < 2) ? 3 : atoi(argv[2]);
+    const bool inplace = (argc < 3) ? true : atoi(argv[3]);
 
     std::vector<std::complex<double>> cdata(Nx * Ny);
     size_t complex_bytes = sizeof(decltype(cdata)::value_type) * cdata.size();
 
+    hipError_t rt;
+    
     // Create HIP device object and copy data to device:
     // hipfftComplex for single-precision
-    hipfftDoubleComplex* x;
-    hipMalloc(&x, complex_bytes);
+    hipfftDoubleComplex* x = NULL;
+    rt = hipMalloc(&x, complex_bytes);
+    assert(rt == HIP_SUCCESS);
 
     // Inititalize the data on the device
-    hipError_t rt;
     const dim3 blockdim(32, 32);
     const dim3 griddim(ceildiv(Nx, blockdim.x), ceildiv(Ny, blockdim.y));
     hipLaunchKernelGGL(initdata, blockdim, griddim, 0, 0, x, Nx, Ny);
@@ -89,19 +91,26 @@ int main()
     hipfftHandle plan = NULL;
     rc                = hipfftCreate(&plan);
     assert(rc == HIPFFT_SUCCESS);
-    rc = hipfftPlan2d(&plan, // plan handle
-                      Nx, // transform length
-                      Ny, // transform length
+    rc = hipfftPlan2d(&plan,       // plan handle
+                      Nx,          // transform length
+                      Ny,          // transform length
                       HIPFFT_Z2Z); // transform type (HIPFFT_C2C for single-precisoin)
     assert(rc == HIPFFT_SUCCESS);
 
-    // Execute plan
+    // Set up the destination buffer:
+    hipfftDoubleComplex* y = inplace ? x : NULL;
+    if(!inplace) {
+        rt = hipMalloc(&x, complex_bytes);
+        assert(rt == HIP_SUCCESS);
+    }
+    
+    // Execute forward transform:
     // hipfftExecZ2Z: double precision, hipfftExecC2C: for single-precision
-    rc = hipfftExecZ2Z(plan, x, x, direction);
+    rc = hipfftExecZ2Z(plan, x, y, HIPFFT_FORWARD);
     assert(rc == HIPFFT_SUCCESS);
 
     std::cout << "output:\n";
-    hipMemcpy(cdata.data(), x, complex_bytes, hipMemcpyDeviceToHost);
+    hipMemcpy(cdata.data(), y, complex_bytes, hipMemcpyDeviceToHost);
     for(size_t i = 0; i < Nx; i++)
     {
         for(size_t j = 0; j < Ny; j++)
@@ -113,8 +122,31 @@ int main()
     }
     std::cout << std::endl;
 
+    // Backward transform
+    rc = hipfftExecZ2Z(plan, x, x, HIPFFT_BACKWARD);
+    assert(rc == HIPFFT_SUCCESS);
+
+    std::cout << "back to (scaled) input:\n";
+    hipMemcpy(cdata.data(), x, complex_bytes, hipMemcpyDefault);
+    for(int i = 0; i < Nx; i++)
+    {
+        for(int j = 0; j < Ny; j++)
+        {
+            int pos = i * Ny + j;
+            std::cout << cdata[pos] << " ";
+        }
+        std::cout << "\n";
+    }
+    std::cout << std::endl;
+
+    
     hipfftDestroy(plan);
     hipFree(x);
-
+    x = NULL;
+    if(y != NULL) {
+        hipFree(y);
+        y = NULL;
+    }
+    
     return 0;
 }

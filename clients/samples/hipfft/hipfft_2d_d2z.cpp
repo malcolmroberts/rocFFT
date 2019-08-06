@@ -34,7 +34,7 @@ __global__ void initdata(double* x, const size_t Nx, const size_t Ny, const size
     if(idx < Nx && idy < Ny)
     {
         const size_t pos = idx * rstride + idy;
-        x[pos]           = idx + idy;
+	//x[pos]           = idx + idy;
     }
 }
 
@@ -45,30 +45,35 @@ Tint1 ceildiv(const Tint1 nominator, const Tint2 denominator)
     return (nominator + denominator - 1) / denominator;
 }
 
-int main()
+int main(int argc, char* argv[])
 {
     std::cout << "hipfft 2D double-precision real-to-complex transform\n";
 
-    const size_t Nx = 4;
-    const size_t Ny = 5;
-
-    std::cout << "Nx: " << Nx << "\tNy " << Ny << std::endl;
+    const size_t Nx = (argc < 2) ? 4 : atoi(argv[1]);
+    const size_t Ny = (argc < 3) ? 3 : atoi(argv[2]);
+    const bool inplace = (argc < 4) ? true : atoi(argv[3]);
+    
+    std::cout << "Nx: " << Nx << "\tNy: " << Ny
+              << "\tin-place: " << inplace << std::endl;
 
     const size_t Nycomplex = Ny / 2 + 1;
-    const size_t rstride   = Nycomplex * 2; // Ny for out-of-place
+    const size_t rstride   = inplace ? (Nycomplex * 2) : Ny;
 
+    std::cout << "rstride: " << rstride << std::endl;
+    
     const size_t real_bytes    = sizeof(double) * Nx * rstride;
-    const size_t complex_bytes = 2 * sizeof(double) * Nx * Ny;
+    const size_t complex_bytes = 2 * sizeof(double) * Nx * Nycomplex;
 
-    double*    x;
     hipError_t rt;
+    
+    double*    x = NULL;
     rt = hipMalloc(&x, real_bytes);
     assert(rt == HIP_SUCCESS);
-
+        
     // Inititalize the data on the device
     const dim3 blockdim(32, 32);
     const dim3 griddim(ceildiv(Nx, blockdim.x), ceildiv(Ny, blockdim.y));
-    hipLaunchKernelGGL(initdata, blockdim, griddim, 0, 0, x, Nx, Ny, rstride);
+    hipLaunchKernelGGL(initdata, griddim, blockdim, 0, 0, x, Nx, Ny, rstride);
     hipDeviceSynchronize();
     rt = hipGetLastError();
     assert(rt == hipSuccess);
@@ -81,7 +86,7 @@ int main()
     std::cout << "input:\n";
     for(size_t i = 0; i < Nx; i++)
     {
-        for(size_t j = 0; j < Ny; j++)
+        for(size_t j = 0; j < rstride; j++)
         {
             auto pos = i * rstride + j;
             std::cout << rdata[pos] << " ";
@@ -89,7 +94,7 @@ int main()
         std::cout << "\n";
     }
     std::cout << std::endl;
-
+    
     // Create plan:
     hipfftResult rc   = HIPFFT_SUCCESS;
     hipfftHandle plan = NULL;
@@ -101,14 +106,21 @@ int main()
                       HIPFFT_D2Z); // transform type (HIPFFT_R2C for single-precisoin)
     assert(rc == HIPFFT_SUCCESS);
 
-    // Execute plan:
+    // Set up the destination buffer:
+    hipfftDoubleComplex* y = inplace ? (hipfftDoubleComplex*)x : NULL;
+    if(!inplace) {
+        rt = hipMalloc(&x, complex_bytes);
+        assert(rt == HIP_SUCCESS);
+    }
+    
+    // Execute the forward transform:
     // hipfftExecD2Z: double precision, hipfftExecR2C: single-precision
-    rc = hipfftExecD2Z(plan, x, (hipfftDoubleComplex*)x);
+    rc = hipfftExecD2Z(plan, x, y);
     assert(rc == HIPFFT_SUCCESS);
 
     // copy the output data to the host and output:
     std::vector<std::complex<double>> cdata(Nx * Ny);
-    hipMemcpy(cdata.data(), x, complex_bytes, hipMemcpyDeviceToHost);
+    hipMemcpy(cdata.data(), y, complex_bytes, hipMemcpyDeviceToHost);
     std::cout << "output:\n";
     for(size_t i = 0; i < Nx; i++)
     {
@@ -121,8 +133,31 @@ int main()
     }
     std::cout << std::endl;
 
-    hipfftDestroy(plan);
-    hipFree(x);
+    // Execute the backward transform:
+    rc = hipfftExecZ2D(plan, y, x);
+    assert(rc == HIPFFT_SUCCESS);
 
+    std::cout << "back to (scaled) input:\n";
+    hipMemcpy(rdata.data(), x, real_bytes, hipMemcpyDeviceToHost);
+    for(size_t i = 0; i < Nx; i++)
+    {
+        for(size_t j = 0; j < Ny; j++)
+        {
+            auto pos = i * rstride + j;
+            std::cout << rdata[pos] << " ";
+        }
+        std::cout << "\n";
+    }
+    std::cout << std::endl;
+    
+    hipfftDestroy(plan);
+    
+    hipFree(x);
+    x = NULL;
+    if(y != NULL) {
+        hipFree(y);
+        y = NULL;
+    }
+    
     return 0;
 }

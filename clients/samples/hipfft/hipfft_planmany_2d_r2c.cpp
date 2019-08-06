@@ -31,8 +31,8 @@ int main()
     std::cout << "hipfft 2D single-precision real-to-complex transform using advanced interface\n";
 
     int rank    = 2;
-    int n[2]    = {4, 5};
-    int howmany = 3; // batch size
+    int n[2]    = {4, 1};
+    int howmany = 1; // batch size
 
     int n1_complex_elements      = n[1] / 2 + 1;
     int n1_padding_real_elements = n1_complex_elements * 2;
@@ -84,8 +84,9 @@ int main()
     }
     std::cout << std::endl;
 
-    hipfftHandle hipForwardPlan;
     hipfftResult result;
+    
+    hipfftHandle hipForwardPlan;
     result = hipfftPlanMany(&hipForwardPlan,
                             rank,
                             n,
@@ -124,6 +125,43 @@ int main()
     }
     std::cout << std::endl;
 
+    hipDeviceSynchronize();
+    hipfftHandle hipBackwardPlan;
+    result = hipfftPlanMany(&hipBackwardPlan,
+                            rank,
+                            n,
+                            inembed,
+                            istride,
+                            idist,
+                            onembed,
+                            ostride,
+                            odist,
+                            HIPFFT_C2R,
+                            howmany);
+    result = hipfftExecC2R(hipBackwardPlan, (hipfftComplex*)gpu_data, gpu_data);
+        hipDeviceSynchronize();
+    hipMemcpy((void*)data.data(), gpu_data, total_bytes, hipMemcpyDeviceToHost);
+
+    hipDeviceSynchronize();
+    
+    std::cout << "Back to input:\n";
+    for(int ibatch = 0; ibatch < howmany; ++ibatch)
+    {
+        std::cout << "batch: " << ibatch << "\n";
+        for(int i = 0; i < inembed[0]; i++)
+        {
+            for(int j = 0; j < inembed[1]; j++)
+            {
+                const auto pos = ibatch * idist + i * inembed[1] + j;
+                std::cout << data[pos] << " ";
+            }
+            std::cout << "\n";
+        }
+        std::cout << "\n";
+    }
+    std::cout << std::endl;
+
+    
     hipfftDestroy(hipForwardPlan);
     hipFree(gpu_data);
     return 0;
