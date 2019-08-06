@@ -50,9 +50,9 @@ int main(int argc, char* argv[])
 {
     std::cout << "hipfft 2D double-precision complex-to-complex transform\n";
 
-    const size_t Nx = (argc < 1) ? 4 : atoi(argv[1]);
-    const size_t Ny = (argc < 2) ? 3 : atoi(argv[2]);
-    const bool inplace = (argc < 3) ? true : atoi(argv[3]);
+    const size_t Nx = (argc < 2) ? 4 : atoi(argv[1]);
+    const size_t Ny = (argc < 3) ? 3 : atoi(argv[2]);
+    const bool inplace = (argc < 4) ? true : atoi(argv[3]);
 
     std::vector<std::complex<double>> cdata(Nx * Ny);
     size_t complex_bytes = sizeof(decltype(cdata)::value_type) * cdata.size();
@@ -68,7 +68,7 @@ int main(int argc, char* argv[])
     // Inititalize the data on the device
     const dim3 blockdim(32, 32);
     const dim3 griddim(ceildiv(Nx, blockdim.x), ceildiv(Ny, blockdim.y));
-    hipLaunchKernelGGL(initdata, blockdim, griddim, 0, 0, x, Nx, Ny);
+    hipLaunchKernelGGL(initdata, griddim, blockdim, 0, 0, x, Nx, Ny);
     hipDeviceSynchronize();
     rt = hipGetLastError();
     assert(rt == hipSuccess);
