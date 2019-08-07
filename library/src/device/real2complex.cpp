@@ -27,20 +27,21 @@
 
 // Device function for embedding real data in a complex buffer
 template <typename Tcomplex>
-__global__ void real2complex_kernel(const size_t          input_size,
-                                    const size_t          input_stride,
-                                    const size_t          output_stride,
-                                    const void* vinput,
-                                    const size_t          input_distance,
-                                    void*              voutput,
-                                    const size_t          output_distance)
+__global__ void real2complex_kernel(const size_t input_size,
+                                    const size_t input_stride,
+                                    const size_t output_stride,
+                                    const void*  vinput,
+                                    const size_t input_distance,
+                                    void*        voutput,
+                                    const size_t output_distance)
 {
     // Cast to correct type.
     // Add  batch offset + multi-dimensional offset
     const real_type_t<Tcomplex>* input = (real_type_t<Tcomplex>*)vinput
-        + hipBlockIdx_z * input_distance + hipBlockIdx_y * input_stride;
-    Tcomplex* output = (Tcomplex*) voutput
-        + hipBlockIdx_z * output_distance + hipBlockIdx_y * output_stride; 
+                                         + hipBlockIdx_z * input_distance
+                                         + hipBlockIdx_y * input_stride;
+    Tcomplex* output
+        = (Tcomplex*)voutput + hipBlockIdx_z * output_distance + hipBlockIdx_y * output_stride;
 
     const size_t tid = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
 
@@ -83,12 +84,11 @@ void real2complex(const void* data_p, void* back_p)
         = (data->node->length.size() > 1) ? data->node->outStride[1] : output_distance;
 
     const void* input_buffer  = data->bufIn[0];
-    void* output_buffer = data->bufOut[0];
+    void*       output_buffer = data->bufOut[0];
 
     const size_t batch          = data->node->batch;
-    const size_t high_dimension = std::accumulate(data->node->length.begin() + 1,
-                                            data->node->length.end(),
-                                            1, std::multiplies<size_t>());
+    const size_t high_dimension = std::accumulate(
+        data->node->length.begin() + 1, data->node->length.end(), 1, std::multiplies<size_t>());
     const rocfft_precision precision = data->node->precision;
 
     const size_t blocks = (input_size - 1) / 512 + 1;
@@ -97,7 +97,7 @@ void real2complex(const void* data_p, void* back_p)
     {
         std::cout << "2D and 3D or batch is too big; not implemented\n";
     }
-    
+
     // The z dimension is used for batching,
     // If 2D or 3D, the number of blocks along y will multiple high dimensions.
     // Notice that the maximum # of thread blocks in y & z is 65535
@@ -107,9 +107,8 @@ void real2complex(const void* data_p, void* back_p)
 
     hipStream_t rocfft_stream = data->rocfft_stream;
 
-    hipLaunchKernelGGL((precision == rocfft_precision_single) ?
-                       real2complex_kernel<float2> :
-                       real2complex_kernel<double2>,
+    hipLaunchKernelGGL((precision == rocfft_precision_single) ? real2complex_kernel<float2>
+                                                              : real2complex_kernel<double2>,
                        grid,
                        threads,
                        0,
@@ -121,7 +120,6 @@ void real2complex(const void* data_p, void* back_p)
                        input_distance,
                        output_buffer,
                        output_distance);
-
 }
 
 // Device function for extracting non-redundant data from a Hermitian
@@ -130,17 +128,17 @@ template <typename Tcomplex>
 __global__ void complex2hermitian_kernel(const size_t input_size,
                                          const size_t input_stride,
                                          const size_t output_stride,
-                                         const void*     vinput,
+                                         const void*  vinput,
                                          const size_t input_distance,
-                                         void*     voutput,
+                                         void*        voutput,
                                          const size_t output_distance)
 {
     // Cast to correct type.
     // Add  batch offset + multi-dimensional offset.
-    const Tcomplex* input = (Tcomplex*)vinput
-        + hipBlockIdx_z * input_distance + hipBlockIdx_y * input_stride;
-    Tcomplex* output = (Tcomplex*) voutput
-        + hipBlockIdx_z * output_distance + hipBlockIdx_y * output_stride; 
+    const Tcomplex* input
+        = (Tcomplex*)vinput + hipBlockIdx_z * input_distance + hipBlockIdx_y * input_stride;
+    Tcomplex* output
+        = (Tcomplex*)voutput + hipBlockIdx_z * output_distance + hipBlockIdx_y * output_stride;
 
     const size_t tid = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
 
@@ -178,7 +176,7 @@ void complex2hermitian(const void* data_p, void* back_p)
     const DeviceCallIn* data = (DeviceCallIn*)data_p;
 
     // input_size is the innermost dimension
-    const size_t input_size = data->node->length[0]; 
+    const size_t input_size = data->node->length[0];
 
     const size_t input_distance  = data->node->iDist;
     const size_t output_distance = data->node->oDist;
@@ -189,12 +187,11 @@ void complex2hermitian(const void* data_p, void* back_p)
         = (data->node->length.size() > 1) ? data->node->outStride[1] : output_distance;
 
     const void* input_buffer  = data->bufIn[0];
- void* output_buffer = data->bufOut[0];
+    void*       output_buffer = data->bufOut[0];
 
     const size_t batch          = data->node->batch;
-    const size_t high_dimension = std::accumulate(data->node->length.begin() + 1,
-                                            data->node->length.end(),
-                                            1, std::multiplies<size_t>());
+    const size_t high_dimension = std::accumulate(
+        data->node->length.begin() + 1, data->node->length.end(), 1, std::multiplies<size_t>());
     const rocfft_precision precision = data->node->precision;
 
     const size_t blocks = (input_size - 1) / 512 + 1;
@@ -203,7 +200,7 @@ void complex2hermitian(const void* data_p, void* back_p)
     {
         std::cout << "2D and 3D or batch is too big; not implemented\n";
     }
-    
+
     // The z dimension is used for batching.
     // If 2D or 3D, the number of blocks along y will multiple high
     // dimensions notice the maximum # of thread blocks in y & z is
@@ -213,9 +210,8 @@ void complex2hermitian(const void* data_p, void* back_p)
 
     hipStream_t rocfft_stream = data->rocfft_stream;
 
-    hipLaunchKernelGGL((precision == rocfft_precision_single) ?
-                       complex2hermitian_kernel<float2> :
-                       complex2hermitian_kernel<double2>,
+    hipLaunchKernelGGL((precision == rocfft_precision_single) ? complex2hermitian_kernel<float2>
+                                                              : complex2hermitian_kernel<double2>,
                        grid,
                        threads,
                        0,
@@ -227,32 +223,30 @@ void complex2hermitian(const void* data_p, void* back_p)
                        input_distance,
                        output_buffer,
                        output_distance);
-
 }
-
 
 // GPU kernel for 1d r2c post-process and c2r pre-process.
 // Tcomplex is memory allocation type, could be float2 or double2.
 // Each thread handles 2 points.
 template <typename Tcomplex, bool R2C>
-__global__ void real_1d_pre_post_process_kernel(const size_t   half_N,
-                                                const size_t   input_stride,
-                                                const size_t   output_stride,
-                                                const void*    vinput,
-                                                const size_t   input_distance,
-                                                void*    voutput,
-                                                const size_t   output_distance,
-                                                void* const vtwiddles)
+__global__ void real_1d_pre_post_process_kernel(const size_t half_N,
+                                                const size_t input_stride,
+                                                const size_t output_stride,
+                                                const void*  vinput,
+                                                const size_t input_distance,
+                                                void*        voutput,
+                                                const size_t output_distance,
+                                                void* const  vtwiddles)
 {
     // Cast the input pointers to the correct type and add batch
     // offset + stride offset.
     // Notice for 1D, hipBlockIdx_y == 0 and thus has no effect.
-    const Tcomplex* input = (Tcomplex*)vinput
-        + hipBlockIdx_z * input_distance + hipBlockIdx_y * input_stride; 
-    Tcomplex* output = (Tcomplex*)voutput
-        + hipBlockIdx_z * output_distance + hipBlockIdx_y * output_stride;
+    const Tcomplex* input
+        = (Tcomplex*)vinput + hipBlockIdx_z * input_distance + hipBlockIdx_y * input_stride;
+    Tcomplex* output
+        = (Tcomplex*)voutput + hipBlockIdx_z * output_distance + hipBlockIdx_y * output_stride;
     const Tcomplex* twiddles = (Tcomplex*)vtwiddles;
-    
+
     const size_t idx_p = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
     const size_t idx_q = half_N - idx_p;
 
@@ -267,10 +261,10 @@ __global__ void real_1d_pre_post_process_kernel(const size_t   half_N,
         }
         else
         {
-            const Tcomplex p             = input[0];
-            const Tcomplex q             = input[half_N];
-            output[idx_p].x = p.x + q.x;
-            output[idx_p].y = p.x - q.x;
+            const Tcomplex p = input[0];
+            const Tcomplex q = input[half_N];
+            output[idx_p].x  = p.x + q.x;
+            output[idx_p].y  = p.x - q.x;
         }
     }
     else if(idx_p <= half_N >> 1)
@@ -312,15 +306,14 @@ void real_1d_pre_post(const void* data_p, void* back_p)
         = (data->node->length.size() > 1) ? data->node->outStride[1] : output_distance;
 
     const void* input_buffer  = data->bufIn[0];
-    void* output_buffer = data->bufOut[0];
+    void*       output_buffer = data->bufOut[0];
 
     const size_t batch          = data->node->batch;
-    const size_t high_dimension = std::accumulate(data->node->length.begin() + 1,
-                                            data->node->length.end(),
-                                            1, std::multiplies<size_t>());
+    const size_t high_dimension = std::accumulate(
+        data->node->length.begin() + 1, data->node->length.end(), 1, std::multiplies<size_t>());
 
-      const size_t block_size = 512;
-     const size_t blocks     = (half_N / 2 + 1 - 1) / block_size + 1;
+    const size_t block_size = 512;
+    const size_t blocks     = (half_N / 2 + 1 - 1) / block_size + 1;
 
     if(high_dimension > 65535 || batch > 65535)
     {
@@ -330,9 +323,9 @@ void real_1d_pre_post(const void* data_p, void* back_p)
     dim3 grid(blocks, high_dimension, batch);
     dim3 threads(block_size, 1, 1);
 
-    hipLaunchKernelGGL((data->node->precision == rocfft_precision_single) ?
-                       real_1d_pre_post_process_kernel<float2, R2C> :
-                       real_1d_pre_post_process_kernel<double2, R2C>,
+    hipLaunchKernelGGL((data->node->precision == rocfft_precision_single)
+                           ? real_1d_pre_post_process_kernel<float2, R2C>
+                           : real_1d_pre_post_process_kernel<double2, R2C>,
                        grid,
                        threads,
                        0,
