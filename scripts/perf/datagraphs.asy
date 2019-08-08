@@ -129,9 +129,9 @@ for(int n = 0; n < testlist.length; ++n)
         }
     }
    
-    pen p = Pen(n) + solid;
+    pen graphpen = Pen(n);
     if(n == 2)
-        p = darkgreen;
+        graphpen = darkgreen;
 
     pair[] z;
     pair[] dp;
@@ -143,15 +143,10 @@ for(int n = 0; n < testlist.length; ++n)
             dm.push((0 , y[n][i] - ly[i]));
         }
     }
-    errorbars(z, dp, dm, p);
-
-    if(n == 1) 
-        p += dashed;
-    if(n == 2) 
-        p += Dotted;
+    errorbars(z, dp, dm, graphpen);
     
     guide g = scale(0.5mm) * unitcircle;
-    marker mark = marker(g, Draw(p + solid));
+    marker mark = marker(g, Draw(graphpen + solid));
 
     bool drawme[] = new bool[x[n].length];
     for(int i = 0; i < drawme.length; ++i) {
@@ -163,7 +158,7 @@ for(int n = 0; n < testlist.length; ++n)
     }
 
      
-    draw(graph(x[n], y[n], drawme), p,  
+    draw(graph(x[n], y[n], drawme), graphpen,  
          myleg ? legends[n] : texify(filename), mark);
 }
 
