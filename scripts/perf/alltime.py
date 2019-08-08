@@ -194,7 +194,7 @@ class figure:
         #     asycmd.append('speedup=false')
 
         asycmd.append("-u")
-        asycmd.append('speedup=false')
+        asycmd.append('speedup=0')
             
         if datatype == "gflops":
             asycmd.append("-u")

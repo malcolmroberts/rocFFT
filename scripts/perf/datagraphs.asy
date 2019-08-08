@@ -29,7 +29,7 @@ bool normalize = false;
 
 bool raw = true;
 
-bool speedup = true;
+int speedup = 2;
 
 usersetting();
 write("filenames:\"", filenames+"\"");
@@ -129,7 +129,7 @@ for(int n = 0; n < testlist.length; ++n)
         }
     }
    
-    pen p = Pen(n);
+    pen p = Pen(n) + solid;
     if(n == 2)
         p = darkgreen;
 
@@ -173,16 +173,16 @@ else
    xaxis(xlabel);
 
 if(doyticks)
-    yaxis(ylabel,speedup ? Left : LeftRight,RightTicks);
+    yaxis(ylabel,speedup > 1 ? Left : LeftRight,RightTicks);
 else
    yaxis(ylabel,LeftRight);
 
 
 if(dolegend)
-    attach(legend(),point(plain.E),(speedup ? 60*plain.E + 40 *plain.N : 20*plain.E)  );
+    attach(legend(),point(plain.E),(speedup > 1 ? 60*plain.E + 40 *plain.N : 20*plain.E)  );
 
 
-if(speedup) {
+if(speedup > 1) {
     string[] legends = listfromcsv(legendlist);
     // TODO: error bars
     // TODO: when there is data missing at one end, the axes might be weird
@@ -191,62 +191,67 @@ if(speedup) {
             scale(pic,Log,Linear);
             real ymin = inf;
             real ymax = -inf;
-            for(int n = 0; n < testlist.length; n += 2)
-            {
-                real[] xval = new real[];
-                real[] yval = new real[];
-                pair[] zy;
-                pair[] dp;
-                pair[] dm;
-                for(int i = 0; i < x[n].length; ++i) {
-                    for(int j = 0; j < x[n+1].length; ++j) {
-                        if (x[n][i] == x[n+1][j]) {
-                            xval.push(x[n][i]);
-                            real val = y[n][i] / y[n+1][j];
-                            yval.push(val);
+	    int penidx = testlist.length;
+            for(int n = 0; n < testlist.length; n += speedup) {
 
-                            zy.push((x[n][i], val));
-                            real[] lowhi = ratiodev(data[n][i], data[n+1][j]);
-                            real hi = lowhi[1];
-                            real low = lowhi[0];
+	      for(int next = 1; next < speedup; ++next) {
+		real[] baseval = new real[];
+		real[] yval = new real[];
+		pair[] zy;
+		pair[] dp;
+		pair[] dm;
+		  
+		for(int i = 0; i < x[n].length; ++i) {
+		  for(int j = 0; j < x[n+next].length; ++j) {
+		    if (x[n][i] == x[n+next][j]) {
+		      baseval.push(x[n][i]);
+		      real val = y[n][i] / y[n+next][j];
+		      yval.push(val);
 
-                            dp.push((0 , hi - val));
-                            dm.push((0 , low - val));
+		      zy.push((x[n][i], val));
+		      real[] lowhi = ratiodev(data[n][i], data[n+next][j]);
+		      real hi = lowhi[1];
+		      real low = lowhi[0];
+
+		      dp.push((0 , hi - val));
+		      dm.push((0 , low - val));
     
-                            ymin = min(val, ymin);
-                            ymax = max(val, ymax);
-                            break;
-                        }
-                    }
-                    
-                }
-                if(xval.length > 0){
-                    pen p = black+dashed;
-                    if(n == 2) {
-                        p = black + Dotted;
-                    }
-                    guide g = scale(0.5mm) * unitcircle;
-                    marker mark = marker(g, Draw(p + solid));
+		      ymin = min(val, ymin);
+		      ymax = max(val, ymax);
+		      break;
+		    }
+		  }
+		}
+
+		  
+		if(baseval.length > 0){
+		  pen p = Pen(penidx)+dashed;
+		  ++penidx;
+		  
+		  guide g = scale(0.5mm) * unitcircle;
+		  marker mark = marker(g, Draw(p + solid));
                 
-                    draw(pic,graph(pic,xval, yval),p,legends[n] + "/" + legends[n+1],mark);
-                    errorbars(pic, zy, dp, dm, p);
-                }
+		  draw(pic,graph(pic,baseval, yval),p,legends[n] + " / " + legends[n+next],mark);
+		  errorbars(pic, zy, dp, dm, p);
+		}
 
-                {
-                    real[] fakex = {xmin, xmax};
-                    real[] fakey = {ymin, ymax};
-                    // draw an invisible graph to set up the limits correctly.
-                    draw(pic,graph(pic,fakex, fakey),invisible);
+		{
+		  real[] fakex = {xmin, xmax};
+		  real[] fakey = {ymin, ymax};
+		  // draw an invisible graph to set up the limits correctly.
+		  draw(pic,graph(pic,fakex, fakey),invisible);
 
-                }
-                yequals(pic, 1.0, lightgrey);
+		}
+	      }
             }
+
+	    yequals(pic, 1.0, lightgrey);
             yaxis(pic,"speedup",Right,  black,LeftTicks);
             attach(legend(pic),point(plain.E), 60*plain.E - 40 *plain.N  );
-        });
+      });
     
 
     add(secondary);
-}
+ }
 
 
