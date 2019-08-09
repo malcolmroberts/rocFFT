@@ -226,7 +226,7 @@ if(speedup > 1) {
 		  guide g = scale(0.5mm) * unitcircle;
 		  marker mark = marker(g, Draw(p + solid));
                 
-		  draw(pic,graph(pic,baseval, yval),p,legends[n] + " / " + legends[n+next],mark);
+		  draw(pic,graph(pic,baseval, yval),p,legends[n] + " vs " + legends[n+next],mark);
 		  errorbars(pic, zy, dp, dm, p);
 		}
 
