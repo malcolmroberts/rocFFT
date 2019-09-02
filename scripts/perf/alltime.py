@@ -352,7 +352,7 @@ def main(argv):
     max1d = 4000 if shortrun else 536870912
     
     fig = figure("1d_c2c", "1D complex transforms")
-    for radix in [2, 3, 5, 7]:
+    for radix in [2, 3]:
         for idx, lwdir in enumerate(dirlist):
             wdir = lwdir[0]
             label = lwdir[1]
@@ -362,39 +362,48 @@ def main(argv):
     figs.append(fig)
 
     fig = figure("1d_r2c", "1D real-to-complex transforms")
-    for radix in [2, 3, 5, 7]:
+    for radix in [2, 3]:
         for idx, lwdir in enumerate(dirlist):
             wdir = lwdir[0]
             label = lwdir[1]
             fig.runs.append( rundata(wdir, idx, label + "radix " + str(radix) ,
                                      dimension, nextpow(min1d, radix), max1d, nbatch, radix, [], "r2c",
                                      forwards) )
+    figs.append(fig)
+
+    fig = figure("1d_c2r", "1D complex-to-real transforms")
+    for radix in [2, 3]:
+        for idx, lwdir in enumerate(dirlist):
+            wdir = lwdir[0]
+            label = lwdir[1]
+            fig.runs.append( rundata(wdir, idx, label + "radix " + str(radix) ,
+                                     dimension, nextpow(min1d, radix), max1d, nbatch, radix, [], "r2c",
+                                     backwards) )
     figs.append(fig)
 
     
     nbatch = 100 if shortrun else 100000
     min1d = 8
     max1d = 1024 if shortrun else 32768
-    fig = figure("1d_batch_c2c", "1D complex transforms batch size "+ str(nbatch))
-    for radix in [2, 3, 5]:
-        for idx, lwdir in enumerate(dirlist):
-            wdir = lwdir[0]
-            label = lwdir[1]
-            fig.runs.append( rundata(wdir, idx, label + "radix " + str(radix) ,
-                                     dimension, nextpow(min1d, radix), max1d, nbatch, radix, [], "c2c",
-                                     forwards) )
-            
-    figs.append(fig)
+    # fig = figure("1d_batch_c2c", "1D complex transforms batch size "+ str(nbatch))
+    # for radix in [2, 3, 5]:
+    #     for idx, lwdir in enumerate(dirlist):
+    #         wdir = lwdir[0]
+    #         label = lwdir[1]
+    #         fig.runs.append( rundata(wdir, idx, label + "radix " + str(radix) ,
+    #                                  dimension, nextpow(min1d, radix), max1d, nbatch, radix, [], "c2c",
+    #                                  forwards) )
+    # figs.append(fig)
 
-    fig = figure("1d_batch_r2c", "1D real-to-complex transforms batch size " + str(nbatch))
-    for radix in [2, 3, 5]:
-        for idx, lwdir in enumerate(dirlist):
-            wdir = lwdir[0]
-            label = lwdir[1]
-            fig.runs.append( rundata(wdir, idx, label + "radix " + str(radix) ,
-                                     dimension, nextpow(min1d, radix), max1d, nbatch, radix, [], "r2c",
-                                     forwards) )
-    figs.append(fig)
+    # fig = figure("1d_batch_r2c", "1D real-to-complex transforms batch size " + str(nbatch))
+    # for radix in [2, 3, 5]:
+    #     for idx, lwdir in enumerate(dirlist):
+    #         wdir = lwdir[0]
+    #         label = lwdir[1]
+    #         fig.runs.append( rundata(wdir, idx, label + "radix " + str(radix) ,
+    #                                  dimension, nextpow(min1d, radix), max1d, nbatch, radix, [], "r2c",
+    #                                  forwards) )
+    # figs.append(fig)
 
     dimension = 2
 
@@ -403,7 +412,7 @@ def main(argv):
     max2d = 8192 if shortrun else 32768
 
     fig = figure("2d_c2c", "2D complex transforms")
-    for radix in [2, 3, 5]:
+    for radix in [2, 3]:
         for idx, lwdir in enumerate(dirlist):
             wdir = lwdir[0]
             label = lwdir[1]
@@ -413,7 +422,7 @@ def main(argv):
     figs.append(fig)
 
     fig = figure("2d_r2c", "2D real-to-complex transforms")
-    for radix in [2, 3, 5]:
+    for radix in [2, 3]:
         for idx, lwdir in enumerate(dirlist):
             wdir = lwdir[0]
             label = lwdir[1]
@@ -424,7 +433,7 @@ def main(argv):
 
    
     fig = figure("2d_c2r", "2D complex-to-real transforms")
-    for radix in [2, 3, 5]:
+    for radix in [2, 3]:
         for idx, lwdir in enumerate(dirlist):
             wdir = lwdir[0]
             label = lwdir[1]
@@ -434,21 +443,21 @@ def main(argv):
     figs.append(fig)
 
 
-    fig = figure("2d_c2c_r2", "2D complex transforms with aspect ratio N:2N")
-    for idx, lwdir in enumerate(dirlist):
-        wdir = lwdir[0]
-        label = lwdir[1]
-        fig.runs.append( rundata(wdir, idx, label + "radix 2",
-                                 dimension, min2d, max2d, nbatch, 2, [2], "c2c",
-                                 forwards) )
-    figs.append(fig)
+    # fig = figure("2d_c2c_r2", "2D complex transforms with aspect ratio N:2N")
+    # for idx, lwdir in enumerate(dirlist):
+    #     wdir = lwdir[0]
+    #     label = lwdir[1]
+    #     fig.runs.append( rundata(wdir, idx, label + "radix 2",
+    #                              dimension, min2d, max2d, nbatch, 2, [2], "c2c",
+    #                              forwards) )
+    # figs.append(fig)
 
-    fig = figure("2d_r2c_r2", "2D real-to-complex transforms with aspect ratio N:2N")
-    for idx, lwdir in enumerate(dirlist):
-        fig.runs.append( rundata(wdir, idx, label + "radix 2",
-                                 dimension, min2d, max2d, nbatch, 2, [2], "r2c",
-                                 forwards) )
-    figs.append(fig)
+    # fig = figure("2d_r2c_r2", "2D real-to-complex transforms with aspect ratio N:2N")
+    # for idx, lwdir in enumerate(dirlist):
+    #     fig.runs.append( rundata(wdir, idx, label + "radix 2",
+    #                              dimension, min2d, max2d, nbatch, 2, [2], "r2c",
+    #                              forwards) )
+    # figs.append(fig)
 
     
     dimension = 3
@@ -466,7 +475,7 @@ def main(argv):
     figs.append(fig)
 
     fig = figure("3d_r2c", "3D real-to-complex transforms")
-    for radix in [2, 3, 5]:
+    for radix in [2, 3]:
         for idx, lwdir in enumerate(dirlist):
             wdir = lwdir[0]
             label = lwdir[1]
@@ -476,7 +485,7 @@ def main(argv):
     figs.append(fig)
 
     fig = figure("3d_c2r", "3D complex-to-real transforms")
-    for radix in [2, 3, 5]:
+    for radix in [2, 3]:
         for idx, lwdir in enumerate(dirlist):
             wdir = lwdir[0]
             label = lwdir[1]
@@ -486,23 +495,23 @@ def main(argv):
     figs.append(fig)
 
     
-    fig = figure("3d_c2c_aspect", "3D complex transforms with aspect ratio N:N:16N")
-    for idx, lwdir in enumerate(dirlist):
-        wdir = lwdir[0]
-        label = lwdir[1]
-        fig.runs.append( rundata(wdir, idx, label + "radix 2",
-                                 dimension, min3d, max3d, nbatch, 2, [1,16], "c2c",
-                                 forwards) )
-    figs.append(fig)
+    # fig = figure("3d_c2c_aspect", "3D complex transforms with aspect ratio N:N:16N")
+    # for idx, lwdir in enumerate(dirlist):
+    #     wdir = lwdir[0]
+    #     label = lwdir[1]
+    #     fig.runs.append( rundata(wdir, idx, label + "radix 2",
+    #                              dimension, min3d, max3d, nbatch, 2, [1,16], "c2c",
+    #                              forwards) )
+    # figs.append(fig)
 
-    fig = figure("3d_r2c_aspect", "3D real-to-complex transforms with aspect ratio N:N:16N")
-    for idx, lwdir in enumerate(dirlist):
-        wdir = lwdir[0]
-        label = lwdir[1]
-        fig.runs.append( rundata(wdir, idx, label + "radix 2",
-                                 dimension, min3d, max3d, nbatch, 2, [1,16], "r2c",
-                                 forwards) )
-    figs.append(fig)
+    # fig = figure("3d_r2c_aspect", "3D real-to-complex transforms with aspect ratio N:N:16N")
+    # for idx, lwdir in enumerate(dirlist):
+    #     wdir = lwdir[0]
+    #     label = lwdir[1]
+    #     fig.runs.append( rundata(wdir, idx, label + "radix 2",
+    #                              dimension, min3d, max3d, nbatch, 2, [1,16], "r2c",
+    #                              forwards) )
+    # figs.append(fig)
 
 
 
