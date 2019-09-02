@@ -51,7 +51,7 @@ class rundata:
         self.ffttype = ffttype
         self.precision = "double"
         self.inplace = True
-        self.direction = -1
+        self.direction = direction
         self.label = label
             
 
@@ -430,7 +430,6 @@ def main(argv):
                                      nextpow(min2d, radix), max2d, nbatch, radix, [1], "r2c",
                                      forwards) )
     figs.append(fig)
-
    
     fig = figure("2d_c2r", "2D complex-to-real transforms")
     for radix in [2, 3]:
@@ -493,7 +492,6 @@ def main(argv):
                                      nextpow(min3d, radix), max3d, nbatch, radix, [1,1], "r2c",
                                      backwards) )
     figs.append(fig)
-
     
     # fig = figure("3d_c2c_aspect", "3D complex transforms with aspect ratio N:N:16N")
     # for idx, lwdir in enumerate(dirlist):
