@@ -38,7 +38,8 @@ def nextpow(val, radix):
 class rundata:
     
     def __init__(self, wdir, diridx, label,
-                 dimension, minsize, maxsize, nbatch, radix, ratio, ffttype):
+                 dimension, minsize, maxsize, nbatch, radix, ratio, ffttype,
+                 direction):
         self.wdir = wdir
         self.diridx = diridx
         self.dimension = dimension
@@ -165,7 +166,7 @@ class figure:
         return os.path.join(outdir, outfigure)
 
         
-    def asycmd(self, outdir, docformat, datatype):
+    def asycmd(self, outdir, docformat, datatype, ncompare):
         asycmd = ["asy"]
         
         asycmd.append("-f")
@@ -194,7 +195,7 @@ class figure:
         #     asycmd.append('speedup=false')
 
         asycmd.append("-u")
-        asycmd.append('speedup=0')
+        asycmd.append('speedup=' + str(ncompare))
             
         if datatype == "gflops":
             asycmd.append("-u")
@@ -205,8 +206,8 @@ class figure:
                     
         return asycmd
 
-    def executeasy(self, outdir, docformat, datatype):
-        asyproc =  subprocess.Popen(self.asycmd(outdir, docformat, datatype),
+    def executeasy(self, outdir, docformat, datatype, ncompare):
+        asyproc =  subprocess.Popen(self.asycmd(outdir, docformat, datatype, ncompare),
                                     env=os.environ.copy())
         asyproc.wait()
         asyrc = asyproc.returncode
@@ -302,7 +303,7 @@ def main(argv):
 
         print("dirB: "+ dirB)
         print("labelB: "+ labelB)
-        if not binaryisok(dirB, "rocfft-rider"):
+        if not dryrun and not binaryisok(dirB, "rocfft-rider"):
             print("unable to find " + "rocfft-rider" + " in " + dirB)
             print("please specify with -B")
             sys.exit(1)
@@ -341,6 +342,9 @@ def main(argv):
 
     dimension = 1
 
+    # FFT directions
+    forwards = -1
+    backwards = 1
     
     nbatch = 1
 
@@ -348,21 +352,23 @@ def main(argv):
     max1d = 4000 if shortrun else 536870912
     
     fig = figure("1d_c2c", "1D complex transforms")
-    for idx, lwdir in enumerate(dirlist):
-        wdir = lwdir[0]
-        label = lwdir[1]
-        for radix in [2, 3, 5, 7]:
+    for radix in [2, 3, 5, 7]:
+        for idx, lwdir in enumerate(dirlist):
+            wdir = lwdir[0]
+            label = lwdir[1]
             fig.runs.append( rundata(wdir, idx, label + "radix " + str(radix) ,
-                                     dimension, nextpow(min1d, radix), max1d, nbatch, radix, [], "c2c") )
+                                     dimension, nextpow(min1d, radix), max1d, nbatch, radix, [], "c2c",
+                                     forwards) )
     figs.append(fig)
 
     fig = figure("1d_r2c", "1D real-to-complex transforms")
-    for idx, lwdir in enumerate(dirlist):
-        wdir = lwdir[0]
-        label = lwdir[1]
-        for radix in [2, 3, 5, 7]:
+    for radix in [2, 3, 5, 7]:
+        for idx, lwdir in enumerate(dirlist):
+            wdir = lwdir[0]
+            label = lwdir[1]
             fig.runs.append( rundata(wdir, idx, label + "radix " + str(radix) ,
-                                     dimension, nextpow(min1d, radix), max1d, nbatch, radix, [], "r2c") )
+                                     dimension, nextpow(min1d, radix), max1d, nbatch, radix, [], "r2c",
+                                     forwards) )
     figs.append(fig)
 
     
@@ -370,22 +376,24 @@ def main(argv):
     min1d = 8
     max1d = 1024 if shortrun else 32768
     fig = figure("1d_batch_c2c", "1D complex transforms batch size "+ str(nbatch))
-    for idx, lwdir in enumerate(dirlist):
-        wdir = lwdir[0]
-        label = lwdir[1]
-        for radix in [2, 3, 5]:
+    for radix in [2, 3, 5]:
+        for idx, lwdir in enumerate(dirlist):
+            wdir = lwdir[0]
+            label = lwdir[1]
             fig.runs.append( rundata(wdir, idx, label + "radix " + str(radix) ,
-                                     dimension, nextpow(min1d, radix), max1d, nbatch, radix, [], "c2c") )
+                                     dimension, nextpow(min1d, radix), max1d, nbatch, radix, [], "c2c",
+                                     forwards) )
             
     figs.append(fig)
 
     fig = figure("1d_batch_r2c", "1D real-to-complex transforms batch size " + str(nbatch))
-    for idx, lwdir in enumerate(dirlist):
-        wdir = lwdir[0]
-        label = lwdir[1]
-        for radix in [2, 3, 5]:
+    for radix in [2, 3, 5]:
+        for idx, lwdir in enumerate(dirlist):
+            wdir = lwdir[0]
+            label = lwdir[1]
             fig.runs.append( rundata(wdir, idx, label + "radix " + str(radix) ,
-                                     dimension, nextpow(min1d, radix), max1d, nbatch, radix, [], "r2c") )
+                                     dimension, nextpow(min1d, radix), max1d, nbatch, radix, [], "r2c",
+                                     forwards) )
     figs.append(fig)
 
     dimension = 2
@@ -395,21 +403,34 @@ def main(argv):
     max2d = 8192 if shortrun else 32768
 
     fig = figure("2d_c2c", "2D complex transforms")
-    for idx, lwdir in enumerate(dirlist):
-        wdir = lwdir[0]
-        label = lwdir[1]
-        for radix in [2, 3, 5]:
+    for radix in [2, 3, 5]:
+        for idx, lwdir in enumerate(dirlist):
+            wdir = lwdir[0]
+            label = lwdir[1]
             fig.runs.append( rundata(wdir, idx, label + "radix " + str(radix), dimension,
-                                     nextpow(min2d, radix), max2d, nbatch, radix, [1], "c2c") )
+                                     nextpow(min2d, radix), max2d, nbatch, radix, [1], "c2c",
+                                     forwards) )
     figs.append(fig)
 
     fig = figure("2d_r2c", "2D real-to-complex transforms")
-    for idx, lwdir in enumerate(dirlist):
-        wdir = lwdir[0]
-        label = lwdir[1]
-        for radix in [2, 3, 5]:
+    for radix in [2, 3, 5]:
+        for idx, lwdir in enumerate(dirlist):
+            wdir = lwdir[0]
+            label = lwdir[1]
             fig.runs.append( rundata(wdir, idx, label + "radix " + str(radix), dimension,
-                                     nextpow(min2d, radix), max2d, nbatch, radix, [1], "r2c") )
+                                     nextpow(min2d, radix), max2d, nbatch, radix, [1], "r2c",
+                                     forwards) )
+    figs.append(fig)
+
+   
+    fig = figure("2d_c2r", "2D complex-to-real transforms")
+    for radix in [2, 3, 5]:
+        for idx, lwdir in enumerate(dirlist):
+            wdir = lwdir[0]
+            label = lwdir[1]
+            fig.runs.append( rundata(wdir, idx, label + "radix " + str(radix), dimension,
+                                     nextpow(min2d, radix), max2d, nbatch, radix, [1], "r2c",
+                                     backwards) )
     figs.append(fig)
 
 
@@ -418,13 +439,15 @@ def main(argv):
         wdir = lwdir[0]
         label = lwdir[1]
         fig.runs.append( rundata(wdir, idx, label + "radix 2",
-                                 dimension, min2d, max2d, nbatch, 2, [2], "c2c") )
+                                 dimension, min2d, max2d, nbatch, 2, [2], "c2c",
+                                 forwards) )
     figs.append(fig)
 
     fig = figure("2d_r2c_r2", "2D real-to-complex transforms with aspect ratio N:2N")
     for idx, lwdir in enumerate(dirlist):
         fig.runs.append( rundata(wdir, idx, label + "radix 2",
-                                 dimension, min2d, max2d, nbatch, 2, [2], "r2c") )
+                                 dimension, min2d, max2d, nbatch, 2, [2], "r2c",
+                                 forwards) )
     figs.append(fig)
 
     
@@ -433,21 +456,33 @@ def main(argv):
     max3d = 128 if shortrun else 1024
 
     fig = figure("3d_c2c", "3D complex transforms")
-    for idx, lwdir in enumerate(dirlist):
-        wdir = lwdir[0]
-        label = lwdir[1]
-        for radix in [2, 3, 5]:
+    for radix in [2, 3, 5]:
+        for idx, lwdir in enumerate(dirlist):
+            wdir = lwdir[0]
+            label = lwdir[1]
             fig.runs.append( rundata(wdir, idx, label + "radix " + str(radix), dimension,
-                                     nextpow(min3d, radix), max3d, nbatch, radix, [1,1], "c2c") )
+                                     nextpow(min3d, radix), max3d, nbatch, radix, [1,1], "c2c",
+                                     forwards) )
     figs.append(fig)
 
     fig = figure("3d_r2c", "3D real-to-complex transforms")
-    for idx, lwdir in enumerate(dirlist):
-        wdir = lwdir[0]
-        label = lwdir[1]
-        for radix in [2, 3, 5]:
+    for radix in [2, 3, 5]:
+        for idx, lwdir in enumerate(dirlist):
+            wdir = lwdir[0]
+            label = lwdir[1]
             fig.runs.append( rundata(wdir, idx, label + "radix " + str(radix), dimension,
-                                     nextpow(min3d, radix), max3d, nbatch, radix, [1,1], "r2c") )
+                                     nextpow(min3d, radix), max3d, nbatch, radix, [1,1], "r2c",
+                                     forwards) )
+    figs.append(fig)
+
+    fig = figure("3d_c2r", "3D complex-to-real transforms")
+    for radix in [2, 3, 5]:
+        for idx, lwdir in enumerate(dirlist):
+            wdir = lwdir[0]
+            label = lwdir[1]
+            fig.runs.append( rundata(wdir, idx, label + "radix " + str(radix), dimension,
+                                     nextpow(min3d, radix), max3d, nbatch, radix, [1,1], "r2c",
+                                     backwards) )
     figs.append(fig)
 
     
@@ -456,7 +491,8 @@ def main(argv):
         wdir = lwdir[0]
         label = lwdir[1]
         fig.runs.append( rundata(wdir, idx, label + "radix 2",
-                                 dimension, min3d, max3d, nbatch, 2, [1,16], "c2c") )
+                                 dimension, min3d, max3d, nbatch, 2, [1,16], "c2c",
+                                 forwards) )
     figs.append(fig)
 
     fig = figure("3d_r2c_aspect", "3D real-to-complex transforms with aspect ratio N:N:16N")
@@ -464,11 +500,12 @@ def main(argv):
         wdir = lwdir[0]
         label = lwdir[1]
         fig.runs.append( rundata(wdir, idx, label + "radix 2",
-                                 dimension, min3d, max3d, nbatch, 2, [1,16], "r2c") )
+                                 dimension, min3d, max3d, nbatch, 2, [1,16], "r2c",
+                                 forwards) )
     figs.append(fig)
 
 
-    
+
     for fig in figs:
         print(fig.name)
         for run in fig.runs:
@@ -476,9 +513,10 @@ def main(argv):
             if not dryrun:
                 run.executerun(outdir, nsample)
 
+        ncompare = len(dirlist) if speedup else 0
         print(fig.labels())
-        print(fig.asycmd(outdir, docformat, datatype))
-        fig.executeasy(outdir, docformat, datatype)
+        print(fig.asycmd(outdir, docformat, datatype, ncompare))
+        fig.executeasy(outdir, docformat, datatype, ncompare)
 
     if docformat == "pdf":
         maketex(figs, outdir, nsample)    
