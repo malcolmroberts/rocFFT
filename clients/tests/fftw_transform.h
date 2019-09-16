@@ -86,6 +86,62 @@ inline typename fftw_trait<double>::fftw_complex_type* fftw_alloc_complex_type<d
     return fftw_alloc_complex(n);
 }
 
+template <typename fftw_type>
+inline fftw_type* fftw_alloc_type(size_t n);
+template <>
+inline float* fftw_alloc_type<float>(size_t n)
+{
+    return fftw_alloc_real_type<float>(n);
+}
+template <>
+inline double* fftw_alloc_type<double>(size_t n)
+{
+    return fftw_alloc_real_type<double>(n);
+}
+template <>
+inline fftwf_complex* fftw_alloc_type<fftwf_complex>(size_t n)
+{
+    return fftw_alloc_complex_type<float>(n);
+}
+template <>
+inline fftw_complex* fftw_alloc_type<fftw_complex>(size_t n)
+{
+    return fftw_alloc_complex_type<double>(n);
+}
+template <>
+inline std::complex<float>* fftw_alloc_type<std::complex<float>>(size_t n)
+{
+    return (std::complex<float>*)fftw_alloc_complex_type<float>(n);
+}
+template <>
+inline std::complex<double>* fftw_alloc_type<std::complex<double>>(size_t n)
+{
+    return (std::complex<double>*)fftw_alloc_complex_type<double>(n);
+}
+
+// Allocator / deallocator for FFTW arrays.
+template <typename fftw_type>
+class fftw_allocator : public std::allocator<fftw_type>
+{
+public:
+    template <typename U>
+    struct rebind
+    {
+        typedef fftw_allocator<fftw_type> other;
+    };
+    fftw_type* allocate(size_t n)
+    {
+        return fftw_alloc_type<fftw_type>(n);
+    }
+    void deallocate(fftw_type* data, std::size_t size)
+    {
+        fftw_free(data);
+    }
+};
+
+template <typename fftw_type>
+using fftw_vector = std::vector<fftw_type, fftw_allocator<fftw_type> >;
+
 // Template wrappers for FFTW plan executors:
 template<typename Tfloat>
 inline void fftw_execute_type(typename fftw_trait<Tfloat>::fftw_plan_type plan);
@@ -114,9 +170,7 @@ inline void fftw_destroy_plan_type<double>(typename fftw_trait<double>::fftw_pla
     return fftw_execute(plan);
 }
 
-
-// Template and specializations for single and double precision FFTW
-// r2c planners.
+// Template wrappers for FFTW r2c planners:
 template <typename Tfloat>
 inline typename fftw_trait<Tfloat>::fftw_plan_type fftw_plan_guru64_r2c(
     int rank,
@@ -164,9 +218,6 @@ inline typename fftw_trait<double>::fftw_plan_type fftw_plan_guru64_r2c<double>(
                                      out,
                                      flags);
 }
-
-// TODO: wrappers for fftw_alloc_real and fftw_alloc_complex.
-
 
 
 

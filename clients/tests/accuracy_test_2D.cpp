@@ -181,13 +181,8 @@ void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
                                            data_pattern            pattern)
 {
     rocfft_setup(); // TODO: move to gtest setup?
-    
-    std::vector<size_t> input_strides;
-    std::vector<size_t> output_strides;
-    input_strides.push_back(stride);
-    output_strides.push_back(stride);
 
-    
+    using fftw_complex_type = typename fftw_trait<Tfloat>::fftw_complex_type;
     
     const size_t Nx = length[1];
     const size_t Ny = length[0];
@@ -197,20 +192,6 @@ void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
     const size_t Nycomplex = Ny / 2 + 1;
     const size_t Nystride = inplace ? 2 * Nycomplex : Ny;
 
-    // Local data buffer: (TODO: assumes contiguous data).
-    std::vector<Tfloat> cx(Nx * Nystride);
-    // Output buffer
-    std::vector<std::complex<Tfloat>> cy(Nx * Nycomplex);
-
-    Tfloat* x = NULL;
-    hipMalloc(&x, cx.size() * sizeof(typename decltype(cx)::value_type));
-    hipMemcpy(x, cx.data(), cx.size() * sizeof(typename decltype(cx)::value_type),
-              hipMemcpyHostToDevice);
-    std::complex<Tfloat>* y = inplace ? (std::complex<Tfloat>*)x : NULL;
-    if(!inplace)
-    {
-        hipMalloc(&y, cy.size() * sizeof(typename decltype(cy)::value_type));
-    }
         
     // Dimension configuration:
     std::array<fftw_iodim64, 2> dims;
@@ -231,17 +212,29 @@ void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
     howmany_dims[0].os = osize;
 
     // Set up buffers:
-    Tfloat* idata = fftw_alloc_real_type<Tfloat>(isize);
-    using fftw_complex_type = typename fftw_trait<Tfloat>::fftw_complex_type;
-    fftw_complex_type* odata = inplace
-        ? (fftw_complex_type*)idata : fftw_alloc_complex_type<Tfloat>(osize);
-    
+    // Local data buffer: (TODO: assumes contiguous data).
+    fftw_vector<Tfloat> cpu_in(Nx * Nystride);
+    // Output buffer
+    fftw_vector<std::complex<Tfloat>> cpu_out(Nx * Nycomplex);
+
+    // FIXME: make a class that takes care of memory management?
+    Tfloat* gpu_in = NULL;
+    hipMalloc(&gpu_in, cpu_in.size() * sizeof(typename decltype(cpu_in)::value_type));
+    hipMemcpy(gpu_in, cpu_in.data(), cpu_in.size() * sizeof(typename decltype(cpu_in)::value_type),
+              hipMemcpyHostToDevice);
+    std::complex<Tfloat>* gpu_out = inplace ? (std::complex<Tfloat>*)gpu_in : NULL;
+    if(!inplace)
+    {
+        hipMalloc(&gpu_out, cpu_out.size() * sizeof(typename decltype(cpu_out)::value_type));
+    }
+
+    // Set up the CPU plan:
     auto cpu_plan = fftw_plan_guru64_r2c<Tfloat>(dims.size(),
                                                  dims.data(),
                                                  howmany_dims.size(),
                                                  howmany_dims.data(),
-                                                 idata,
-                                                 odata,
+                                                 cpu_in.data(),
+                                                 reinterpret_cast<fftw_complex_type*>(cpu_out.data()),
                                                  FFTW_ESTIMATE);
 
     // Set up the GPU plan:
@@ -275,20 +268,20 @@ void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
     }
        
     // Set up the data:
-    std::fill(cx.begin(), cx.end(), 0.0);
+    std::fill(cpu_in.begin(), cpu_in.end(), 0.0);
     for(size_t i = 0; i < Nx; i++)
     {
         for(size_t j = 0; j < Ny; j++)
         {
-            cx[i * Nystride + j] = i + j;
+            cpu_in[i * Nystride + j] = i + j;
         }
     }
     // FIXME: copy data to device
 
     // Execute the GPU transform:
     status = rocfft_execute(forward, // plan
-                            (void**)&x, // in_buffer
-                            (void**)&y, // out_buffer
+                            (void**)&gpu_in, // in_buffer
+                            (void**)&gpu_out, // out_buffer
                             forwardinfo); // execution info
     assert(status == rocfft_status_success);
 
@@ -297,13 +290,11 @@ void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
 
     // FIXME: copy data back and compare:
 
-    // FREE memory:
-    fftw_free(idata);
-    hipFree(x);
+    // Free GPU memory:
+    hipFree(gpu_in);
     if(!inplace)
     {
-        hipFree(y);
-        fftw_free(odata);
+        hipFree(gpu_out);
     }
     if (forwardwbuffer != NULL)
     {
