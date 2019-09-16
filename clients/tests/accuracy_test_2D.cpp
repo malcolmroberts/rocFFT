@@ -24,6 +24,7 @@
 #include <stdexcept>
 #include <unistd.h>
 #include <vector>
+#include <complex>
 
 #include "fftw_transform.h"
 #include "rocfft.h"
@@ -79,7 +80,7 @@ class accuracy_test_real_2D
 
 // Templated test function for complex to complex:
 template <typename Tfloat>
-void normal_2D_complex_interleaved_to_complex_interleaved(std::vector<size_t>     lengths,
+void normal_2D_complex_interleaved_to_complex_interleaved(std::vector<size_t>     length,
                                                           size_t                  batch,
                                                           rocfft_result_placement placeness,
                                                           rocfft_transform_type   transform_type,
@@ -87,7 +88,7 @@ void normal_2D_complex_interleaved_to_complex_interleaved(std::vector<size_t>   
                                                           data_pattern            pattern)
 {
     size_t total_size
-        = std::accumulate(lengths.begin(), lengths.end(), 1, std::multiplies<size_t>());
+        = std::accumulate(length.begin(), length.end(), 1, std::multiplies<size_t>());
     if(total_size * sizeof(Tfloat) * 2 >= 2e8)
     {
         // printf("No test is really launched; MB byte size = %f is too big; will
@@ -98,10 +99,10 @@ void normal_2D_complex_interleaved_to_complex_interleaved(std::vector<size_t>   
     std::vector<size_t> output_strides;
     input_strides.push_back(stride);
     output_strides.push_back(stride);
-    for(int i = 1; i < lengths.size(); i++)
+    for(int i = 1; i < length.size(); i++)
     {
-        input_strides.push_back(input_strides[i - 1] * lengths[i - 1]);
-        output_strides.push_back(output_strides[i - 1] * lengths[i - 1]);
+        input_strides.push_back(input_strides[i - 1] * length[i - 1]);
+        output_strides.push_back(output_strides[i - 1] * length[i - 1]);
     }
 
     size_t            idist          = 0;
@@ -111,7 +112,7 @@ void normal_2D_complex_interleaved_to_complex_interleaved(std::vector<size_t>   
 
     complex_to_complex<Tfloat>(pattern,
                                transform_type,
-                               lengths,
+                               length,
                                batch,
                                input_strides,
                                output_strides,
@@ -127,7 +128,7 @@ void normal_2D_complex_interleaved_to_complex_interleaved(std::vector<size_t>   
 TEST_P(accuracy_test_complex_2D,
        normal_2D_complex_interleaved_to_complex_interleaved_single_precision)
 {
-    std::vector<size_t>     lengths        = std::get<0>(GetParam());
+    std::vector<size_t>     length        = std::get<0>(GetParam());
     size_t                  batch          = std::get<1>(GetParam());
     rocfft_result_placement placeness      = std::get<2>(GetParam());
     size_t                  stride         = std::get<3>(GetParam());
@@ -137,7 +138,7 @@ TEST_P(accuracy_test_complex_2D,
     try
     {
         normal_2D_complex_interleaved_to_complex_interleaved<float>(
-            lengths, batch, placeness, transform_type, stride, pattern);
+            length, batch, placeness, transform_type, stride, pattern);
     }
     catch(const std::exception& err)
     {
@@ -148,7 +149,7 @@ TEST_P(accuracy_test_complex_2D,
 TEST_P(accuracy_test_complex_2D,
        normal_2D_complex_interleaved_to_complex_interleaved_double_precision)
 {
-    std::vector<size_t>     lengths        = std::get<0>(GetParam());
+    std::vector<size_t>     length        = std::get<0>(GetParam());
     size_t                  batch          = std::get<1>(GetParam());
     rocfft_result_placement placeness      = std::get<2>(GetParam());
     size_t                  stride         = std::get<3>(GetParam());
@@ -158,7 +159,7 @@ TEST_P(accuracy_test_complex_2D,
     try
     {
         normal_2D_complex_interleaved_to_complex_interleaved<double>(
-            lengths, batch, placeness, transform_type, stride, pattern);
+            length, batch, placeness, transform_type, stride, pattern);
     }
     catch(const std::exception& err)
     {
@@ -172,42 +173,153 @@ TEST_P(accuracy_test_complex_2D,
 
 // Templated test function for real to complex:
 template <typename Tfloat>
-void normal_2D_real_to_complex_interleaved(std::vector<size_t>     lengths,
+void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
                                            size_t                  batch,
                                            rocfft_result_placement placeness,
                                            rocfft_transform_type   transform_type,
                                            size_t                  stride,
                                            data_pattern            pattern)
 {
-
+    rocfft_setup(); // TODO: move to gtest setup?
+    
     std::vector<size_t> input_strides;
     std::vector<size_t> output_strides;
     input_strides.push_back(stride);
     output_strides.push_back(stride);
 
-    size_t            idist          = 0; // 0 means the data are densely packed
-    size_t            odist          = 0; // 0 means the data are densely packed
-    rocfft_array_type in_array_type  = rocfft_array_type_real;
-    rocfft_array_type out_array_type = rocfft_array_type_hermitian_interleaved;
+    
+    
+    const size_t Nx = length[1];
+    const size_t Ny = length[0];
+    const bool   inplace = placeness == rocfft_placement_inplace;
 
-    real_to_complex<Tfloat>(pattern,
-                            transform_type,
-                            lengths,
-                            batch,
-                            input_strides,
-                            output_strides,
-                            idist,
-                            odist,
-                            in_array_type,
-                            out_array_type,
-                            placeness);
+    // TODO: add logic to deal with discontiguous data in Nystride
+    const size_t Nycomplex = Ny / 2 + 1;
+    const size_t Nystride = inplace ? 2 * Nycomplex : Ny;
+
+    // Local data buffer: (TODO: assumes contiguous data).
+    std::vector<Tfloat> cx(Nx * Nystride);
+    // Output buffer
+    std::vector<std::complex<Tfloat>> cy(Nx * Nycomplex);
+
+    Tfloat* x = NULL;
+    hipMalloc(&x, cx.size() * sizeof(typename decltype(cx)::value_type));
+    hipMemcpy(x, cx.data(), cx.size() * sizeof(typename decltype(cx)::value_type),
+              hipMemcpyHostToDevice);
+    std::complex<Tfloat>* y = inplace ? (std::complex<Tfloat>*)x : NULL;
+    if(!inplace)
+    {
+        hipMalloc(&y, cy.size() * sizeof(typename decltype(cy)::value_type));
+    }
+        
+    // Dimension configuration:
+    std::array<fftw_iodim64, 2> dims;
+    dims[1].n  = Ny;
+    dims[1].is = stride;
+    dims[1].os = stride;
+    dims[0].n  = Nx;
+    dims[0].is = dims[1].n * dims[1].is;
+    dims[0].os = dims[1].n * dims[1].os;
+
+    const size_t isize = dims[0].n * dims[0].is;
+    const size_t osize = dims[0].n * dims[0].os;
+    
+    // Batch configuration:
+    std::array<fftw_iodim64, 1> howmany_dims;
+    howmany_dims[0].n = batch;
+    howmany_dims[0].is = isize; // FIXME: placement
+    howmany_dims[0].os = osize;
+
+    // Set up buffers:
+    Tfloat* idata = fftw_alloc_real_type<Tfloat>(isize);
+    using fftw_complex_type = typename fftw_trait<Tfloat>::fftw_complex_type;
+    fftw_complex_type* odata = inplace
+        ? (fftw_complex_type*)idata : fftw_alloc_complex_type<Tfloat>(osize);
+    
+    auto cpu_plan = fftw_plan_guru64_r2c<Tfloat>(dims.size(),
+                                                 dims.data(),
+                                                 howmany_dims.size(),
+                                                 howmany_dims.data(),
+                                                 idata,
+                                                 odata,
+                                                 FFTW_ESTIMATE);
+
+    // Set up the GPU plan:
+    rocfft_status status = rocfft_status_success;
+    rocfft_plan forward = NULL;
+    status = rocfft_plan_create(&forward,
+                                inplace ? rocfft_placement_inplace : rocfft_placement_notinplace,
+                                rocfft_transform_type_real_forward,
+                                precision_selector<Tfloat>(),
+                                2, // Dimensions
+                                length.data(), // lengths
+                                1, // Number of transforms
+                                NULL); // Description
+    assert(status == rocfft_status_success);
+
+    // The real-to-complex transform uses work memory, which is passed
+    // via a rocfft_execution_info struct.
+    rocfft_execution_info forwardinfo = NULL;
+    status = rocfft_execution_info_create(&forwardinfo);
+    assert(status == rocfft_status_success);
+    size_t forwardworkbuffersize = 0;
+    status = rocfft_plan_get_work_buffer_size(forward, &forwardworkbuffersize);
+    assert(status == rocfft_status_success);
+    void* forwardwbuffer = NULL;
+    if(forwardworkbuffersize > 0)
+    {
+        hipMalloc(&forwardwbuffer, forwardworkbuffersize);
+        status = rocfft_execution_info_set_work_buffer(forwardinfo, forwardwbuffer,
+                                                       forwardworkbuffersize);
+        assert(status == rocfft_status_success);
+    }
+       
+    // Set up the data:
+    std::fill(cx.begin(), cx.end(), 0.0);
+    for(size_t i = 0; i < Nx; i++)
+    {
+        for(size_t j = 0; j < Ny; j++)
+        {
+            cx[i * Nystride + j] = i + j;
+        }
+    }
+    // FIXME: copy data to device
+
+    // Execute the GPU transform:
+    status = rocfft_execute(forward, // plan
+                            (void**)&x, // in_buffer
+                            (void**)&y, // out_buffer
+                            forwardinfo); // execution info
+    assert(status == rocfft_status_success);
+
+    // Execute the CPU transform:
+    fftw_execute_type<Tfloat>(cpu_plan);
+
+    // FIXME: copy data back and compare:
+
+    // FREE memory:
+    fftw_free(idata);
+    hipFree(x);
+    if(!inplace)
+    {
+        hipFree(y);
+        fftw_free(odata);
+    }
+    if (forwardwbuffer != NULL)
+    {
+        hipFree(forwardwbuffer);
+    }
+    
+    // Delete plans:
+    rocfft_plan_destroy(forward);
+    fftw_destroy_plan_type<Tfloat>(cpu_plan);
 }
 
 // Implemetation of real-to-complex tests for float and double:
 
 TEST_P(accuracy_test_real_2D, normal_2D_real_to_complex_interleaved_single_precision)
 {
-    std::vector<size_t>     lengths        = std::get<0>(GetParam());
+    std::vector<size_t>     length        = std::get<0>(GetParam());
     size_t                  batch          = std::get<1>(GetParam());
     rocfft_result_placement placeness      = std::get<2>(GetParam());
     size_t                  stride         = std::get<3>(GetParam());
@@ -217,7 +329,7 @@ TEST_P(accuracy_test_real_2D, normal_2D_real_to_complex_interleaved_single_preci
     try
     {
         normal_2D_real_to_complex_interleaved<float>(
-            lengths, batch, placeness, transform_type, stride, pattern);
+            length, batch, placeness, transform_type, stride, pattern);
     }
     catch(const std::exception& err)
     {
@@ -227,7 +339,7 @@ TEST_P(accuracy_test_real_2D, normal_2D_real_to_complex_interleaved_single_preci
 
 TEST_P(accuracy_test_real_2D, normal_2D_real_to_complex_interleaved_double_precision)
 {
-    std::vector<size_t>     lengths        = std::get<0>(GetParam());
+    std::vector<size_t>     length        = std::get<0>(GetParam());
     size_t                  batch          = std::get<1>(GetParam());
     rocfft_result_placement placeness      = std::get<2>(GetParam());
     size_t                  stride         = std::get<3>(GetParam());
@@ -237,7 +349,7 @@ TEST_P(accuracy_test_real_2D, normal_2D_real_to_complex_interleaved_double_preci
     try
     {
         normal_2D_real_to_complex_interleaved<double>(
-            lengths, batch, placeness, transform_type, stride, pattern);
+            length, batch, placeness, transform_type, stride, pattern);
     }
     catch(const std::exception& err)
     {
@@ -249,7 +361,7 @@ TEST_P(accuracy_test_real_2D, normal_2D_real_to_complex_interleaved_double_preci
 
 // Templated test function for complex to real:
 template <typename Tfloat>
-void normal_2D_complex_interleaved_to_real(std::vector<size_t>     lengths,
+void normal_2D_complex_interleaved_to_real(std::vector<size_t>     length,
                                            size_t                  batch,
                                            rocfft_result_placement placeness,
                                            rocfft_transform_type   transform_type,
@@ -268,7 +380,7 @@ void normal_2D_complex_interleaved_to_real(std::vector<size_t>     lengths,
 
     complex_to_real<Tfloat>(pattern,
                             transform_type,
-                            lengths,
+                            length,
                             batch,
                             input_strides,
                             output_strides,
@@ -283,7 +395,7 @@ void normal_2D_complex_interleaved_to_real(std::vector<size_t>     lengths,
 
 TEST_P(accuracy_test_real_2D, normal_2D_complex_interleaved_to_real_single_precision)
 {
-    std::vector<size_t>     lengths   = std::get<0>(GetParam());
+    std::vector<size_t>     length   = std::get<0>(GetParam());
     size_t                  batch     = std::get<1>(GetParam());
     rocfft_result_placement placeness = std::get<2>(GetParam());
     size_t                  stride    = std::get<3>(GetParam());
@@ -294,7 +406,7 @@ TEST_P(accuracy_test_real_2D, normal_2D_complex_interleaved_to_real_single_preci
     try
     {
         normal_2D_complex_interleaved_to_real<float>(
-            lengths, batch, placeness, transform_type, stride, pattern);
+            length, batch, placeness, transform_type, stride, pattern);
     }
     catch(const std::exception& err)
     {
@@ -304,7 +416,7 @@ TEST_P(accuracy_test_real_2D, normal_2D_complex_interleaved_to_real_single_preci
 
 TEST_P(accuracy_test_real_2D, normal_2D_complex_interleaved_to_real_double_precision)
 {
-    std::vector<size_t>     lengths   = std::get<0>(GetParam());
+    std::vector<size_t>     length   = std::get<0>(GetParam());
     size_t                  batch     = std::get<1>(GetParam());
     rocfft_result_placement placeness = std::get<2>(GetParam());
     size_t                  stride    = std::get<3>(GetParam());
@@ -315,7 +427,7 @@ TEST_P(accuracy_test_real_2D, normal_2D_complex_interleaved_to_real_double_preci
     try
     {
         normal_2D_complex_interleaved_to_real<double>(
-            lengths, batch, placeness, transform_type, stride, pattern);
+            length, batch, placeness, transform_type, stride, pattern);
     }
     catch(const std::exception& err)
     {

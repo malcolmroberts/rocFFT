@@ -42,21 +42,133 @@ enum fftw_transform_type
 // C++ traits to translate float->fftwf_complex and
 // double->fftw_complex.
 // The correct FFTW complex type can be accessed via, for example,
-// using complex_t = typename fftwtrait<Tfloat>::complex_t;
+// using complex_t = typename fftw_complex_trait<Tfloat>::complex_t;
 template <typename Tfloat>
-struct fftwtrait;
+struct fftw_trait;
 template <>
-struct fftwtrait<float>
+struct fftw_trait<float>
 {
-public:
-    using complex_t = fftwf_complex;
+    using fftw_complex_type = fftwf_complex;
+    using fftw_plan_type = fftwf_plan;
 };
 template <>
-struct fftwtrait<double>
+struct fftw_trait<double>
 {
-public:
-    using complex_t = fftw_complex;
+    using fftw_complex_type = fftw_complex;
+    using  fftw_plan_type = fftw_plan;
 };
+
+// Template wrappers for real-valued FFTW allocators:
+template<typename Tfloat>
+inline Tfloat* fftw_alloc_real_type(size_t n);
+template<>
+inline float* fftw_alloc_real_type<float>(size_t n)
+{
+    return fftwf_alloc_real(n);
+}
+template<>
+inline double* fftw_alloc_real_type<double>(size_t n)
+{
+    return fftw_alloc_real(n);
+}
+
+// Template wrappers for complex-valued FFTW allocators:
+template<typename Tfloat>
+inline typename fftw_trait<Tfloat>::fftw_complex_type* fftw_alloc_complex_type(size_t n);
+template<>
+inline typename fftw_trait<float>::fftw_complex_type* fftw_alloc_complex_type<float>(size_t n)
+{
+    return fftwf_alloc_complex(n);
+}
+template<>
+inline typename fftw_trait<double>::fftw_complex_type* fftw_alloc_complex_type<double>(size_t n)
+{
+    return fftw_alloc_complex(n);
+}
+
+// Template wrappers for FFTW plan executors:
+template<typename Tfloat>
+inline void fftw_execute_type(typename fftw_trait<Tfloat>::fftw_plan_type plan);
+template<>
+inline void fftw_execute_type<float>(typename fftw_trait<float>::fftw_plan_type plan)
+{
+    return fftwf_execute(plan);
+}
+template<>
+inline void fftw_execute_type<double>(typename fftw_trait<double>::fftw_plan_type plan)
+{
+    return fftw_execute(plan);
+}
+
+// Template wrappers for FFTW plan destroyers:
+template<typename Tfloat>
+inline void fftw_destroy_plan_type(typename fftw_trait<Tfloat>::fftw_plan_type plan);
+template<>
+inline void fftw_destroy_plan_type<float>(typename fftw_trait<float>::fftw_plan_type plan)
+{
+    return fftwf_execute(plan);
+}
+template<>
+inline void fftw_destroy_plan_type<double>(typename fftw_trait<double>::fftw_plan_type plan)
+{
+    return fftw_execute(plan);
+}
+
+
+// Template and specializations for single and double precision FFTW
+// r2c planners.
+template <typename Tfloat>
+inline typename fftw_trait<Tfloat>::fftw_plan_type fftw_plan_guru64_r2c(
+    int rank,
+    const fftw_iodim64* dims,
+    int howmany_rank,
+    const fftw_iodim64* howmany_dims,
+    Tfloat* in,
+    typename fftw_trait<Tfloat>::fftw_complex_type *out,
+    unsigned flags);
+
+template<>
+inline typename fftw_trait<float>::fftw_plan_type fftw_plan_guru64_r2c<float>(
+    int rank,
+    const fftw_iodim64 *dims,
+    int howmany_rank,
+    const fftw_iodim64 *howmany_dims,
+    float *in,
+    typename fftw_trait<float>::fftw_complex_type *out,
+    unsigned flags)
+{
+    return fftwf_plan_guru64_dft_r2c(rank,
+                                     dims,
+                                     howmany_rank,
+                                     howmany_dims,
+                                     in,
+                                     out,
+                                     flags);
+}
+
+template<>
+inline typename fftw_trait<double>::fftw_plan_type fftw_plan_guru64_r2c<double>(
+    int rank,
+    const fftw_iodim64 *dims,
+    int howmany_rank,
+    const fftw_iodim64 *howmany_dims,
+    double *in,
+    typename fftw_trait<double>::fftw_complex_type *out,
+    unsigned flags)
+{
+    return fftw_plan_guru64_dft_r2c(rank,
+                                     dims,
+                                     howmany_rank,
+                                     howmany_dims,
+                                     in,
+                                     out,
+                                     flags);
+}
+
+// TODO: wrappers for fftw_alloc_real and fftw_alloc_complex.
+
+
+
 
 template <typename Tfloat>
 class fftw_wrapper
@@ -67,7 +179,7 @@ template <>
 class fftw_wrapper<float>
 {
 public:
-    using complex_t = typename fftwtrait<float>::complex_t;
+    using fftw_complex_type = typename fftw_trait<float>::fftw_complex_type;
 
     fftwf_plan plan;
 
@@ -76,11 +188,11 @@ public:
                    int                       z,
                    int                       num_dimensions,
                    int                       batch_size,
-                   complex_t*                input_ptr,
-                   complex_t*                output_ptr,
+                   fftw_complex_type*                input_ptr,
+                   fftw_complex_type*                output_ptr,
                    int                       num_points_in_single_batch,
-                   const std::vector<size_t> input_strides,
-                   const std::vector<size_t> output_strides,
+                   const std::vector<size_t> istride,
+                   const std::vector<size_t> ostride,
                    fftw_direction            direction,
                    fftw_transform_type       type)
     {
@@ -104,12 +216,12 @@ public:
                                        batch_size,
                                        input_ptr,
                                        NULL,
-                                       input_strides[0],
-                                       num_points_in_single_batch * input_strides[0],
+                                       istride[0],
+                                       num_points_in_single_batch * istride[0],
                                        output_ptr,
                                        NULL,
-                                       output_strides[0],
-                                       num_points_in_single_batch * output_strides[0],
+                                       ostride[0],
+                                       num_points_in_single_batch * ostride[0],
                                        direction,
                                        FFTW_ESTIMATE);
             break;
@@ -151,11 +263,11 @@ public:
                  int                       z,
                  int                       num_dimensions,
                  int                       batch_size,
-                 complex_t*                input_ptr,
-                 complex_t*                output_ptr,
+                 fftw_complex_type*                input_ptr,
+                 fftw_complex_type*                output_ptr,
                  int                       num_points_in_single_batch,
-                 const std::vector<size_t> input_strides,
-                 const std::vector<size_t> output_strides,
+                 const std::vector<size_t> istride,
+                 const std::vector<size_t> ostride,
                  fftw_direction            direction,
                  fftw_transform_type       type)
     {
@@ -167,8 +279,8 @@ public:
                   input_ptr,
                   output_ptr,
                   num_points_in_single_batch,
-                  input_strides,
-                  output_strides,
+                  istride,
+                  ostride,
                   direction,
                   type);
     }
@@ -193,7 +305,7 @@ template <>
 class fftw_wrapper<double>
 {
 public:
-    using complex_t = typename fftwtrait<double>::complex_t;
+    using fftw_complex_type = typename fftw_trait<double>::fftw_complex_type;
 
     fftw_plan plan;
 
@@ -202,11 +314,11 @@ public:
                    int                       z,
                    int                       num_dimensions,
                    int                       batch_size,
-                   complex_t*                input_ptr,
-                   complex_t*                output_ptr,
+                   fftw_complex_type*                input_ptr,
+                   fftw_complex_type*                output_ptr,
                    int                       num_points_in_single_batch,
-                   const std::vector<size_t> input_strides,
-                   const std::vector<size_t> output_strides,
+                   const std::vector<size_t> istride,
+                   const std::vector<size_t> ostride,
                    fftw_direction            direction,
                    fftw_transform_type       type)
     {
@@ -230,12 +342,12 @@ public:
                                       batch_size,
                                       input_ptr,
                                       NULL,
-                                      input_strides[0],
-                                      num_points_in_single_batch * input_strides[0],
+                                      istride[0],
+                                      num_points_in_single_batch * istride[0],
                                       output_ptr,
                                       NULL,
-                                      output_strides[0],
-                                      num_points_in_single_batch * output_strides[0],
+                                      ostride[0],
+                                      num_points_in_single_batch * ostride[0],
                                       direction,
                                       FFTW_ESTIMATE);
             break;
@@ -277,11 +389,11 @@ public:
                  int                       z,
                  int                       num_dimensions,
                  int                       batch_size,
-                 complex_t*                input_ptr,
-                 complex_t*                output_ptr,
+                 fftw_complex_type*                input_ptr,
+                 fftw_complex_type*                output_ptr,
                  int                       num_points_in_single_batch,
-                 const std::vector<size_t> input_strides,
-                 const std::vector<size_t> output_strides,
+                 const std::vector<size_t> istride,
+                 const std::vector<size_t> ostride,
                  fftw_direction            direction,
                  fftw_transform_type       type)
     {
@@ -293,8 +405,8 @@ public:
                   input_ptr,
                   output_ptr,
                   num_points_in_single_batch,
-                  input_strides,
-                  output_strides,
+                  istride,
+                  ostride,
                   direction,
                   type);
     }
@@ -315,11 +427,11 @@ public:
     }
 };
 
-template <typename T>
+template <typename Tfloat>
 class fftw
 {
 private:
-    using complex_t                             = typename fftwtrait<T>::complex_t;
+    using fftw_complex_type                             = typename fftw_trait<Tfloat>::fftw_complex_type;
     static const size_t tightly_packed_distance = 0;
 
     fftw_direction      _direction;
@@ -329,33 +441,33 @@ private:
     std::vector<size_t> _lengths;
     size_t              _batch_size;
 
-    std::vector<size_t> input_strides;
-    std::vector<size_t> output_strides;
+    std::vector<size_t> istride;
+    std::vector<size_t> ostride;
 
-    buffer<T>       input;
-    buffer<T>       output;
-    fftw_wrapper<T> fftw_guts;
+    buffer<Tfloat>       input;
+    buffer<Tfloat>       output;
+    fftw_wrapper<Tfloat> fftw_guts;
 
-    T _forward_scale, _backward_scale;
+    Tfloat _forward_scale, _backward_scale;
 
 public:
     fftw(const std::vector<size_t>     lengths_in,
          const size_t                  batch_size_in,
-         std::vector<size_t>           input_strides_in,
-         std::vector<size_t>           output_strides_in,
+         std::vector<size_t>           istride_in,
+         std::vector<size_t>           ostride_in,
          const rocfft_result_placement placement_in,
          fftw_transform_type           type_in)
         : _lengths(lengths_in)
         , _batch_size(batch_size_in)
-        , input_strides(input_strides_in)
-        , output_strides(output_strides_in)
+        , istride(istride_in)
+        , ostride(ostride_in)
         , _direction(fftw_direction::forward)
         , _type(type_in)
         , _input_layout(initialized_input_layout()) // chose interleaved layout artificially
         , _output_layout(initialized_output_layout())
         , input(lengths_in.size(),
                 lengths_in.data(),
-                input_strides_in.data(),
+                istride_in.data(),
                 batch_size_in,
                 tightly_packed_distance,
                 _input_layout,
@@ -363,7 +475,7 @@ public:
         // transformation
         , output(lengths_in.size(),
                  lengths_in.data(),
-                 output_strides_in.data(),
+                 ostride_in.data(),
                  batch_size_in,
                  tightly_packed_distance,
                  _output_layout,
@@ -375,11 +487,11 @@ public:
                     (int)_lengths[dimz],
                     (int)lengths_in.size(),
                     (int)batch_size_in,
-                    reinterpret_cast<complex_t*>(input_ptr()),
-                    reinterpret_cast<complex_t*>(output_ptr()),
+                    reinterpret_cast<fftw_complex_type*>(input_ptr()),
+                    reinterpret_cast<fftw_complex_type*>(output_ptr()),
                     (int)(_lengths[dimx] * _lengths[dimy] * _lengths[dimz]),
-                    input_strides,
-                    output_strides,
+                    istride,
+                    ostride,
                     _direction,
                     _type)
     {
@@ -429,7 +541,7 @@ public:
         return lengths;
     }
 
-    T* input_ptr()
+    Tfloat* input_ptr()
     {
         switch(_input_layout)
         {
@@ -444,7 +556,7 @@ public:
         }
     }
 
-    T* output_ptr()
+    Tfloat* output_ptr()
     {
         if(_output_layout == rocfft_array_type_real)
             return output.real_ptr();
@@ -473,11 +585,11 @@ public:
                                 (int)_lengths[dimz],
                                 (int)input.number_of_dimensions(),
                                 (int)input.batch_size(),
-                                reinterpret_cast<complex_t*>(input.interleaved_ptr()),
-                                reinterpret_cast<complex_t*>(output.interleaved_ptr()),
+                                reinterpret_cast<fftw_complex_type*>(input.interleaved_ptr()),
+                                reinterpret_cast<fftw_complex_type*>(output.interleaved_ptr()),
                                 (int)(_lengths[dimx] * _lengths[dimy] * _lengths[dimz]),
-                                input_strides,
-                                output_strides,
+                                istride,
+                                ostride,
                                 _direction,
                                 _type);
         }
@@ -498,11 +610,11 @@ public:
                                 (int)_lengths[dimz],
                                 (int)input.number_of_dimensions(),
                                 (int)input.batch_size(),
-                                reinterpret_cast<complex_t*>(input.interleaved_ptr()),
-                                reinterpret_cast<complex_t*>(output.interleaved_ptr()),
+                                reinterpret_cast<fftw_complex_type*>(input.interleaved_ptr()),
+                                reinterpret_cast<fftw_complex_type*>(output.interleaved_ptr()),
                                 (int)(_lengths[dimx] * _lengths[dimy] * _lengths[dimz]),
-                                input_strides,
-                                output_strides,
+                                istride,
+                                ostride,
                                 _direction,
                                 _type);
         }
@@ -513,37 +625,37 @@ public:
         return input.size_in_bytes();
     }
 
-    void forward_scale(T in)
+    void forward_scale(Tfloat in)
     {
         _forward_scale = in;
     }
 
-    void backward_scale(T in)
+    void backward_scale(Tfloat in)
     {
         _backward_scale = in;
     }
 
-    T forward_scale()
+    Tfloat forward_scale()
     {
         return _forward_scale;
     }
 
-    T backward_scale()
+    Tfloat backward_scale()
     {
         return _backward_scale;
     }
 
-    void set_data_to_value(T value)
+    void set_data_to_value(Tfloat value)
     {
         input.set_all_to_value(value);
     }
 
-    void set_data_to_value(T real_value, T imag_value)
+    void set_data_to_value(Tfloat real_value, Tfloat imag_value)
     {
         input.set_all_to_value(real_value, imag_value);
     }
 
-    void set_data_to_sawtooth(T max)
+    void set_data_to_sawtooth(Tfloat max)
     {
         input.set_all_to_sawtooth(max);
     }
@@ -563,7 +675,7 @@ public:
         input.set_all_to_random();
     }
 
-    void set_data_to_buffer(buffer<T> other_buffer)
+    void set_data_to_buffer(buffer<Tfloat> other_buffer)
     {
         input = other_buffer;
     }
@@ -588,31 +700,31 @@ public:
         {
             if(_direction == fftw_direction::forward)
             {
-                output.scale_data(static_cast<T>(forward_scale()));
+                output.scale_data(static_cast<Tfloat>(forward_scale()));
             }
             else if(_direction == backward)
             {
-                output.scale_data(static_cast<T>(backward_scale()));
+                output.scale_data(static_cast<Tfloat>(backward_scale()));
             }
         }
         else if(_type == r2c)
         {
-            output.scale_data(static_cast<T>(forward_scale()));
+            output.scale_data(static_cast<Tfloat>(forward_scale()));
         }
         else if(_type == c2r)
         {
-            output.scale_data(static_cast<T>(backward_scale()));
+            output.scale_data(static_cast<Tfloat>(backward_scale()));
         }
         else
             throw std::runtime_error("invalid transform type in fftw::transform()");
     }
 
-    buffer<T>& result()
+    buffer<Tfloat>& result()
     {
         return output;
     }
 
-    buffer<T>& input_buffer()
+    buffer<Tfloat>& input_buffer()
     {
         return input;
     }
