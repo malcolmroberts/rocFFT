@@ -39,6 +39,20 @@ enum fftw_transform_type
     c2r
 };
 
+// Function to return maximum error for float and double types.
+template <typename Tfloat>
+inline double type_epsilon();
+template<>
+inline double type_epsilon<float>()
+{
+    return 1e-6;
+}
+template<>
+inline double type_epsilon<double>()
+{
+    return 1e-8;
+}
+
 // C++ traits to translate float->fftwf_complex and
 // double->fftw_complex.
 // The correct FFTW complex type can be accessed via, for example,
@@ -157,17 +171,17 @@ inline void fftw_execute_type<double>(typename fftw_trait<double>::fftw_plan_typ
 }
 
 // Template wrappers for FFTW plan destroyers:
-template<typename Tfloat>
-inline void fftw_destroy_plan_type(typename fftw_trait<Tfloat>::fftw_plan_type plan);
+template<typename Tfftw_plan>
+inline void fftw_destroy_plan_type(Tfftw_plan plan);
 template<>
-inline void fftw_destroy_plan_type<float>(typename fftw_trait<float>::fftw_plan_type plan)
+inline void fftw_destroy_plan_type<fftwf_plan>(fftwf_plan plan)
 {
-    return fftwf_execute(plan);
+    return fftwf_destroy_plan(plan);
 }
 template<>
-inline void fftw_destroy_plan_type<double>(typename fftw_trait<double>::fftw_plan_type plan)
+inline void fftw_destroy_plan_type<fftw_plan>(fftw_plan plan)
 {
-    return fftw_execute(plan);
+    return fftw_destroy_plan(plan);
 }
 
 // Template wrappers for FFTW r2c planners:
