@@ -48,11 +48,8 @@ static size_t stride_range[] = {1}; // 1: assume packed data
 static rocfft_result_placement placeness_range[]
     = {rocfft_placement_notinplace, rocfft_placement_inplace};
 
-// The even-length c2r fails 4096x8192.
-// TODO: make test precision vary with problem size, then re-enable.
-static std::vector<std::vector<size_t>> pow2_range_c2r
-= {{2, 4}, {8, 16}, {32, 128}, {256, 512}, {1024, 2048}, {4096, 8192}};
 // Real/complex transform test framework is only set up for out-of-place transforms:
+// TODO: fix the test suite and add coverage for in-place transforms.
 static rocfft_result_placement rc_placeness_range[] = {rocfft_placement_notinplace};
 
 static rocfft_transform_type transform_range[]
@@ -283,9 +280,7 @@ void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
         ASSERT_TRUE(fft_status == rocfft_status_success) << "rocFFT set work buffer failure";
     }
     
-    // Set up the data, record the L2 norm of the input:
-    // Tfloat L2norm = 0.0;
-    // Tfloat Linfnorm = 0.0;
+    // Set up the data:
     std::fill(cpu_in, cpu_in + isize, 0.0);
     for(size_t i = 0; i < Nx; i++)
     {
@@ -293,11 +288,8 @@ void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
         {
             Tfloat val = i + j;
             cpu_in[i * Nystride + j] = val;
-            // L2norm += val * val;
-            // Linfnorm = std::max(std::abs(val), Linfnorm);
         }
     }
-    //L2norm = sqrt(L2norm);
 
     // for(int i = 0; i < isize; ++i) {
     //     std::cout << cpu_in[i] << " ";
@@ -560,7 +552,7 @@ INSTANTIATE_TEST_CASE_P(rocfft_prime_2D,
 // Complex to real and real-to-complex:
 INSTANTIATE_TEST_CASE_P(rocfft_pow2_2D,
                         accuracy_test_real_2D,
-                        ::testing::Combine(ValuesIn(pow2_range_c2r),
+                        ::testing::Combine(ValuesIn(pow2_range),
                                            ValuesIn(batch_range),
                                            ValuesIn(rc_placeness_range),
                                            ValuesIn(stride_range),
