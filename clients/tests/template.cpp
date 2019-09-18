@@ -36,7 +36,7 @@ rocfft_status rocfft_plan_create_template<float>(rocfft_plan*                  p
 {
     return rocfft_plan_create(plan,
                               placement,
-                               transform_type,
+                              transform_type,
                               rocfft_precision_single,
                               dimensions,
                               lengths,

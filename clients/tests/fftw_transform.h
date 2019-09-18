@@ -194,7 +194,6 @@ inline typename fftw_trait<Tfloat>::fftw_plan_type fftw_plan_guru64_r2c(
     Tfloat* in,
     typename fftw_trait<Tfloat>::fftw_complex_type *out,
     unsigned flags);
-
 template<>
 inline typename fftw_trait<float>::fftw_plan_type fftw_plan_guru64_r2c<float>(
     int rank,
@@ -213,18 +212,65 @@ inline typename fftw_trait<float>::fftw_plan_type fftw_plan_guru64_r2c<float>(
                                      out,
                                      flags);
 }
-
 template<>
 inline typename fftw_trait<double>::fftw_plan_type fftw_plan_guru64_r2c<double>(
     int rank,
-    const fftw_iodim64 *dims,
+    const fftw_iodim64* dims,
     int howmany_rank,
-    const fftw_iodim64 *howmany_dims,
-    double *in,
-    typename fftw_trait<double>::fftw_complex_type *out,
+    const fftw_iodim64* howmany_dims,
+    double* in,
+    typename fftw_trait<double>::fftw_complex_type* out,
     unsigned flags)
 {
     return fftw_plan_guru64_dft_r2c(rank,
+                                     dims,
+                                     howmany_rank,
+                                     howmany_dims,
+                                     in,
+                                     out,
+                                     flags);
+}
+
+
+// Template wrappers for FFTW c2r planners:
+template <typename Tfloat>
+inline typename fftw_trait<Tfloat>::fftw_plan_type fftw_plan_guru64_c2r(
+    int rank,
+    const fftw_iodim64* dims,
+    int howmany_rank,
+    const fftw_iodim64* howmany_dims,
+    typename fftw_trait<Tfloat>::fftw_complex_type* in,
+    Tfloat* out,
+    unsigned flags);
+template<>
+inline typename fftw_trait<float>::fftw_plan_type fftw_plan_guru64_c2r<float>(
+    int rank,
+    const fftw_iodim64* dims,
+    int howmany_rank,
+    const fftw_iodim64* howmany_dims,
+    typename fftw_trait<float>::fftw_complex_type* in,
+    float* out,
+    unsigned flags)
+{
+    return fftwf_plan_guru64_dft_c2r(rank,
+                                     dims,
+                                     howmany_rank,
+                                     howmany_dims,
+                                     in,
+                                     out,
+                                     flags);
+}
+template<>
+inline typename fftw_trait<double>::fftw_plan_type fftw_plan_guru64_c2r<double>(
+    int rank,
+    const fftw_iodim64* dims,
+    int howmany_rank,
+    const fftw_iodim64* howmany_dims,
+    typename fftw_trait<double>::fftw_complex_type* in,
+    double* out,
+    unsigned flags)
+{
+    return fftw_plan_guru64_dft_c2r(rank,
                                      dims,
                                      howmany_rank,
                                      howmany_dims,
