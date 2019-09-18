@@ -50,7 +50,7 @@ static rocfft_result_placement placeness_range[]
 
 // Real/complex transform test framework is only set up for out-of-place transforms:
 // TODO: fix the test suite and add coverage for in-place transforms.
-static rocfft_result_placement rc_placeness_range[] = {rocfft_placement_notinplace};
+static rocfft_result_placement rc_placeness_range[] = {rocfft_placement_notinplace, rocfft_placement_inplace};
 
 static rocfft_transform_type transform_range[]
     = {rocfft_transform_type_complex_forward, rocfft_transform_type_complex_inverse};
@@ -66,11 +66,29 @@ class accuracy_test_complex_2D : public ::testing::TestWithParam<std::tuple<std:
                                                                             data_pattern,
                                                                             rocfft_transform_type>>
 {
+protected:
+    void SetUp() override
+    {
+        rocfft_setup();
+    }
+    void TearDown() override
+    {
+        rocfft_cleanup();
+    }
 };
 class accuracy_test_real_2D
     : public ::testing::TestWithParam<
           std::tuple<std::vector<size_t>, size_t, rocfft_result_placement, size_t, data_pattern>>
 {
+protected:
+    void SetUp() override
+    {
+        rocfft_setup();
+    }
+    void TearDown() override
+    {
+        rocfft_cleanup();
+    }
 };
 
 //  Complex to complex
@@ -177,14 +195,15 @@ void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
                                            size_t                  stride,
                                            data_pattern            pattern)
 {
-    rocfft_setup(); // TODO: move to gtest setup?
-        
     using fftw_complex_type = typename fftw_trait<Tfloat>::fftw_complex_type;
     
     const size_t Nx = length[1];
     const size_t Ny = length[0];
     const bool   inplace = placeness == rocfft_placement_inplace;
 
+    // TODO: add coverage for non-unit stride.
+    ASSERT_TRUE(stride == 1) << "Failure: test assumes contiguous data:";
+    
     // TODO: add logic to deal with discontiguous data in Nystride
     const size_t Nycomplex = Ny / 2 + 1;
     const size_t Nystride = inplace ? 2 * Nycomplex : Ny;
@@ -195,7 +214,7 @@ void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
     dims[1].is = stride;
     dims[1].os = stride;
     dims[0].n  = Nx;
-    dims[0].is = dims[1].n * dims[1].is;
+    dims[0].is = Nystride * dims[1].is;
     dims[0].os = (dims[1].n/2 + 1) * dims[1].os;
 
     const size_t isize = dims[0].n * dims[0].is;
@@ -217,11 +236,11 @@ void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
     // Batch configuration:
     std::array<fftw_iodim64, 1> howmany_dims;
     howmany_dims[0].n = batch;
-    howmany_dims[0].is = isize; // FIXME: placement
+    howmany_dims[0].is = isize;
     howmany_dims[0].os = osize;
 
     // Set up buffers:
-    // Local data buffer: (TODO: assumes contiguous data).
+    // Local data buffer:
     Tfloat* cpu_in = fftw_alloc_type<Tfloat>(isize);
     // Output buffer
     std::complex<Tfloat>* cpu_out = inplace ? (std::complex<Tfloat>*) cpu_in : 
@@ -286,6 +305,7 @@ void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
     {
         for(size_t j = 0; j < Ny; j++)
         {
+            // TODO: make pattern variable?
             Tfloat val = i + j;
             cpu_in[i * Nystride + j] = val;
         }
@@ -371,8 +391,10 @@ void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
     std::cout << "relative L2 error: " << L2error << std::endl;
     std::cout << "relative Linf error: " << Linferror << std::endl;
 
-    EXPECT_TRUE(L2error < type_epsilon<Tfloat>()); // FIXME: this seems high?
-    EXPECT_TRUE(Linferror < type_epsilon<Tfloat>()); // FIXME: this seems high?
+    EXPECT_TRUE(L2error < type_epsilon<Tfloat>())
+        << "Tolerance failure: L2error" << L2error << ", tolerance: " << type_epsilon<Tfloat>(); 
+    EXPECT_TRUE(Linferror < type_epsilon<Tfloat>())
+        << "Tolerance failure: Linferror" << Linferror << ", tolerance: " << type_epsilon<Tfloat>();
     
     // Free GPU memory:
     hipFree(gpu_in);
