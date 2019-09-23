@@ -184,6 +184,63 @@ inline void fftw_destroy_plan_type<fftw_plan>(fftw_plan plan)
     return fftw_destroy_plan(plan);
 }
 
+
+
+
+// Template wrappers for FFTW c2c planners:
+template <typename Tfloat>
+inline typename fftw_trait<Tfloat>::fftw_plan_type fftw_plan_guru64_dft(
+    int rank,
+    const fftw_iodim64* dims,
+    int howmany_rank,
+    const fftw_iodim64* howmany_dims,
+    typename fftw_trait<Tfloat>::fftw_complex_type* in,
+    typename fftw_trait<Tfloat>::fftw_complex_type* out,
+    int sign,
+    unsigned flags);
+template<>
+inline typename fftw_trait<float>::fftw_plan_type fftw_plan_guru64_dft<float>(
+    int rank,
+    const fftw_iodim64* dims,
+    int howmany_rank,
+    const fftw_iodim64* howmany_dims,
+    typename fftw_trait<float>::fftw_complex_type* in,
+    typename fftw_trait<float>::fftw_complex_type* out,
+    int sign,
+    unsigned flags)
+{
+    return fftwf_plan_guru64_dft(rank,
+                                 dims,
+                                 howmany_rank,
+                                 howmany_dims,
+                                 in,
+                                 out,
+                                 sign,
+                                 flags);
+}
+template<>
+inline typename fftw_trait<double>::fftw_plan_type fftw_plan_guru64_dft<double>(
+    int rank,
+    const fftw_iodim64* dims,
+    int howmany_rank,
+    const fftw_iodim64* howmany_dims,
+    typename fftw_trait<double>::fftw_complex_type* in,
+    typename fftw_trait<double>::fftw_complex_type* out,
+    int sign,
+    unsigned flags)
+{
+    return fftw_plan_guru64_dft(rank,
+                                dims,
+                                howmany_rank,
+                                howmany_dims,
+                                in,
+                                out,
+                                sign,
+                                flags);
+}
+
+
+
 // Template wrappers for FFTW r2c planners:
 template <typename Tfloat>
 inline typename fftw_trait<Tfloat>::fftw_plan_type fftw_plan_guru64_r2c(
