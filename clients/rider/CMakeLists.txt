@@ -64,9 +64,7 @@ target_include_directories( rocfft-rider
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/misc/include>
 )
 
-message(STATUS "boost found: ${Boost_FOUND}")
 set(Boost_LIBRARIES Boost::program_options)
-message(STATUS "blibs: ${Boost_LIBRARIES}")
 
 target_link_libraries( rocfft-rider
   PRIVATE
