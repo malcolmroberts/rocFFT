@@ -46,11 +46,6 @@ if( CMAKE_CXX_COMPILER MATCHES ".*/hipcc$" )
 endif( )
 # ########################################################################
 
-if(NOT Boost_LIBRARIES)
-  # Fixes a bug in Boost's CMAKE where Boost_LIBRARIES is not set.
-  set(Boost_LIBRARIES Boost::program_options)
-endif()
-
 
 find_package( GTest REQUIRED )
 find_package( FFTW 3.0 REQUIRED MODULE COMPONENTS FLOAT DOUBLE )
@@ -88,7 +83,6 @@ target_include_directories( rocfft-test
     $<BUILD_INTERFACE:${GTEST_INCLUDE_DIRS}>
     $<BUILD_INTERFACE:${FFTW_INCLUDES}>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/misc/include>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../library/src/include>
 )
 
 target_link_libraries( rocfft-test

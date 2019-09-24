@@ -64,15 +64,15 @@ target_include_directories( rocfft-rider
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/misc/include>
 )
 
-if(NOT Boost_LIBRARIES)
-  # Fixes a bug in Boost's CMAKE where Boost_LIBRARIES is not set.
-  set(Boost_LIBRARIES Boost::program_options)
-endif()
+message(STATUS "boost found: ${Boost_FOUND}")
+set(Boost_LIBRARIES Boost::program_options)
+message(STATUS "blibs: ${Boost_LIBRARIES}")
 
 target_link_libraries( rocfft-rider
   PRIVATE
   roc::rocfft
   ${Boost_LIBRARIES} )
+set(Boost_LIBRARYDIR "/home/mal/boost/lib")
 
 if( CUDA_FOUND )
   target_include_directories( rocfft-rider
