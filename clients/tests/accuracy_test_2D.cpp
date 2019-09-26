@@ -505,14 +505,14 @@ void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
     }
 
     // Set up the data:
+    srandom(3);
     std::fill(cpu_in, cpu_in + isize, 0.0);
     for(size_t i = 0; i < Nx; i++)
     {
         for(size_t j = 0; j < Ny; j++)
         {
             // TODO: make pattern variable
-            Tfloat val               = i + j;
-            cpu_in[i * Nystride + j] = val;
+            cpu_in[i * Nystride + j] = (Tfloat)rand() / (Tfloat)RAND_MAX;
         }
     }
 
