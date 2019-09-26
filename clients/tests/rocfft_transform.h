@@ -38,7 +38,8 @@ rocfft_status rocfft_plan_create_template(rocfft_plan*                  plan,
                                           const rocfft_plan_description description);
 
 template <class Tfloat>
-rocfft_status rocfft_set_scale_template(const rocfft_plan_description description, const Tfloat scale);
+rocfft_status rocfft_set_scale_template(const rocfft_plan_description description,
+                                        const Tfloat                  scale);
 
 template <class Tfloat>
 class rocfft
@@ -84,7 +85,7 @@ public:
            const rocfft_array_type       output_layout_in,
            const rocfft_result_placement placement_in,
            const rocfft_transform_type   transform_type_in,
-           const Tfloat                       scale_in)
+           const Tfloat                  scale_in)
     try : dim(lengths_in.size()),
           lengths(lengths_in),
           batch_size(batch_size_in),
@@ -188,12 +189,12 @@ public:
         if(istride[0] == 1 && ostride[0] == 1 && scale == 1.0)
         {
             LIB_V_THROW(rocfft_plan_create_template<Tfloat>(&plan,
-                                                       _placement,
-                                                       _transformation_direction,
-                                                       dim,
-                                                       lengths.data(),
-                                                       batch_size,
-                                                       NULL),
+                                                            _placement,
+                                                            _transformation_direction,
+                                                            dim,
+                                                            lengths.data(),
+                                                            batch_size,
+                                                            NULL),
                         "rocfft_plan_create failed"); // simply case plan create
         }
         else
@@ -247,12 +248,12 @@ public:
                     "rocfft_plan_descrption_set_scale failed");
 
         LIB_V_THROW(rocfft_plan_create_template<Tfloat>(&plan,
-                                                   _placement,
-                                                   _transformation_direction,
-                                                   dim,
-                                                   lengths.data(),
-                                                   batch_size,
-                                                   desc),
+                                                        _placement,
+                                                        _transformation_direction,
+                                                        dim,
+                                                        lengths.data(),
+                                                        batch_size,
+                                                        desc),
                     "rocfft_plan_create failed");
     }
 

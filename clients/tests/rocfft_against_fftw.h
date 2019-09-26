@@ -31,21 +31,20 @@
 #include "rocfft.h"
 #include "rocfft_transform.h"
 
-// FIXME: document
-template<typename Tfloat>
+// Return the precision enum for rocFFT based upon the type.
+template <typename Tfloat>
 inline rocfft_precision precision_selector();
-template<>
+template <>
 inline rocfft_precision precision_selector<float>()
 {
     return rocfft_precision_single;
 }
-template<>
+template <>
 inline rocfft_precision precision_selector<double>()
 {
     return rocfft_precision_double;
 }
 
-    
 // Create an easy-to-read string from the test parameters.
 inline std::string testparams2str(const std::vector<size_t>&    length,
                                   const std::vector<size_t>&    istride,

@@ -396,16 +396,17 @@ private:
             return index(0, 0, 0, batch + 1);
     }
 
-    bool points_are_about_equal(buffer<Tfloat>& other_buffer, size_t x, size_t y, size_t z, size_t batch)
+    bool points_are_about_equal(
+        buffer<Tfloat>& other_buffer, size_t x, size_t y, size_t z, size_t batch)
     {
         if(is_real())
             return floats_are_about_equal<Tfloat>(real(x, y, z, batch),
-                                             other_buffer.real(x, y, z, batch));
+                                                  other_buffer.real(x, y, z, batch));
         else if(is_complex() || is_hermitian())
-            return (
-                floats_are_about_equal<Tfloat>(real(x, y, z, batch), other_buffer.real(x, y, z, batch))
-                && floats_are_about_equal<Tfloat>(imag(x, y, z, batch),
-                                             other_buffer.imag(x, y, z, batch)));
+            return (floats_are_about_equal<Tfloat>(real(x, y, z, batch),
+                                                   other_buffer.real(x, y, z, batch))
+                    && floats_are_about_equal<Tfloat>(imag(x, y, z, batch),
+                                                      other_buffer.imag(x, y, z, batch)));
         else
             throw std::runtime_error("invalid layout in points_are_about_equal()");
     }
@@ -597,10 +598,10 @@ public:
 
     void operator*=(buffer<Tfloat>& other_buffer)
     {
-        size_t the_index;
-        Tfloat*     base_ptr;
-        Tfloat*     real_ptr;
-        Tfloat*     imag_ptr;
+        size_t  the_index;
+        Tfloat* base_ptr;
+        Tfloat* real_ptr;
+        Tfloat* imag_ptr;
 
         if(is_interleaved())
         {
@@ -667,12 +668,12 @@ public:
             throw std::runtime_error("only real layout is supported currently for other_buffer");
         }
 
-        size_t the_index, o_the_index;
-        Tfloat *    base_ptr, *o_base_ptr;
-        Tfloat*     real_ptr;
-        Tfloat*     imag_ptr;
-        Tfloat      o_prev_val, o_next_val;
-        Tfloat      average;
+        size_t  the_index, o_the_index;
+        Tfloat *base_ptr, *o_base_ptr;
+        Tfloat* real_ptr;
+        Tfloat* imag_ptr;
+        Tfloat  o_prev_val, o_next_val;
+        Tfloat  average;
 
         if(is_interleaved())
         {
@@ -950,8 +951,8 @@ public:
     {
         if(is_real())
         {
-            Tfloat*     base_ptr   = _the_buffers[re].ptr();
-            size_t real_index = index(x, y, z, batch);
+            Tfloat* base_ptr   = _the_buffers[re].ptr();
+            size_t  real_index = index(x, y, z, batch);
 
             *(base_ptr + real_index) = real;
         }
@@ -960,16 +961,20 @@ public:
                                      "complex or hermitian buffer");
     }
 
-    void set_one_data_point(
-        Tfloat real, Tfloat imag, const size_t x, const size_t y, const size_t z, const size_t batch)
+    void set_one_data_point(Tfloat       real,
+                            Tfloat       imag,
+                            const size_t x,
+                            const size_t y,
+                            const size_t z,
+                            const size_t batch)
     {
         if(is_real())
             throw std::runtime_error("attempting to use complex data point setter for real buffer");
         else if(is_interleaved())
         {
-            Tfloat*     base_ptr   = _the_buffers[interleaved].ptr();
-            size_t real_index = index(x, y, z, batch);
-            size_t imag_index
+            Tfloat* base_ptr   = _the_buffers[interleaved].ptr();
+            size_t  real_index = index(x, y, z, batch);
+            size_t  imag_index
                 = real_index + 1; // the imaginary component immediately follows the real
 
             *(base_ptr + real_index) = real;
@@ -977,9 +982,9 @@ public:
         }
         else // planar
         {
-            Tfloat*     real_ptr  = _the_buffers[re].ptr();
-            Tfloat*     imag_ptr  = _the_buffers[im].ptr();
-            size_t the_index = index(x, y, z, batch);
+            Tfloat* real_ptr  = _the_buffers[re].ptr();
+            Tfloat* imag_ptr  = _the_buffers[im].ptr();
+            size_t  the_index = index(x, y, z, batch);
 
             *(real_ptr + the_index) = real;
             *(imag_ptr + the_index) = imag;
@@ -1041,8 +1046,12 @@ public:
 
                         else
                         {
-                            set_one_data_point(
-                                static_cast<Tfloat>(val), static_cast<Tfloat>(val) + 0.5f, x, y, z, batch);
+                            set_one_data_point(static_cast<Tfloat>(val),
+                                               static_cast<Tfloat>(val) + 0.5f,
+                                               x,
+                                               y,
+                                               z,
+                                               batch);
                         }
 
                         ++val;
@@ -1152,8 +1161,12 @@ public:
                         }
                         else
                         {
-                            set_one_data_point(
-                                static_cast<Tfloat>(value), static_cast<Tfloat>(value), x, y, z, batch);
+                            set_one_data_point(static_cast<Tfloat>(value),
+                                               static_cast<Tfloat>(value),
+                                               x,
+                                               y,
+                                               z,
+                                               batch);
                         }
                     }
                 }
@@ -1172,8 +1185,12 @@ public:
                 set_one_data_point(
                     static_cast<Tfloat>(number_of_data_points_single_batch()), 0, 0, 0, batch);
             else
-                set_one_data_point(
-                    static_cast<Tfloat>(number_of_data_points_single_batch()), 0.0f, 0, 0, 0, batch);
+                set_one_data_point(static_cast<Tfloat>(number_of_data_points_single_batch()),
+                                   0.0f,
+                                   0,
+                                   0,
+                                   0,
+                                   batch);
         }
     }
 

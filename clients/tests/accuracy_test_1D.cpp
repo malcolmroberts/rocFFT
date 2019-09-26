@@ -88,7 +88,7 @@ class accuracy_test_real
     : public ::testing::TestWithParam<std::tuple<size_t, size_t, rocfft_result_placement, size_t>>
 {
 protected:
-        void SetUp() override
+    void SetUp() override
     {
         rocfft_setup();
     }
@@ -415,26 +415,26 @@ class accuracy_test_complex_pow2_single : public ::testing::Test
 {
 protected:
     void SetUp() override
-        {
-            rocfft_setup();
-        }
+    {
+        rocfft_setup();
+    }
     void TearDown() override
-        {
-            rocfft_cleanup();
-        }
+    {
+        rocfft_cleanup();
+    }
 };
 
 class accuracy_test_complex_pow2_double : public ::testing::Test
 {
 protected:
     void SetUp() override
-        {
-            rocfft_setup();
-        }
+    {
+        rocfft_setup();
+    }
     void TearDown() override
-        {
-            rocfft_cleanup();
-        }
+    {
+        rocfft_cleanup();
+    }
 };
 
 #define HUGE_TEST_MAKE(test_name, len, bat)                                              \

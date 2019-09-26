@@ -19,12 +19,12 @@
 // THE SOFTWARE.
 
 #include <algorithm>
+#include <complex>
 #include <gtest/gtest.h>
 #include <math.h>
 #include <stdexcept>
 #include <unistd.h>
 #include <vector>
-#include <complex>
 
 #include "fftw_transform.h"
 #include "rocfft.h"
@@ -34,12 +34,12 @@ using ::testing::ValuesIn;
 
 // Set parameters
 
-// FIXME: {4096, 8192} fails with new test infrastructure.
+// TODO: {4096, 8192} fails with new test infrastructure.
 static std::vector<std::vector<size_t>> pow2_range
     = {{2, 4}, {8, 16}, {32, 128}, {256, 512}, {1024, 2048}};
-// FIXME: {2187, 6561} fails with the new test infrastructure.
-static std::vector<std::vector<size_t>> pow3_range  = {{3, 9}, {27, 81}, {243, 729}};
-// FIXME: {3125, 15625} fails with the new test infrastructure.
+// TODO: {2187, 6561} fails with the new test infrastructure.
+static std::vector<std::vector<size_t>> pow3_range = {{3, 9}, {27, 81}, {243, 729}};
+// TODO: {3125, 15625} fails with the new test infrastructure.
 static std::vector<std::vector<size_t>> pow5_range  = {{5, 25}, {125, 625}};
 static std::vector<std::vector<size_t>> prime_range = {
     {7, 25}, {11, 625}, {13, 15625}, {1, 11}, {11, 1}, {8191, 243}, {7, 11}, {7, 32}, {1009, 1009}};
@@ -53,7 +53,8 @@ static rocfft_result_placement placeness_range[]
 
 // Real/complex transform test framework is only set up for out-of-place transforms:
 // TODO: fix the test suite and add coverage for in-place transforms.
-static rocfft_result_placement rc_placeness_range[] = {rocfft_placement_notinplace, rocfft_placement_inplace};
+static rocfft_result_placement rc_placeness_range[]
+    = {rocfft_placement_notinplace, rocfft_placement_inplace};
 
 static rocfft_transform_type transform_range[]
     = {rocfft_transform_type_complex_forward, rocfft_transform_type_complex_inverse};
@@ -97,24 +98,24 @@ protected:
 //  Complex to complex
 template <typename Tfloat>
 void normal_2D_complex_interleaved_to_complex_interleaved(std::vector<size_t>     length,
-                                              size_t                  batch,
-                                              rocfft_result_placement placeness,
-                                              rocfft_transform_type   transform_type,
-                                              size_t                  stride,
-                                              data_pattern            pattern)
+                                                          size_t                  batch,
+                                                          rocfft_result_placement placeness,
+                                                          rocfft_transform_type   transform_type,
+                                                          size_t                  stride,
+                                                          data_pattern            pattern)
 {
     using fftw_complex_type = typename fftw_trait<Tfloat>::fftw_complex_type;
-    
-    const size_t Nx = length[1];
-    const size_t Ny = length[0];
+
+    const size_t Nx      = length[1];
+    const size_t Ny      = length[0];
     const bool   inplace = placeness == rocfft_placement_inplace;
-    int sign = transform_type == rocfft_transform_type_complex_forward
-        ? FFTW_FORWARD : FFTW_BACKWARD;
-    
+    int          sign
+        = transform_type == rocfft_transform_type_complex_forward ? FFTW_FORWARD : FFTW_BACKWARD;
+
     // TODO: add coverage for non-unit stride.
     ASSERT_TRUE(stride == 1) << "Failure: test assumes contiguous data:";
-    
-     // Dimension configuration:
+
+    // Dimension configuration:
     std::array<fftw_iodim64, 2> dims;
     dims[1].n  = Ny;
     dims[1].is = stride;
@@ -138,10 +139,10 @@ void normal_2D_complex_interleaved_to_complex_interleaved(std::vector<size_t>   
     // }
     // std::cout << "isize: " << isize << "\n";
     // std::cout << "osize: " << osize << "\n";
-    
+
     // Batch configuration:
     std::array<fftw_iodim64, 1> howmany_dims;
-    howmany_dims[0].n = batch;
+    howmany_dims[0].n  = batch;
     howmany_dims[0].is = isize;
     howmany_dims[0].os = osize;
 
@@ -149,12 +150,11 @@ void normal_2D_complex_interleaved_to_complex_interleaved(std::vector<size_t>   
     // Local data buffer:
     std::complex<Tfloat>* cpu_in = fftw_alloc_type<std::complex<Tfloat>>(isize);
     // Output buffer
-    std::complex<Tfloat>* cpu_out = inplace ? cpu_in : 
-        fftw_alloc_type<std::complex<Tfloat>>(osize);
-    
-    std::complex<Tfloat>* gpu_in = NULL;
-    hipError_t hip_status = hipSuccess;
-    hip_status = hipMalloc(&gpu_in, isize * sizeof(std::complex<Tfloat>));
+    std::complex<Tfloat>* cpu_out = inplace ? cpu_in : fftw_alloc_type<std::complex<Tfloat>>(osize);
+
+    std::complex<Tfloat>* gpu_in     = NULL;
+    hipError_t            hip_status = hipSuccess;
+    hip_status                       = hipMalloc(&gpu_in, isize * sizeof(std::complex<Tfloat>));
     ASSERT_TRUE(hip_status == hipSuccess) << "hipMalloc failure";
     std::complex<Tfloat>* gpu_out = inplace ? gpu_in : NULL;
     if(!inplace)
@@ -173,25 +173,26 @@ void normal_2D_complex_interleaved_to_complex_interleaved(std::vector<size_t>   
                                                  sign,
                                                  FFTW_ESTIMATE);
     ASSERT_TRUE(cpu_plan != NULL) << "FFTW plan creation failure";
-    
+
     // Set up the GPU plan:
     rocfft_status fft_status = rocfft_status_success;
-    rocfft_plan forward = NULL;
-    fft_status = rocfft_plan_create(&forward,
-                                    inplace ? rocfft_placement_inplace : rocfft_placement_notinplace,
-                                    transform_type,
-                                    precision_selector<Tfloat>(),
-                                    2, // Dimensions
-                                    length.data(), // lengths
-                                    1, // Number of transforms
-                                    NULL); // Description  // FIXME:
-                                       // needed for strides!
+    rocfft_plan   forward    = NULL;
+    fft_status
+        = rocfft_plan_create(&forward,
+                             inplace ? rocfft_placement_inplace : rocfft_placement_notinplace,
+                             transform_type,
+                             precision_selector<Tfloat>(),
+                             2, // Dimensions
+                             length.data(), // lengths
+                             1, // Number of transforms
+                             NULL); // Description  // TODO: enable
+    // needed for strides!
     ASSERT_TRUE(fft_status == rocfft_status_success) << "rocFFT plan creation failure";
 
     // The real-to-complex transform uses work memory, which is passed
     // via a rocfft_execution_info struct.
     rocfft_execution_info forwardinfo = NULL;
-    fft_status = rocfft_execution_info_create(&forwardinfo);
+    fft_status                        = rocfft_execution_info_create(&forwardinfo);
     ASSERT_TRUE(fft_status == rocfft_status_success) << "rocFFT execution info creation failure";
     size_t forwardworkbuffersize = 0;
     fft_status = rocfft_plan_get_work_buffer_size(forward, &forwardworkbuffersize);
@@ -201,13 +202,13 @@ void normal_2D_complex_interleaved_to_complex_interleaved(std::vector<size_t>   
     {
         hip_status = hipMalloc(&forwardwbuffer, forwardworkbuffersize);
         ASSERT_TRUE(hip_status == hipSuccess) << "hipMalloc failure";
-        fft_status = rocfft_execution_info_set_work_buffer(forwardinfo, forwardwbuffer,
-                                                       forwardworkbuffersize);
+        fft_status = rocfft_execution_info_set_work_buffer(
+            forwardinfo, forwardwbuffer, forwardworkbuffersize);
         ASSERT_TRUE(fft_status == rocfft_status_success) << "rocFFT set work buffer failure";
     }
 
     srandom(3);
-    
+
     // Set up the data:
     std::fill(cpu_in, cpu_in + isize, 0.0);
     for(size_t i = 0; i < Nx; i++)
@@ -221,7 +222,7 @@ void normal_2D_complex_interleaved_to_complex_interleaved(std::vector<size_t>   
             cpu_in[dims[0].is * i + dims[1].is * j] = val;
         }
     }
-    
+
     // for(int i = 0; i < isize; ++i) {
     //     std::cout << cpu_in[i] << " ";
     // }
@@ -235,16 +236,16 @@ void normal_2D_complex_interleaved_to_complex_interleaved(std::vector<size_t>   
     //     std::cout << std::endl;
     // }
     // std::cout << std::endl;
-    
-    hip_status = hipMemcpy(gpu_in, cpu_in, isize * sizeof(std::complex<Tfloat>),
-                           hipMemcpyHostToDevice);
+
+    hip_status
+        = hipMemcpy(gpu_in, cpu_in, isize * sizeof(std::complex<Tfloat>), hipMemcpyHostToDevice);
     ASSERT_TRUE(hip_status == hipSuccess) << "hipMalloc failure";
-    
+
     // Execute the GPU transform:
     fft_status = rocfft_execute(forward, // plan
-                            (void**)&gpu_in, // in_buffer
-                            (void**)&gpu_out, // out_buffer
-                            forwardinfo); // execution info
+                                (void**)&gpu_in, // in_buffer
+                                (void**)&gpu_out, // out_buffer
+                                forwardinfo); // execution info
     ASSERT_TRUE(fft_status == rocfft_status_success) << "rocFFT plan execution failure";
 
     // Execute the CPU transform:
@@ -261,11 +262,10 @@ void normal_2D_complex_interleaved_to_complex_interleaved(std::vector<size_t>   
     // }
     // std::cout << std::endl;
 
-    
     // Copy the data back and compare:
     fftw_vector<std::complex<Tfloat>> gpu_out_comp(osize);
-    hip_status = hipMemcpy(gpu_out_comp.data(), gpu_out, osize * sizeof(std::complex<Tfloat>),
-                           hipMemcpyDeviceToHost);
+    hip_status = hipMemcpy(
+        gpu_out_comp.data(), gpu_out, osize * sizeof(std::complex<Tfloat>), hipMemcpyDeviceToHost);
     ASSERT_TRUE(hip_status == hipSuccess) << "hipMalloc failure";
 
     // std::cout << "gpu_out:\n";
@@ -279,7 +279,7 @@ void normal_2D_complex_interleaved_to_complex_interleaved(std::vector<size_t>   
     // }
     // std::cout << std::endl;
 
-    Tfloat L2norm = 0.0;
+    Tfloat L2norm   = 0.0;
     Tfloat Linfnorm = 0.0;
     for(size_t i = 0; i < Nx; i++)
     {
@@ -287,21 +287,21 @@ void normal_2D_complex_interleaved_to_complex_interleaved(std::vector<size_t>   
         {
             auto val = cpu_out[dims[0].os * i + dims[1].os * j];
             Linfnorm = std::max(std::abs(val), Linfnorm);
-            L2norm +=  std::abs(val) * std::abs(val);
+            L2norm += std::abs(val) * std::abs(val);
         }
     }
     L2norm = sqrt(L2norm);
-    
-    Tfloat L2diff = 0.0;
+
+    Tfloat L2diff   = 0.0;
     Tfloat Linfdiff = 0.0;
-    int nwrong = 0;
+    int    nwrong   = 0;
     for(size_t i = 0; i < Nx; i++)
     {
         for(size_t j = 0; j < Ny; j++)
         {
-            const int pos = dims[0].os * i + dims[1].os * j;
-            Tfloat diff= std::abs(cpu_out[pos] - gpu_out_comp[pos]);
-            Linfdiff = std::max(diff, Linfdiff);
+            const int pos  = dims[0].os * i + dims[1].os * j;
+            Tfloat    diff = std::abs(cpu_out[pos] - gpu_out_comp[pos]);
+            Linfdiff       = std::max(diff, Linfdiff);
             L2diff += diff * diff;
             if(std::abs(diff) / (Linfnorm * log(Nx * Ny)) >= type_epsilon<Tfloat>())
             {
@@ -314,18 +314,16 @@ void normal_2D_complex_interleaved_to_complex_interleaved(std::vector<size_t>   
     L2diff = sqrt(L2diff);
 
     //std::cout << "nwrong: " << nwrong << std::endl;
-    Tfloat L2error = L2diff / (L2norm * sqrt(log(Nx * Ny)));
+    Tfloat L2error   = L2diff / (L2norm * sqrt(log(Nx * Ny)));
     Tfloat Linferror = Linfdiff / (Linfnorm * log(Nx * Ny));
     // std::cout << "relative L2 error: " << L2error << std::endl;
     // std::cout << "relative Linf error: " << Linferror << std::endl;
 
     EXPECT_TRUE(L2error < type_epsilon<Tfloat>())
-        << "Tolerance failure: L2error: " << L2error
-        << ", tolerance: " << type_epsilon<Tfloat>(); 
-    EXPECT_TRUE(Linferror < type_epsilon<Tfloat>())
-        << "Tolerance failure: Linferror: " << Linferror
-        << ", tolerance: " << type_epsilon<Tfloat>();
-    
+        << "Tolerance failure: L2error: " << L2error << ", tolerance: " << type_epsilon<Tfloat>();
+    EXPECT_TRUE(Linferror < type_epsilon<Tfloat>()) << "Tolerance failure: Linferror: " << Linferror
+                                                    << ", tolerance: " << type_epsilon<Tfloat>();
+
     // Free GPU memory:
     hipFree(gpu_in);
     fftw_free(cpu_in);
@@ -334,11 +332,11 @@ void normal_2D_complex_interleaved_to_complex_interleaved(std::vector<size_t>   
         hipFree(gpu_out);
         fftw_free(cpu_out);
     }
-    if (forwardwbuffer != NULL)
+    if(forwardwbuffer != NULL)
     {
         hipFree(forwardwbuffer);
     }
-    
+
     // Destroy plans:
     rocfft_plan_destroy(forward);
     fftw_destroy_plan_type(cpu_plan);
@@ -349,7 +347,7 @@ void normal_2D_complex_interleaved_to_complex_interleaved(std::vector<size_t>   
 TEST_P(accuracy_test_complex_2D,
        normal_2D_complex_interleaved_to_complex_interleaved_single_precision)
 {
-    std::vector<size_t>     length        = std::get<0>(GetParam());
+    std::vector<size_t>     length         = std::get<0>(GetParam());
     size_t                  batch          = std::get<1>(GetParam());
     rocfft_result_placement placeness      = std::get<2>(GetParam());
     size_t                  stride         = std::get<3>(GetParam());
@@ -370,7 +368,7 @@ TEST_P(accuracy_test_complex_2D,
 TEST_P(accuracy_test_complex_2D,
        normal_2D_complex_interleaved_to_complex_interleaved_double_precision)
 {
-    std::vector<size_t>     length        = std::get<0>(GetParam());
+    std::vector<size_t>     length         = std::get<0>(GetParam());
     size_t                  batch          = std::get<1>(GetParam());
     rocfft_result_placement placeness      = std::get<2>(GetParam());
     size_t                  stride         = std::get<3>(GetParam());
@@ -402,17 +400,17 @@ void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
                                            data_pattern            pattern)
 {
     using fftw_complex_type = typename fftw_trait<Tfloat>::fftw_complex_type;
-    
-    const size_t Nx = length[1];
-    const size_t Ny = length[0];
+
+    const size_t Nx      = length[1];
+    const size_t Ny      = length[0];
     const bool   inplace = placeness == rocfft_placement_inplace;
 
     // TODO: add coverage for non-unit stride.
     ASSERT_TRUE(stride == 1) << "Failure: test assumes contiguous data:";
-    
+
     // TODO: add logic to deal with discontiguous data in Nystride
     const size_t Nycomplex = Ny / 2 + 1;
-    const size_t Nystride = inplace ? 2 * Nycomplex : Ny;
+    const size_t Nystride  = inplace ? 2 * Nycomplex : Ny;
 
     // Dimension configuration:
     std::array<fftw_iodim64, 2> dims;
@@ -421,7 +419,7 @@ void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
     dims[1].os = stride;
     dims[0].n  = Nx;
     dims[0].is = Nystride * dims[1].is;
-    dims[0].os = (dims[1].n/2 + 1) * dims[1].os;
+    dims[0].os = (dims[1].n / 2 + 1) * dims[1].os;
 
     const size_t isize = dims[0].n * dims[0].is;
     const size_t osize = dims[0].n * dims[0].os;
@@ -438,10 +436,10 @@ void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
     // }
     // std::cout << "isize: " << isize << "\n";
     // std::cout << "osize: " << osize << "\n";
-    
+
     // Batch configuration:
     std::array<fftw_iodim64, 1> howmany_dims;
-    howmany_dims[0].n = batch;
+    howmany_dims[0].n  = batch;
     howmany_dims[0].is = isize;
     howmany_dims[0].os = osize;
 
@@ -449,12 +447,12 @@ void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
     // Local data buffer:
     Tfloat* cpu_in = fftw_alloc_type<Tfloat>(isize);
     // Output buffer
-    std::complex<Tfloat>* cpu_out = inplace ? (std::complex<Tfloat>*) cpu_in : 
-        fftw_alloc_type<std::complex<Tfloat>>(osize);
+    std::complex<Tfloat>* cpu_out
+        = inplace ? (std::complex<Tfloat>*)cpu_in : fftw_alloc_type<std::complex<Tfloat>>(osize);
 
-    Tfloat* gpu_in = NULL;
+    Tfloat*    gpu_in     = NULL;
     hipError_t hip_status = hipSuccess;
-    hip_status = hipMalloc(&gpu_in, isize * sizeof(Tfloat));
+    hip_status            = hipMalloc(&gpu_in, isize * sizeof(Tfloat));
     ASSERT_TRUE(hip_status == hipSuccess) << "hipMalloc failure";
     std::complex<Tfloat>* gpu_out = inplace ? (std::complex<Tfloat>*)gpu_in : NULL;
     if(!inplace)
@@ -472,25 +470,26 @@ void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
                                                  reinterpret_cast<fftw_complex_type*>(cpu_out),
                                                  FFTW_ESTIMATE);
     ASSERT_TRUE(cpu_plan != NULL) << "FFTW plan creation failure";
-    
+
     // Set up the GPU plan:
     rocfft_status fft_status = rocfft_status_success;
-    rocfft_plan forward = NULL;
-    fft_status = rocfft_plan_create(&forward,
-                                inplace ? rocfft_placement_inplace : rocfft_placement_notinplace,
-                                rocfft_transform_type_real_forward,
-                                precision_selector<Tfloat>(),
-                                2, // Dimensions
-                                length.data(), // lengths
-                                1, // Number of transforms
-                                NULL); // Description  // FIXME:
-                                       // needed for strides!
+    rocfft_plan   forward    = NULL;
+    fft_status
+        = rocfft_plan_create(&forward,
+                             inplace ? rocfft_placement_inplace : rocfft_placement_notinplace,
+                             rocfft_transform_type_real_forward,
+                             precision_selector<Tfloat>(),
+                             2, // Dimensions
+                             length.data(), // lengths
+                             1, // Number of transforms
+                             NULL); // Description  // TODO: enable
+    // needed for strides!
     ASSERT_TRUE(fft_status == rocfft_status_success) << "rocFFT plan creation failure";
 
     // The real-to-complex transform uses work memory, which is passed
     // via a rocfft_execution_info struct.
     rocfft_execution_info forwardinfo = NULL;
-    fft_status = rocfft_execution_info_create(&forwardinfo);
+    fft_status                        = rocfft_execution_info_create(&forwardinfo);
     ASSERT_TRUE(fft_status == rocfft_status_success) << "rocFFT execution info creation failure";
     size_t forwardworkbuffersize = 0;
     fft_status = rocfft_plan_get_work_buffer_size(forward, &forwardworkbuffersize);
@@ -500,11 +499,11 @@ void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
     {
         hip_status = hipMalloc(&forwardwbuffer, forwardworkbuffersize);
         ASSERT_TRUE(hip_status == hipSuccess) << "hipMalloc failure";
-        fft_status = rocfft_execution_info_set_work_buffer(forwardinfo, forwardwbuffer,
-                                                       forwardworkbuffersize);
+        fft_status = rocfft_execution_info_set_work_buffer(
+            forwardinfo, forwardwbuffer, forwardworkbuffersize);
         ASSERT_TRUE(fft_status == rocfft_status_success) << "rocFFT set work buffer failure";
     }
-    
+
     // Set up the data:
     std::fill(cpu_in, cpu_in + isize, 0.0);
     for(size_t i = 0; i < Nx; i++)
@@ -512,7 +511,7 @@ void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
         for(size_t j = 0; j < Ny; j++)
         {
             // TODO: make pattern variable
-            Tfloat val = i + j;
+            Tfloat val               = i + j;
             cpu_in[i * Nystride + j] = val;
         }
     }
@@ -530,15 +529,15 @@ void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
     //     std::cout << std::endl;
     // }
     // std::cout << std::endl;
-    
+
     hip_status = hipMemcpy(gpu_in, cpu_in, isize * sizeof(Tfloat), hipMemcpyHostToDevice);
     ASSERT_TRUE(hip_status == hipSuccess) << "hipMalloc failure";
-    
+
     // Execute the GPU transform:
     fft_status = rocfft_execute(forward, // plan
-                            (void**)&gpu_in, // in_buffer
-                            (void**)&gpu_out, // out_buffer
-                            forwardinfo); // execution info
+                                (void**)&gpu_in, // in_buffer
+                                (void**)&gpu_out, // out_buffer
+                                forwardinfo); // execution info
     ASSERT_TRUE(fft_status == rocfft_status_success) << "rocFFT plan execution failure";
 
     // Execute the CPU transform:
@@ -555,11 +554,10 @@ void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
     // }
     // std::cout << std::endl;
 
-    
     // Copy the data back and compare:
     fftw_vector<std::complex<Tfloat>> gpu_out_comp(osize);
-    hip_status = hipMemcpy(gpu_out_comp.data(), gpu_out, osize * sizeof(std::complex<Tfloat>),
-                           hipMemcpyDeviceToHost);
+    hip_status = hipMemcpy(
+        gpu_out_comp.data(), gpu_out, osize * sizeof(std::complex<Tfloat>), hipMemcpyDeviceToHost);
     ASSERT_TRUE(hip_status == hipSuccess) << "hipMalloc failure";
 
     // std::cout << "gpu_out:\n";
@@ -573,18 +571,18 @@ void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
     // }
     // std::cout << std::endl;
 
-    Tfloat L2diff = 0.0;
+    Tfloat L2diff   = 0.0;
     Tfloat Linfdiff = 0.0;
-    Tfloat L2norm = 0.0;
+    Tfloat L2norm   = 0.0;
     Tfloat Linfnorm = 0.0;
     for(size_t i = 0; i < Nx; i++)
     {
         for(size_t j = 0; j < Nycomplex; j++)
         {
-            const int pos = i * Nycomplex + j;
-            Tfloat diff= std::abs(cpu_out[pos] - gpu_out_comp[pos]);
-            Linfnorm = std::max(std::abs(cpu_out[pos]), Linfnorm);
-            L2norm +=  std::abs(cpu_out[pos]) * std::abs(cpu_out[pos]);
+            const int pos  = i * Nycomplex + j;
+            Tfloat    diff = std::abs(cpu_out[pos] - gpu_out_comp[pos]);
+            Linfnorm       = std::max(std::abs(cpu_out[pos]), Linfnorm);
+            L2norm += std::abs(cpu_out[pos]) * std::abs(cpu_out[pos]);
             Linfdiff = std::max(diff, Linfdiff);
             L2diff += diff * diff;
         }
@@ -592,18 +590,16 @@ void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
     L2norm = sqrt(L2norm);
     L2diff = sqrt(L2diff);
 
-    Tfloat L2error = L2diff / (L2norm * sqrt(log(Nx * Ny)));
+    Tfloat L2error   = L2diff / (L2norm * sqrt(log(Nx * Ny)));
     Tfloat Linferror = Linfdiff / (Linfnorm * log(Nx * Ny));
     // std::cout << "relative L2 error: " << L2error << std::endl;
     // std::cout << "relative Linf error: " << Linferror << std::endl;
 
     EXPECT_TRUE(L2error < type_epsilon<Tfloat>())
-        << "Tolerance failure: L2error: " << L2error
-        << ", tolerance: " << type_epsilon<Tfloat>(); 
-    EXPECT_TRUE(Linferror < type_epsilon<Tfloat>())
-        << "Tolerance failure: Linferror: " << Linferror
-        << ", tolerance: " << type_epsilon<Tfloat>();
-    
+        << "Tolerance failure: L2error: " << L2error << ", tolerance: " << type_epsilon<Tfloat>();
+    EXPECT_TRUE(Linferror < type_epsilon<Tfloat>()) << "Tolerance failure: Linferror: " << Linferror
+                                                    << ", tolerance: " << type_epsilon<Tfloat>();
+
     // Free GPU memory:
     hipFree(gpu_in);
     fftw_free(cpu_in);
@@ -612,11 +608,11 @@ void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
         hipFree(gpu_out);
         fftw_free(cpu_out);
     }
-    if (forwardwbuffer != NULL)
+    if(forwardwbuffer != NULL)
     {
         hipFree(forwardwbuffer);
     }
-    
+
     // Destroy plans:
     rocfft_plan_destroy(forward);
     fftw_destroy_plan_type(cpu_plan);
@@ -632,17 +628,17 @@ void normal_2D_complex_interleaved_to_real(std::vector<size_t>     length,
                                            data_pattern            pattern)
 {
     using fftw_complex_type = typename fftw_trait<Tfloat>::fftw_complex_type;
-    
-    const size_t Nx = length[1];
-    const size_t Ny = length[0];
+
+    const size_t Nx      = length[1];
+    const size_t Ny      = length[0];
     const bool   inplace = placeness == rocfft_placement_inplace;
 
     // TODO: add coverage for non-unit stride.
     ASSERT_TRUE(stride == 1) << "Failure: test assumes contiguous data:";
-    
+
     // TODO: add logic to deal with discontiguous data in Nystride
     const size_t Nycomplex = Ny / 2 + 1;
-    const size_t Nystride = inplace ? 2 * Nycomplex : Ny;
+    const size_t Nystride  = inplace ? 2 * Nycomplex : Ny;
 
     // Dimension configuration:
     std::array<fftw_iodim64, 2> dims;
@@ -650,7 +646,7 @@ void normal_2D_complex_interleaved_to_real(std::vector<size_t>     length,
     dims[1].is = stride;
     dims[1].os = stride;
     dims[0].n  = Nx;
-    dims[0].is = (dims[1].n/2 + 1) * dims[1].is;
+    dims[0].is = (dims[1].n / 2 + 1) * dims[1].is;
     dims[0].os = Nystride * dims[1].os;
 
     const size_t isize = dims[0].n * dims[0].is;
@@ -660,7 +656,7 @@ void normal_2D_complex_interleaved_to_real(std::vector<size_t>     length,
     // std::cout << "Ny: " << Ny << "\n";
     // std::cout << "Nycomplex: " << Nycomplex << "\n";
     // std::cout << "Nystride: " << Nystride << "\n";
-    
+
     // if(inplace)
     //     std::cout << "in-place\n";
     // else
@@ -673,10 +669,10 @@ void normal_2D_complex_interleaved_to_real(std::vector<size_t>     length,
     // }
     // std::cout << "isize: " << isize << "\n";
     // std::cout << "osize: " << osize << "\n";
-    
+
     // Batch configuration:
     std::array<fftw_iodim64, 1> howmany_dims;
-    howmany_dims[0].n = batch;
+    howmany_dims[0].n  = batch;
     howmany_dims[0].is = isize;
     howmany_dims[0].os = osize;
 
@@ -684,11 +680,11 @@ void normal_2D_complex_interleaved_to_real(std::vector<size_t>     length,
     // Local data buffer:
     std::complex<Tfloat>* cpu_in = fftw_alloc_type<std::complex<Tfloat>>(isize);
     // Output buffer
-    Tfloat* cpu_out = inplace ? (Tfloat*) cpu_in : fftw_alloc_type<Tfloat>(osize);
+    Tfloat* cpu_out = inplace ? (Tfloat*)cpu_in : fftw_alloc_type<Tfloat>(osize);
 
-    std::complex<Tfloat>* gpu_in = NULL;
-    hipError_t hip_status = hipSuccess;
-    hip_status = hipMalloc(&gpu_in, isize * sizeof(std::complex<Tfloat>));
+    std::complex<Tfloat>* gpu_in     = NULL;
+    hipError_t            hip_status = hipSuccess;
+    hip_status                       = hipMalloc(&gpu_in, isize * sizeof(std::complex<Tfloat>));
     ASSERT_TRUE(hip_status == hipSuccess) << "hipMalloc failure";
     Tfloat* gpu_out = inplace ? (Tfloat*)gpu_in : NULL;
     if(!inplace)
@@ -706,18 +702,18 @@ void normal_2D_complex_interleaved_to_real(std::vector<size_t>     length,
                                                  cpu_out,
                                                  FFTW_ESTIMATE);
     ASSERT_TRUE(cpu_plan != NULL) << "FFTW plan creation failure";
-    
+
     // Set up the GPU plan:
-    rocfft_status fft_status = rocfft_status_success;
+    rocfft_status           fft_status      = rocfft_status_success;
     rocfft_plan_description gpu_description = NULL;
-    fft_status = rocfft_plan_description_create(&gpu_description);
+    fft_status                              = rocfft_plan_description_create(&gpu_description);
     ASSERT_TRUE(fft_status == rocfft_status_success) << "rocFFT description creation failure";
 
-    std::vector<size_t> istride = {static_cast<size_t>(dims[1].is),
-                                   static_cast<size_t>(dims[0].is)};
-    std::vector<size_t> ostride = {static_cast<size_t>(dims[1].os),
-                                   static_cast<size_t>(dims[0].os)};
-    
+    std::vector<size_t> istride
+        = {static_cast<size_t>(dims[1].is), static_cast<size_t>(dims[0].is)};
+    std::vector<size_t> ostride
+        = {static_cast<size_t>(dims[1].os), static_cast<size_t>(dims[0].os)};
+
     fft_status = rocfft_plan_description_set_data_layout(gpu_description,
                                                          rocfft_array_type_hermitian_interleaved,
                                                          rocfft_array_type_real,
@@ -729,25 +725,26 @@ void normal_2D_complex_interleaved_to_real(std::vector<size_t>     length,
                                                          ostride.size(),
                                                          ostride.data(),
                                                          0);
-    ASSERT_TRUE(fft_status == rocfft_status_success) << "rocFFT data layout failure: "
-                                                     << fft_status;
-    
+    ASSERT_TRUE(fft_status == rocfft_status_success)
+        << "rocFFT data layout failure: " << fft_status;
+
     rocfft_plan gpu_plan = NULL;
-    fft_status = rocfft_plan_create(&gpu_plan,
-                                inplace ? rocfft_placement_inplace : rocfft_placement_notinplace,
-                                rocfft_transform_type_real_inverse,
-                                precision_selector<Tfloat>(),
-                                2, // Dimensions
-                                length.data(), // lengths
-                                1, // Number of transforms
-                                    gpu_description);
-    ASSERT_TRUE(fft_status == rocfft_status_success) << "rocFFT plan creation failure: "
-                                                     << fft_status;
+    fft_status
+        = rocfft_plan_create(&gpu_plan,
+                             inplace ? rocfft_placement_inplace : rocfft_placement_notinplace,
+                             rocfft_transform_type_real_inverse,
+                             precision_selector<Tfloat>(),
+                             2, // Dimensions
+                             length.data(), // lengths
+                             1, // Number of transforms
+                             gpu_description);
+    ASSERT_TRUE(fft_status == rocfft_status_success)
+        << "rocFFT plan creation failure: " << fft_status;
 
     // The real-to-complex transform uses work memory, which is passed
     // via a rocfft_execution_info struct.
     rocfft_execution_info gpu_planinfo = NULL;
-    fft_status = rocfft_execution_info_create(&gpu_planinfo);
+    fft_status                         = rocfft_execution_info_create(&gpu_planinfo);
     ASSERT_TRUE(fft_status == rocfft_status_success) << "rocFFT execution info creation failure";
     size_t gpu_planworkbuffersize = 0;
     fft_status = rocfft_plan_get_work_buffer_size(gpu_plan, &gpu_planworkbuffersize);
@@ -757,8 +754,8 @@ void normal_2D_complex_interleaved_to_real(std::vector<size_t>     length,
     {
         hip_status = hipMalloc(&gpu_planwbuffer, gpu_planworkbuffersize);
         ASSERT_TRUE(hip_status == hipSuccess) << "hipMalloc failure";
-        fft_status = rocfft_execution_info_set_work_buffer(gpu_planinfo, gpu_planwbuffer,
-                                                       gpu_planworkbuffersize);
+        fft_status = rocfft_execution_info_set_work_buffer(
+            gpu_planinfo, gpu_planwbuffer, gpu_planworkbuffersize);
         ASSERT_TRUE(fft_status == rocfft_status_success) << "rocFFT set work buffer failure";
     }
 
@@ -775,7 +772,7 @@ void normal_2D_complex_interleaved_to_real(std::vector<size_t>     length,
                                                              (Tfloat)rand() / (Tfloat)RAND_MAX);
         }
     }
-    
+
     // Impose Hermitian symmetry:
     // origin:
     cpu_in[0].imag(0.0);
@@ -801,11 +798,11 @@ void normal_2D_complex_interleaved_to_real(std::vector<size_t>     length,
     {
         cpu_in[dims[0].is * (Nx - i)] = std::conj(cpu_in[dims[0].is * i]);
     }
-    
+
     // y-Nyquist:
     if(Ny % 2 == 0)
     {
-        for(int i = 1; i < Nx/2; ++i)
+        for(int i = 1; i < Nx / 2; ++i)
         {
             cpu_in[dims[0].is * (Nx - i) + dims[1].is * (Ny / 2)]
                 = std::conj(cpu_in[dims[0].is * i + dims[1].is * (Ny / 2)]);
@@ -827,11 +824,11 @@ void normal_2D_complex_interleaved_to_real(std::vector<size_t>     length,
     //     std::cout << std::endl;
     // }
     // std::cout << std::endl;
-    
-    hip_status = hipMemcpy(gpu_in, cpu_in, isize * sizeof(std::complex<Tfloat>),
-                           hipMemcpyHostToDevice);
+
+    hip_status
+        = hipMemcpy(gpu_in, cpu_in, isize * sizeof(std::complex<Tfloat>), hipMemcpyHostToDevice);
     ASSERT_TRUE(hip_status == hipSuccess) << "hipMalloc failure";
-    
+
     // Execute the GPU transform:
     fft_status = rocfft_execute(gpu_plan, // plan
                                 (void**)&gpu_in, // in_buffer
@@ -852,11 +849,11 @@ void normal_2D_complex_interleaved_to_real(std::vector<size_t>     length,
     //     std::cout << std::endl;
     // }
     // std::cout << std::endl;
-    
+
     // Copy the data back and compare:
     std::vector<Tfloat> gpu_out_comp(osize);
-    hip_status = hipMemcpy(gpu_out_comp.data(), gpu_out, osize * sizeof(Tfloat),
-                           hipMemcpyDeviceToHost);
+    hip_status
+        = hipMemcpy(gpu_out_comp.data(), gpu_out, osize * sizeof(Tfloat), hipMemcpyDeviceToHost);
     ASSERT_TRUE(hip_status == hipSuccess) << "hipMalloc failure";
 
     // std::cout << "gpu_out:\n";
@@ -870,18 +867,18 @@ void normal_2D_complex_interleaved_to_real(std::vector<size_t>     length,
     // }
     // std::cout << std::endl;
 
-    Tfloat L2diff = 0.0;
+    Tfloat L2diff   = 0.0;
     Tfloat Linfdiff = 0.0;
-    Tfloat L2norm = 0.0;
+    Tfloat L2norm   = 0.0;
     Tfloat Linfnorm = 0.0;
     for(size_t i = 0; i < Nx; i++)
     {
         for(size_t j = 0; j < Nycomplex; j++)
         {
-            const int pos = dims[0].os * i  + dims[1].os * j;
-            Tfloat diff= std::abs(cpu_out[pos] - gpu_out_comp[pos]);
-            Linfnorm = std::max(std::abs(cpu_out[pos]), Linfnorm);
-            L2norm +=  std::abs(cpu_out[pos]) * std::abs(cpu_out[pos]);
+            const int pos  = dims[0].os * i + dims[1].os * j;
+            Tfloat    diff = std::abs(cpu_out[pos] - gpu_out_comp[pos]);
+            Linfnorm       = std::max(std::abs(cpu_out[pos]), Linfnorm);
+            L2norm += std::abs(cpu_out[pos]) * std::abs(cpu_out[pos]);
             Linfdiff = std::max(diff, Linfdiff);
             L2diff += diff * diff;
         }
@@ -889,18 +886,16 @@ void normal_2D_complex_interleaved_to_real(std::vector<size_t>     length,
     L2norm = sqrt(L2norm);
     L2diff = sqrt(L2diff);
 
-    Tfloat L2error = L2diff / (L2norm * sqrt(log(Nx * Ny)));
+    Tfloat L2error   = L2diff / (L2norm * sqrt(log(Nx * Ny)));
     Tfloat Linferror = Linfdiff / (Linfnorm * log(Nx * Ny));
     // std::cout << "relative L2 error: " << L2error << std::endl;
     // std::cout << "relative Linf error: " << Linferror << std::endl;
 
     EXPECT_TRUE(L2error < type_epsilon<Tfloat>())
-        << "Tolerance failure: L2error: " << L2error
-        << ", tolerance: " << type_epsilon<Tfloat>(); 
-    EXPECT_TRUE(Linferror < type_epsilon<Tfloat>())
-        << "Tolerance failure: Linferror: " << Linferror
-        << ", tolerance: " << type_epsilon<Tfloat>();
-    
+        << "Tolerance failure: L2error: " << L2error << ", tolerance: " << type_epsilon<Tfloat>();
+    EXPECT_TRUE(Linferror < type_epsilon<Tfloat>()) << "Tolerance failure: Linferror: " << Linferror
+                                                    << ", tolerance: " << type_epsilon<Tfloat>();
+
     // Free GPU memory:
     hipFree(gpu_in);
     fftw_free(cpu_in);
@@ -909,23 +904,22 @@ void normal_2D_complex_interleaved_to_real(std::vector<size_t>     length,
         hipFree(gpu_out);
         fftw_free(cpu_out);
     }
-    if (gpu_planwbuffer != NULL)
+    if(gpu_planwbuffer != NULL)
     {
         hipFree(gpu_planwbuffer);
     }
-    
+
     // Destroy plans:
     rocfft_plan_description_destroy(gpu_description);
     rocfft_plan_destroy(gpu_plan);
     fftw_destroy_plan_type(cpu_plan);
 }
 
-
 // Implemetation of real-to-complex tests for float and double:
 
 TEST_P(accuracy_test_real_2D, normal_2D_real_to_complex_interleaved_single_precision)
 {
-    std::vector<size_t>     length        = std::get<0>(GetParam());
+    std::vector<size_t>     length         = std::get<0>(GetParam());
     size_t                  batch          = std::get<1>(GetParam());
     rocfft_result_placement placeness      = std::get<2>(GetParam());
     size_t                  stride         = std::get<3>(GetParam());
@@ -945,7 +939,7 @@ TEST_P(accuracy_test_real_2D, normal_2D_real_to_complex_interleaved_single_preci
 
 TEST_P(accuracy_test_real_2D, normal_2D_real_to_complex_interleaved_double_precision)
 {
-    std::vector<size_t>     length        = std::get<0>(GetParam());
+    std::vector<size_t>     length         = std::get<0>(GetParam());
     size_t                  batch          = std::get<1>(GetParam());
     rocfft_result_placement placeness      = std::get<2>(GetParam());
     size_t                  stride         = std::get<3>(GetParam());
@@ -1001,7 +995,7 @@ TEST_P(accuracy_test_real_2D, normal_2D_real_to_complex_interleaved_double_preci
 
 TEST_P(accuracy_test_real_2D, normal_2D_complex_interleaved_to_real_single_precision)
 {
-    std::vector<size_t>     length   = std::get<0>(GetParam());
+    std::vector<size_t>     length    = std::get<0>(GetParam());
     size_t                  batch     = std::get<1>(GetParam());
     rocfft_result_placement placeness = std::get<2>(GetParam());
     size_t                  stride    = std::get<3>(GetParam());
@@ -1022,7 +1016,7 @@ TEST_P(accuracy_test_real_2D, normal_2D_complex_interleaved_to_real_single_preci
 
 TEST_P(accuracy_test_real_2D, normal_2D_complex_interleaved_to_real_double_precision)
 {
-    std::vector<size_t>     length   = std::get<0>(GetParam());
+    std::vector<size_t>     length    = std::get<0>(GetParam());
     size_t                  batch     = std::get<1>(GetParam());
     rocfft_result_placement placeness = std::get<2>(GetParam());
     size_t                  stride    = std::get<3>(GetParam());
