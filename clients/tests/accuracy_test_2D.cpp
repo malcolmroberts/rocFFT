@@ -126,18 +126,18 @@ void normal_2D_complex_interleaved_to_complex_interleaved(std::vector<size_t>   
     const size_t isize = dims[0].n * dims[0].is;
     const size_t osize = dims[0].n * dims[0].os;
 
-    if(inplace)
-        std::cout << "in-place\n";
-    else
-        std::cout << "out-of-place\n";
-    for (int i = 0; i < dims.size(); ++i) {
-        std::cout << "dim " << i << std::endl;
-        std::cout << "\tn: " << dims[i].n << std::endl;
-        std::cout << "\tis: " << dims[i].is << std::endl;
-        std::cout << "\tos: " << dims[i].os << std::endl;
-    }
-    std::cout << "isize: " << isize << "\n";
-    std::cout << "osize: " << osize << "\n";
+    // if(inplace)
+    //     std::cout << "in-place\n";
+    // else
+    //     std::cout << "out-of-place\n";
+    // for (int i = 0; i < dims.size(); ++i) {
+    //     std::cout << "dim " << i << std::endl;
+    //     std::cout << "\tn: " << dims[i].n << std::endl;
+    //     std::cout << "\tis: " << dims[i].is << std::endl;
+    //     std::cout << "\tos: " << dims[i].os << std::endl;
+    // }
+    // std::cout << "isize: " << isize << "\n";
+    // std::cout << "osize: " << osize << "\n";
     
     // Batch configuration:
     std::array<fftw_iodim64, 1> howmany_dims;
@@ -217,7 +217,6 @@ void normal_2D_complex_interleaved_to_complex_interleaved(std::vector<size_t>   
             // TODO: make pattern variable?
             std::complex<Tfloat> val((Tfloat)rand() / (Tfloat)RAND_MAX,
                                      (Tfloat)rand() / (Tfloat)RAND_MAX);
-            
             //std::complex<Tfloat> val(i,j);
             cpu_in[dims[0].is * i + dims[1].is * j] = val;
         }
@@ -314,16 +313,18 @@ void normal_2D_complex_interleaved_to_complex_interleaved(std::vector<size_t>   
     }
     L2diff = sqrt(L2diff);
 
-    std::cout << "nwrong: " << nwrong << std::endl;
+    //std::cout << "nwrong: " << nwrong << std::endl;
     Tfloat L2error = L2diff / (L2norm * sqrt(log(Nx * Ny)));
     Tfloat Linferror = Linfdiff / (Linfnorm * log(Nx * Ny));
-    std::cout << "relative L2 error: " << L2error << std::endl;
-    std::cout << "relative Linf error: " << Linferror << std::endl;
+    // std::cout << "relative L2 error: " << L2error << std::endl;
+    // std::cout << "relative Linf error: " << Linferror << std::endl;
 
     EXPECT_TRUE(L2error < type_epsilon<Tfloat>())
-        << "Tolerance failure: L2error: " << L2error << ", tolerance: " << type_epsilon<Tfloat>(); 
+        << "Tolerance failure: L2error: " << L2error
+        << ", tolerance: " << type_epsilon<Tfloat>(); 
     EXPECT_TRUE(Linferror < type_epsilon<Tfloat>())
-        << "Tolerance failure: Linferror: " << Linferror << ", tolerance: " << type_epsilon<Tfloat>();
+        << "Tolerance failure: Linferror: " << Linferror
+        << ", tolerance: " << type_epsilon<Tfloat>();
     
     // Free GPU memory:
     hipFree(gpu_in);
@@ -342,51 +343,6 @@ void normal_2D_complex_interleaved_to_complex_interleaved(std::vector<size_t>   
     rocfft_plan_destroy(forward);
     fftw_destroy_plan_type(cpu_plan);
 }
-
-// // Templated test function for complex to complex:
-// template <typename Tfloat>
-// void normal_2D_complex_interleaved_to_complex_interleaved(std::vector<size_t>     length,
-//                                                           size_t                  batch,
-//                                                           rocfft_result_placement placeness,
-//                                                           rocfft_transform_type   transform_type,
-//                                                           size_t                  stride,
-//                                                           data_pattern            pattern)
-// {
-//     size_t total_size
-//         = std::accumulate(length.begin(), length.end(), 1, std::multiplies<size_t>());
-//     if(total_size * sizeof(Tfloat) * 2 >= 2e8)
-//     {
-//         // printf("No test is really launched; MB byte size = %f is too big; will
-//         // return \n", total_size * sizeof(Tfloat) * 2/1e6);
-//         return; // memory size over 200MB is too big
-//     }
-//     std::vector<size_t> input_strides;
-//     std::vector<size_t> output_strides;
-//     input_strides.push_back(stride);
-//     output_strides.push_back(stride);
-//     for(int i = 1; i < length.size(); i++)
-//     {
-//         input_strides.push_back(input_strides[i - 1] * length[i - 1]);
-//         output_strides.push_back(output_strides[i - 1] * length[i - 1]);
-//     }
-
-//     size_t            idist          = 0;
-//     size_t            odist          = 0;
-//     rocfft_array_type in_array_type  = rocfft_array_type_complex_interleaved;
-//     rocfft_array_type out_array_type = rocfft_array_type_complex_interleaved;
-
-//     complex_to_complex<Tfloat>(pattern,
-//                                transform_type,
-//                                length,
-//                                batch,
-//                                input_strides,
-//                                output_strides,
-//                                idist,
-//                                odist,
-//                                in_array_type,
-//                                out_array_type,
-//                                placeness);
-// }
 
 // Implemetation of complex-to-complex tests for float and double:
 
@@ -470,18 +426,18 @@ void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
     const size_t isize = dims[0].n * dims[0].is;
     const size_t osize = dims[0].n * dims[0].os;
 
-    if(inplace)
-        std::cout << "in-place\n";
-    else
-        std::cout << "out-of-place\n";
-    for (int i = 0; i < dims.size(); ++i) {
-        std::cout << "dim " << i << std::endl;
-        std::cout << "\tn: " << dims[i].n << std::endl;
-        std::cout << "\tis: " << dims[i].is << std::endl;
-        std::cout << "\tos: " << dims[i].os << std::endl;
-    }
-    std::cout << "isize: " << isize << "\n";
-    std::cout << "osize: " << osize << "\n";
+    // if(inplace)
+    //     std::cout << "in-place\n";
+    // else
+    //     std::cout << "out-of-place\n";
+    // for (int i = 0; i < dims.size(); ++i) {
+    //     std::cout << "dim " << i << std::endl;
+    //     std::cout << "\tn: " << dims[i].n << std::endl;
+    //     std::cout << "\tis: " << dims[i].is << std::endl;
+    //     std::cout << "\tos: " << dims[i].os << std::endl;
+    // }
+    // std::cout << "isize: " << isize << "\n";
+    // std::cout << "osize: " << osize << "\n";
     
     // Batch configuration:
     std::array<fftw_iodim64, 1> howmany_dims;
@@ -555,7 +511,7 @@ void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
     {
         for(size_t j = 0; j < Ny; j++)
         {
-            // TODO: make pattern variable?
+            // TODO: make pattern variable
             Tfloat val = i + j;
             cpu_in[i * Nystride + j] = val;
         }
@@ -638,13 +594,15 @@ void normal_2D_real_to_complex_interleaved(std::vector<size_t>     length,
 
     Tfloat L2error = L2diff / (L2norm * sqrt(log(Nx * Ny)));
     Tfloat Linferror = Linfdiff / (Linfnorm * log(Nx * Ny));
-    std::cout << "relative L2 error: " << L2error << std::endl;
-    std::cout << "relative Linf error: " << Linferror << std::endl;
+    // std::cout << "relative L2 error: " << L2error << std::endl;
+    // std::cout << "relative Linf error: " << Linferror << std::endl;
 
     EXPECT_TRUE(L2error < type_epsilon<Tfloat>())
-        << "Tolerance failure: L2error: " << L2error << ", tolerance: " << type_epsilon<Tfloat>(); 
+        << "Tolerance failure: L2error: " << L2error
+        << ", tolerance: " << type_epsilon<Tfloat>(); 
     EXPECT_TRUE(Linferror < type_epsilon<Tfloat>())
-        << "Tolerance failure: Linferror: " << Linferror << ", tolerance: " << type_epsilon<Tfloat>();
+        << "Tolerance failure: Linferror: " << Linferror
+        << ", tolerance: " << type_epsilon<Tfloat>();
     
     // Free GPU memory:
     hipFree(gpu_in);
@@ -698,23 +656,23 @@ void normal_2D_complex_interleaved_to_real(std::vector<size_t>     length,
     const size_t isize = dims[0].n * dims[0].is;
     const size_t osize = dims[0].n * dims[0].os;
 
-    std::cout << "Nx: " << Nx << "\n";
-    std::cout << "Ny: " << Ny << "\n";
-    std::cout << "Nycomplex: " << Nycomplex << "\n";
-    std::cout << "Nystride: " << Nystride << "\n";
+    // std::cout << "Nx: " << Nx << "\n";
+    // std::cout << "Ny: " << Ny << "\n";
+    // std::cout << "Nycomplex: " << Nycomplex << "\n";
+    // std::cout << "Nystride: " << Nystride << "\n";
     
-    if(inplace)
-        std::cout << "in-place\n";
-    else
-        std::cout << "out-of-place\n";
-    for (int i = 0; i < dims.size(); ++i) {
-        std::cout << "dim " << i << std::endl;
-        std::cout << "\tn: " << dims[i].n << std::endl;
-        std::cout << "\tis: " << dims[i].is << std::endl;
-        std::cout << "\tos: " << dims[i].os << std::endl;
-    }
-    std::cout << "isize: " << isize << "\n";
-    std::cout << "osize: " << osize << "\n";
+    // if(inplace)
+    //     std::cout << "in-place\n";
+    // else
+    //     std::cout << "out-of-place\n";
+    // for (int i = 0; i < dims.size(); ++i) {
+    //     std::cout << "dim " << i << std::endl;
+    //     std::cout << "\tn: " << dims[i].n << std::endl;
+    //     std::cout << "\tis: " << dims[i].is << std::endl;
+    //     std::cout << "\tos: " << dims[i].os << std::endl;
+    // }
+    // std::cout << "isize: " << isize << "\n";
+    // std::cout << "osize: " << osize << "\n";
     
     // Batch configuration:
     std::array<fftw_iodim64, 1> howmany_dims;
@@ -806,84 +764,58 @@ void normal_2D_complex_interleaved_to_real(std::vector<size_t>     length,
 
     srandom(3);
 
-    // Set up the data with a forward transform.
-    for(size_t i = 0; i < dims[0].n; ++i)
+    // Set up the data:
+    std::fill(cpu_in, cpu_in + isize, 0.0);
+    for(size_t i = 0; i < dims[0].n; i++)
     {
-        for(size_t j = 0; j < dims[1].n; ++j)
+        for(size_t j = 0; j < dims[1].n / 2 + 1; j++)
         {
-            cpu_out[dims[0].os * i + dims[1].os * j] = (Tfloat)rand() / (Tfloat)RAND_MAX;
+            // TODO: make pattern variable
+            cpu_in[i * Nycomplex + j] = std::complex<Tfloat>((Tfloat)rand() / (Tfloat)RAND_MAX,
+                                                             (Tfloat)rand() / (Tfloat)RAND_MAX);
         }
     }
-    std::array<fftw_iodim64, 2> dims_r2c;
-    for(int i = 0; i < dims.size(); ++i)
+    
+    // Impose Hermitian symmetry:
+    // origin:
+    cpu_in[0].imag(0.0);
+
+    if(Nx % 2 == 0)
     {
-        dims_r2c[i].n = dims[i].n;
-        dims_r2c[i].is = dims[i].os;
-        dims_r2c[i].os = dims[i].is;
+        // x-Nyquist is real-valued
+        cpu_in[dims[0].is * (Nx / 2)].imag(0.0);
     }
-    auto cpu_plan_r2c = fftw_plan_guru64_r2c<Tfloat>(dims_r2c.size(),
-                                                     dims_r2c.data(),
-                                                     howmany_dims.size(),
-                                                     howmany_dims.data(),
-                                                     cpu_out,
-                                                     reinterpret_cast<fftw_complex_type*>(cpu_in),
-                                                     FFTW_ESTIMATE);
-    ASSERT_TRUE(cpu_plan_r2c != NULL) << "FFTW plan creation failure";
-    std::fill(cpu_in, cpu_in + isize, 0.0);
-    fftw_execute_type<Tfloat>(cpu_plan_r2c);
+    if(Ny % 2 == 0)
+    {
+        // y-Nyquist is real-valued
+        cpu_in[dims[1].is * (Ny / 2)].imag(0.0);
+    }
+    if(Nx % 2 == 0 && Ny % 2 == 0)
+    {
+        // xy-Nyquist is real-valued
+        cpu_in[dims[0].is * (Nx / 2) + dims[1].is * (Ny / 2)].imag(0.0);
+    }
+
+    // x-axis:
+    for(int i = 1; i < Nx / 2; ++i)
+    {
+        cpu_in[dims[0].is * (Nx - i)] = std::conj(cpu_in[dims[0].is * i]);
+    }
     
-    
-    // // Set up the data:
-    // std::fill(cpu_in, cpu_in + isize, 0.0);
-    // for(size_t i = 0; i < dims[0].n; i++)
-    // {
-    //     for(size_t j = 0; j < dims[1].n / 2 + 1; j++)
-    //     {
-    //         // TODO: make pattern variable?
-    //         std::complex<Tfloat> val(i + 1.0, j + 0.5);
-    //         cpu_in[i * Nycomplex + j] = std::complex<Tfloat>((Tfloat)rand() / (Tfloat)RAND_MAX,
-    //                                                          (Tfloat)rand() / (Tfloat)RAND_MAX);
-    //         //cpu_in[i * dims[0].is + j *  dims[1].is] = val;
-    //     }
+    // y-Nyquist:
+    if(Ny % 2 == 0)
+    {
+        for(int i = 1; i < Nx/2; ++i)
+        {
+            cpu_in[dims[0].is * (Nx - i) + dims[1].is * (Ny / 2)]
+                = std::conj(cpu_in[dims[0].is * i + dims[1].is * (Ny / 2)]);
+        }
+    }
+
+    // for(int i = 0; i < isize; ++i) {
+    //     std::cout << cpu_in[i] << " ";
     // }
-    // // Impose Hermitian symmetry:
-    // // origin:
-    // cpu_in[0].imag(0.0);
-    // // x-axis:
-    // for(int i = 1; i < Nx / 2; ++i)
-    // {
-    //     cpu_in[dims[0].is * (Nx - i)] = std::conj(cpu_in[dims[0].is * i]);
-    // }
-    // // y-Nyquist:
-    // if(Ny % 2 == 0)
-    // {
-    //     for(int i = 1; i < Nx/2; ++i)
-    //     {
-    //         cpu_in[dims[0].is * (Nx - i) + dims[1].is * (Ny / 2)]
-    //             = std::conj(cpu_in[dims[0].is * i + dims[1].is * (Ny / 2)]);
-    //     }
-    // }
-    // if(Nx % 2 == 0)
-    // {
-    //     // x-Nyquist is real-valued
-    //     cpu_in[dims[0].is * (Nx / 2)].imag(0.0);
-    // }
-    // if(Ny % 2 == 0)
-    // {
-    //     // y-Nyquist is real-valued
-    //     cpu_in[dims[1].is * (Ny / 2)].imag(0.0);
-    // }
-    // if(Nx % 2 == 0 && Ny % 2 == 0)
-    // {
-    //     // xy-Nyquist is real-valued
-    //     cpu_in[dims[0].is * (Nx / 2) + dims[1].is * (Ny / 2)].imag(0.0);
-    // }
-    
-    
-    // // for(int i = 0; i < isize; ++i) {
-    // //     std::cout << cpu_in[i] << " ";
-    // // }
-    // // std::cout << std::endl;
+    // std::cout << std::endl;
 
     // std::cout << "\ninput:\n";
     // for(size_t i = 0; i < Nx; i++)
@@ -959,8 +891,8 @@ void normal_2D_complex_interleaved_to_real(std::vector<size_t>     length,
 
     Tfloat L2error = L2diff / (L2norm * sqrt(log(Nx * Ny)));
     Tfloat Linferror = Linfdiff / (Linfnorm * log(Nx * Ny));
-    std::cout << "relative L2 error: " << L2error << std::endl;
-    std::cout << "relative Linf error: " << Linferror << std::endl;
+    // std::cout << "relative L2 error: " << L2error << std::endl;
+    // std::cout << "relative Linf error: " << Linferror << std::endl;
 
     EXPECT_TRUE(L2error < type_epsilon<Tfloat>())
         << "Tolerance failure: L2error: " << L2error
