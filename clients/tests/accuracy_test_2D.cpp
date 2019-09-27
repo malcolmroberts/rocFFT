@@ -871,9 +871,9 @@ void normal_2D_complex_interleaved_to_real(std::vector<size_t>     length,
     Tfloat Linfdiff = 0.0;
     Tfloat L2norm   = 0.0;
     Tfloat Linfnorm = 0.0;
-    for(size_t i = 0; i < Nx; i++)
+    for(size_t i = 0; i < dims[0].n; i++)
     {
-        for(size_t j = 0; j < Nycomplex; j++)
+        for(size_t j = 0; j < dims[1].n; j++)
         {
             const int pos  = dims[0].os * i + dims[1].os * j;
             Tfloat    diff = std::abs(cpu_out[pos] - gpu_out_comp[pos]);
