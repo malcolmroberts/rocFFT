@@ -1,3 +1,9 @@
+# Get the hostname
+def gethostname():
+    import socket
+    hostname = socket.gethostname()
+    return hostname
+
 # Get the host cpu information
 def getcpu():
     import subprocess, tempfile

@@ -321,6 +321,7 @@ def main(argv):
     if not dryrun:
         import getspecs
         specs = "Host info:\n"
+        specs += "\thostname: " + getspecs.gethostname() + "\n"
         specs += "\tcpu info: " + getspecs.getcpu() + "\n"
         specs += "\tram: " + getspecs.getram() + "\n"
         specs += "\tdistro: " + getspecs.getdistro() + "\n"
