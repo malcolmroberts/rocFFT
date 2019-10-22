@@ -1213,6 +1213,25 @@ INSTANTIATE_TEST_CASE_P(rocfft_prime_1D,
                                            ValuesIn(placeness_range),
                                            ValuesIn(stride_range)));
 
+// All the below special cases need to merge back to main test suite
+// after fixing broken cases.
+static std::vector<size_t> pow2_range_stride_test
+    = {2,      4,      8,       16,      32,      128,     256,      512, 1024,   2048,
+       /*4096, 8192,    16384,   32768,   65536,    131072,  262144, */
+       524288, 1048576, 2097152, 4194304,
+       /*8388608, 16777216, 33554432 */
+       };
+
+static size_t stride_range_test[] = {2, 3};
+
+INSTANTIATE_TEST_CASE_P(rocfft_pow2_1D_stride,
+                        accuracy_test_complex,
+                        ::testing::Combine(ValuesIn(pow2_range_stride_test),
+                                           ValuesIn(batch_range),
+                                           ValuesIn(placeness_range),
+                                           ValuesIn(stride_range_test),
+                                           ValuesIn(transform_range)));
+
 // TESTS disabled by default since they take a long time to execute
 // TO enable this tests
 // 1. make sure ENV CLFFT_REQUEST_LIB_NOMEMALLOC=1

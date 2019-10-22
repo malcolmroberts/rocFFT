@@ -2268,6 +2268,8 @@ void TreeNode::TraverseTreeAssignParamsLogicA()
         size_t smallerDim = biggerDim == childNodes[0]->length[0] ? childNodes[0]->length[1]
                                                                   : childNodes[0]->length[0];
         size_t padding = 0;
+        // TODO: we should be able to remove padding after
+        // switching transpose to diagonal algorithm
         if(((smallerDim % 64 == 0) || (biggerDim % 64 == 0)) && (biggerDim >= 512))
             padding = 64;
 
