@@ -178,7 +178,8 @@ __device__ void transpose_tile_device(const T*     input,
             // reconfigure the threads
             if(tx1 < m && (ty1 + i) < n)
             {
-                output[offset_out + tx1 * stride_0_out + (i + ty1) * ld_out] = shared_A[ty1 + i][tx1];
+                output[offset_out + tx1 * stride_0_out + (i + ty1) * ld_out]
+                    = shared_A[ty1 + i][tx1];
             }
         }
     }

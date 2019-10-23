@@ -1215,12 +1215,24 @@ INSTANTIATE_TEST_CASE_P(rocfft_prime_1D,
 
 // All the below special cases need to merge back to main test suite
 // after fixing broken cases.
-static std::vector<size_t> pow2_range_stride_test
-    = {2,      4,      8,       16,      32,      128,     256,      512, 1024,   2048,
-       /*4096, 8192,    16384,   32768,   65536,    131072,  262144, */
-       524288, 1048576, 2097152, 4194304,
-       /*8388608, 16777216, 33554432 */
-       };
+static std::vector<size_t> pow2_range_stride_test = {
+    2,
+    4,
+    8,
+    16,
+    32,
+    128,
+    256,
+    512,
+    1024,
+    2048,
+    /*4096, 8192,    16384,   32768,   65536,    131072,  262144, */
+    524288,
+    1048576,
+    2097152,
+    4194304,
+    /*8388608, 16777216, 33554432 */
+};
 
 static size_t stride_range_test[] = {2, 3};
 
