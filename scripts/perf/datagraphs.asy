@@ -42,6 +42,10 @@ if (legendlist == "")
 bool myleg = ((legendlist == "") ? false: true);
 string[] legends=set_legends(legendlist);
 
+for (int i = 0; i < legends.length; ++i) {
+  legends[i] = texify(legends[i]);
+}
+  
 if(normalize) {
    scale(Log, Linear);
    ylabel = "Time / problem size N, [s]";
