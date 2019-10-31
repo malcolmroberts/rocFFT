@@ -536,7 +536,9 @@ def main(argv):
     if docformat == "pdf":
         maketex(figs, outdir, nsample)    
     if docformat == "docx":
-        makedocx(figs, outdir, nsample)    
+        makedocx(figs, outdir, nsample)
+
+    print("Finished!  Output in " + outdir)
 
 def binaryisok(dirname, progname):
     prog = os.path.join(dirname, progname)
