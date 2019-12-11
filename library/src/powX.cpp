@@ -1,6 +1,22 @@
-/*******************************************************************************
- * Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
- ******************************************************************************/
+// Copyright (c) 2016 - present Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
 
 #include <atomic>
 #include <cassert>
@@ -31,8 +47,8 @@
 
 std::atomic<bool> fn_checked(false);
 
-/* this function is called during creation of plan : enqueue the HIP kernels by
- * function pointers*/
+// This function is called during creation of plan : enqueue the HIP kernels by function
+// pointers
 void PlanPowX(ExecPlan& execPlan)
 {
     for(size_t i = 0; i < execPlan.execSeq.size(); i++)
@@ -44,10 +60,11 @@ void PlanPowX(ExecPlan& execPlan)
             execPlan.execSeq[i]->twiddles = twiddles_create(
                 execPlan.execSeq[i]->length[0], execPlan.execSeq[i]->precision, false, false);
         }
-        else if(execPlan.execSeq[i]->scheme == CS_KERNEL_R_TO_CMPLX)
+        else if((execPlan.execSeq[i]->scheme == CS_KERNEL_R_TO_CMPLX)
+                || (execPlan.execSeq[i]->scheme == CS_KERNEL_CMPLX_TO_R))
         {
             execPlan.execSeq[i]->twiddles = twiddles_create(
-                execPlan.execSeq[i]->length[0], execPlan.execSeq[i]->precision, false, true);
+                2 * execPlan.execSeq[i]->length[0], execPlan.execSeq[i]->precision, false, true);
         }
 
         if(execPlan.execSeq[i]->large1D != 0)
@@ -164,11 +181,11 @@ void PlanPowX(ExecPlan& execPlan)
             break;
         case CS_KERNEL_R_TO_CMPLX:
             ptr = &r2c_1d_post;
-            // FIXME: specify grid params
+            // specify grid params only if the kernel from code generator
             break;
         case CS_KERNEL_CMPLX_TO_R:
             ptr = &c2r_1d_pre;
-            // FIXME: specify grid params
+            // specify grid params only if the kernel from code generator
             break;
         case CS_KERNEL_CHIRP:
             ptr      = &FN_PRFX(chirp);
@@ -263,17 +280,21 @@ void TransformPowX(const ExecPlan&       execPlan,
         data.gridParam = execPlan.gridParam[i];
 
 #ifdef TMP_DEBUG
-        size_t in_size       = data.node->iDist * data.node->batch;
+        size_t in_size = data.node->iDist * data.node->batch;
+        // FIXME: real data? double precision
         size_t in_size_bytes = in_size * 2 * sizeof(float);
         void*  dbg_in        = malloc(in_size_bytes);
+        hipDeviceSynchronize();
         hipMemcpy(dbg_in, data.bufIn[0], in_size_bytes, hipMemcpyDeviceToHost);
 
-        size_t out_size       = data.node->oDist * data.node->batch;
+        size_t out_size = data.node->oDist * data.node->batch;
+        // FIXME: real data? double precision
         size_t out_size_bytes = out_size * 2 * sizeof(float);
         void*  dbg_out        = malloc(out_size_bytes);
         memset(dbg_out, 0x40, out_size_bytes);
         if(data.node->placement != rocfft_placement_inplace)
         {
+            hipDeviceSynchronize();
             hipMemcpy(data.bufOut[0], dbg_out, out_size_bytes, hipMemcpyHostToDevice);
         }
         std::cout << "attempting kernel: " << i << std::endl;
@@ -286,18 +307,38 @@ void TransformPowX(const ExecPlan&       execPlan,
             std::cout << "\n---------------------------------------------\n";
             std::cout << "\n\nkernel: " << i << std::endl;
             std::cout << "\tscheme: " << PrintScheme(execPlan.execSeq[i]->scheme) << std::endl;
-            std::cout << "\tlength:";
-            for(int ilen = 0; ilen < execPlan.execSeq[i]->length.size(); ++ilen)
+            std::cout << "\titype: " << PrintArrayType(execPlan.execSeq[i]->inArrayType)
+                      << std::endl;
+            std::cout << "\totype: " << PrintArrayType(execPlan.execSeq[i]->outArrayType)
+                      << std::endl;
+            std::cout << "\tlength: ";
+            for(const auto& i : execPlan.execSeq[i]->length)
             {
-                std::cout << " " << execPlan.execSeq[i]->length[ilen];
+                std::cout << i << " ";
             }
             std::cout << std::endl;
-            std::cout << "\tbatch: " << execPlan.execSeq[i]->batch << std::endl;
-            std::cout << "\tiDist: " << execPlan.execSeq[i]->iDist << std::endl;
-            std::cout << "\toDist: " << execPlan.execSeq[i]->oDist << std::endl;
+            std::cout << "\tbatch:   " << execPlan.execSeq[i]->batch << std::endl;
+            std::cout << "\tidist:   " << execPlan.execSeq[i]->iDist << std::endl;
+            std::cout << "\todist:   " << execPlan.execSeq[i]->oDist << std::endl;
+            std::cout << "\tistride:";
+            for(const auto& i : execPlan.execSeq[i]->inStride)
+            {
+                std::cout << " " << i;
+            }
+            std::cout << std::endl;
+            std::cout << "\tostride:";
+            for(const auto& i : execPlan.execSeq[i]->outStride)
+            {
+                std::cout << " " << i;
+            }
+            std::cout << std::endl;
+
             RefLibOp refLibOp(&data);
 #endif
-            fn(&data, &back); // execution kernel here
+
+            // execution kernel:
+            fn(&data, &back);
+
 #ifdef REF_DEBUG
             refLibOp.VerifyResult(&data);
 #endif
@@ -316,37 +357,16 @@ void TransformPowX(const ExecPlan&       execPlan,
         float2* f_in  = (float2*)dbg_in;
         float2* f_out = (float2*)dbg_out;
         // temporary print out the kernel output
-        switch(data.node->length.size())
+        std::cout << "input:" << std::endl;
+        for(size_t i = 0; i < data.node->iDist * data.node->batch; i++)
         {
-        case 1:
-            for(size_t x = 0; x < data.node->length[0]; x++)
-            {
-                std::cout << "x: " << x << " kernel output result: " << f_out[x].x << " "
-                          << f_out[x].y << "\n";
-                // FIXME: what about real output?
-                // FIXME: what about batches?
-            }
-            break;
-        case 2:
-            for(size_t y = 0; y < data.node->length[1]; y++)
-            {
-                for(size_t x = 0; x < data.node->length[0]; x++)
-                {
-                    std::cout << "x: " << x << " y: " << y
-                              << " kernel output result: " << f_out[y * data.node->length[0] + x].x
-                              << " " << f_out[y * data.node->length[0] + x].y << "\n";
-                }
-            }
-
-            break;
-        case 3:
-            // FIXME
-            break;
-        default:
-            break;
-            //FIXME
+            std::cout << f_in[i].x << " " << f_in[i].y << "\n";
         }
-
+        std::cout << "output:" << std::endl;
+        for(size_t i = 0; i < data.node->oDist * data.node->batch; i++)
+        {
+            std::cout << f_out[i].x << " " << f_out[i].y << "\n";
+        }
         std::cout << "\n---------------------------------------------\n";
         free(dbg_out);
         free(dbg_in);

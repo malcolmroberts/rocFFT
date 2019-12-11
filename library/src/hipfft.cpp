@@ -1,6 +1,24 @@
-/*******************************************************************************
- * Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
- ******************************************************************************/
+/******************************************************************************
+* Copyright (c) 2016 - present Advanced Micro Devices, Inc. All rights reserved.
+*
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+* of this software and associated documentation files (the "Software"), to deal
+* in the Software without restriction, including without limitation the rights
+* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+* copies of the Software, and to permit persons to whom the Software is
+* furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in
+* all copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+* THE SOFTWARE.
+*******************************************************************************/
 
 #include "hipfft.h"
 #include "plan.h"
@@ -990,7 +1008,7 @@ hipfftResult hipfftGetVersion(int* version)
     char v[256];
     ROC_FFT_CHECK_INVALID_VALUE(rocfft_get_version_string(v, 256));
 
-    // assume maximum 2 digts for each, so xx.xx.xx.xx -> xxxxxxxx
+    //export major.minor.patch only, ignore tweak
     std::ostringstream       result;
     std::vector<std::string> sections;
 
@@ -1001,21 +1019,12 @@ hipfftResult hipfftGetVersion(int* version)
         sections.push_back(tmp_str);
     }
 
-    for(size_t i = 0; i < sections.size(); i++)
+    for(size_t i = 0; i < sections.size() - 1; i++)
     {
-        std::vector<std::string> sl;
-        // remove potential git tag string
-        std::istringstream iss(sections[i]);
-        while(std::getline(iss, tmp_str, '-'))
-        {
-            sl.push_back(tmp_str);
-        }
-        if(sl[0].size() == 0)
-            result << "00";
-        else if(sl[0].size() == 1)
-            result << "0" << sl[0][0];
+        if(sections[i].size() == 1)
+            result << "0" << sections[i];
         else
-            result << sl[0].at(sl[0].size() - 2) << sl[0].at(sl[0].size() - 1);
+            result << sections[i];
     }
 
     *version = std::stoi(result.str());
@@ -1031,11 +1040,11 @@ hipfftResult hipfftGetProperty(hipfftLibraryPropertyType type, int* value)
     int minor = (full - major * 10000) / 100;
     int patch = (full - major * 10000 - minor * 100);
 
-    if(type == MAJOR_VERSION)
+    if(type == HIPFFT_MAJOR_VERSION)
         *value = major;
-    else if(type == MINOR_VERSION)
+    else if(type == HIPFFT_MINOR_VERSION)
         *value = minor;
-    else if(type == PATCH_LEVEL)
+    else if(type == HIPFFT_PATCH_LEVEL)
         *value = patch;
     else
         return HIPFFT_INVALID_TYPE;

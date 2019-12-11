@@ -1,3 +1,23 @@
+// Copyright (c) 2016 - present Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+
 #ifndef REF_CPU_H
 #define REF_CPU_H
 
@@ -9,6 +29,7 @@
 #include <dlfcn.h>
 #include <functional>
 #include <iostream>
+#include <numeric>
 #include <stdlib.h>
 
 #define LOCAL_FFTW_FORWARD (-1)
@@ -76,9 +97,10 @@ public:
     void* fftw3f_lib;
     void* fftw3_lib;
 
-    RefLibHandle(const RefLibHandle&)
-        = delete; // delete is a c++11 feature, prohibit copy constructor
-    RefLibHandle& operator=(const RefLibHandle&) = delete; // prohibit assignment operator
+    // delete is a c++11 feature, prohibit copy constructor:
+    RefLibHandle(const RefLibHandle&) = delete;
+    // prohibit assignment operator:
+    RefLibHandle& operator=(const RefLibHandle&) = delete;
 
     static RefLibHandle& GetRefLibHandle()
     {
@@ -114,7 +136,7 @@ private:
 
 public:
     fftwbuf()
-        : data(0)
+        : data(NULL)
         , size(0)
         , typesize(0)
     {
@@ -144,11 +166,12 @@ public:
     {
         size     = size0;
         typesize = typesize0;
-        if(data != 0)
+        if(data != NULL)
         {
             freedata();
         }
         data = (void*)(*local_fftwf_malloc)(typesize * size);
+        assert(data != NULL);
     }
     size_t bufsize()
     {
@@ -199,7 +222,8 @@ class RefLibOp
         case CS_KERNEL_FFT_MUL:
         case CS_KERNEL_PAD_MUL:
         case CS_KERNEL_RES_MUL:
-            insize = std::accumulate(data->node->length.begin(),
+            // NB: the Bluestein length is the first dimesion
+            insize = std::accumulate(data->node->length.begin() + 1,
                                      data->node->length.end(),
                                      batch,
                                      std::multiplies<size_t>());
@@ -483,6 +507,7 @@ class RefLibOp
             // TODO: what about the real transpose case?
             std::complex<float>* ot = (std::complex<float>*)fftwout.data;
             std::complex<float>* in = (std::complex<float>*)fftwin.data;
+
             CopyInputVector(data_p);
 
             size_t howmany = data->node->batch;
@@ -668,7 +693,8 @@ class RefLibOp
             {
                 const auto bin  = input + ibatch * halfN;
                 auto       bout = output + ibatch * (halfN + 1);
-                for(int r = 0; r < halfN; ++r)
+                bout[0]         = std::complex<float>(bin[0].real() + bin[0].imag());
+                for(int r = 1; r < halfN; ++r)
                 {
                     const auto omegaNr
                         = std::exp(std::complex<float>(0.0f, (float)(-2.0f * M_PI * r * overN)));
@@ -861,19 +887,14 @@ public:
             break;
         case CS_KERNEL_FFT_MUL:
         case CS_KERNEL_PAD_MUL:
+            // TODO: document
             bufOut = ((char*)bufOut + 2 * 2 * sizeof(float) * data->node->lengthBlue);
             break;
         case CS_KERNEL_COPY_CMPLX_TO_R:
-            return; // not implemented
-            break;
         case CS_KERNEL_COPY_HERM_TO_CMPLX:
-            return; // not implemented
-            break;
         case CS_KERNEL_STOCKHAM_BLOCK_RC:
-            return; // FIXME: temp
-            break;
         case CS_KERNEL_STOCKHAM_BLOCK_CC:
-            return; // FIXME: temp
+            return; // not implemented
             break;
         case CS_KERNEL_COPY_CMPLX_TO_HERM:
             checklength = libout.size / 2 + 1;

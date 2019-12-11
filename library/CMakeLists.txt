@@ -1,6 +1,24 @@
-# ########################################################################
-# Copyright 2016 Advanced Micro Devices, Inc.
-# ########################################################################
+# #############################################################################
+# Copyright (c) 2016 - present Advanced Micro Devices, Inc. All rights reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+# #############################################################################
 
 # The following helper functions wrap common cmake functions.  They are
 # used to cope with a few wierdnesses of hipcc/nvcc.
@@ -49,7 +67,7 @@ endfunction( )
 # ########################################################################
 
 # This is incremented when the ABI to the library changes
-set( rocfft_SOVERSION 0 )
+set( rocfft_SOVERSION 0.1 )
 
 list( APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake )
 
@@ -118,8 +136,8 @@ add_subdirectory( src )
 # endif( )
 
 # Package specific CPACK vars
-set( CPACK_DEBIAN_PACKAGE_DEPENDS "hip_hcc (>= 1.3)" )
-set( CPACK_RPM_PACKAGE_REQUIRES "hip_hcc >= 1.3" )
+set( CPACK_DEBIAN_PACKAGE_DEPENDS "rocm-dev (>= 2.5.27)" )
+set( CPACK_RPM_PACKAGE_REQUIRES "rocm-dev >= 2.5.27" )
 set( CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/../LICENSE.md" )
 
 if( NOT CPACK_PACKAGING_INSTALL_PREFIX )
@@ -140,7 +158,7 @@ set( ROCFFT_CONFIG_DIR "\${CPACK_PACKAGING_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDI
 rocm_create_package(
     NAME ${package_name}
     DESCRIPTION "Radeon Open Compute FFT library"
-    MAINTAINER "Kent Knox <kent.knox@amd.com>"
+    MAINTAINER "rocfft-maintainer@amd.com"
     LDCONFIG
     LDCONFIG_DIR ${ROCFFT_CONFIG_DIR}
 )
