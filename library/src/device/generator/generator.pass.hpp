@@ -846,7 +846,8 @@ namespace StockhamGenerator
                             {
                                 passStr += rType + "wx, wy, rx, ry;\n\t\t";
                                 passStr += "wx = W.x; wy = W.y;\n\t\t";
-                                passStr += "rx = " + regRealIndex + "; ry = " + regImagIndex + ";\n\t\t";
+                                passStr += "rx = " + regRealIndex + "; ry = " + regImagIndex
+                                           + ";\n\t\t";
                                 if(fwd)
                                 {
                                     passStr += "TR = wx * rx - wy * ry;\n\t\t";
