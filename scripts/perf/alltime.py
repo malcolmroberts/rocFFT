@@ -834,7 +834,7 @@ def main(argv):
 
     # Make the document in docdir:
     if docformat == "pdf":
-        maketex(figs, docdir, outdirlist, nsample, secondtype)
+        maketex(figs, docdir, outdirlist, labellist, nsample, secondtype)
     if docformat == "docx":
         makedocx(figs, docdir, nsample, secondtype)
 
@@ -851,7 +851,7 @@ real-complex transforms.  The rocFFT operation count may differ from \
 this value: GFLOP/s is provided for the sake of comparison only.'''
 
 # Function for generating a tex document in PDF format.
-def maketex(figs, docdir, outdirlist, nsample, secondtype):
+def maketex(figs, docdir, outdirlist, labellist, nsample, secondtype):
     
     header = '''\documentclass[12pt]{article}
 \\usepackage{graphicx}
@@ -878,9 +878,11 @@ def maketex(figs, docdir, outdirlist, nsample, secondtype):
     # texstring += "\\end{tabular}\n\n"
 
     # texstring += "\\vspace{1cm}\n"
-
-    for outdir in outdirlist:
-        specfilename = os.path.join(outdir, "specs.txt")
+    
+    texstring += "\n\\section{Device Specification}\n"
+    for idx in range(len(outdirlist)):
+        texstring += "\n\\subsection{" + labellist[idx]  + "}\n"
+        specfilename = os.path.join(outdirlist[idx], "specs.txt")
         if os.path.isfile(specfilename):
             specs = ""
             with open(specfilename, "r") as f:
