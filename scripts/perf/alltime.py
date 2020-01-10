@@ -15,9 +15,9 @@ Usage:
 \talltime.py
 \t\t-i          Append to list of binary directories (appendable)
 \t\t-o          Specify output directories for raw data
-                   appendable; defaults to "dir0", "dir1", etc.
+\t\t              appendable; defaults to "dir0", "dir1", etc.
 \t\t-l          Specify labels for runs
-                   appendable; defaults to "dir0", "dir1", etc.
+\t\t              appendable; defaults to "dir0", "dir1", etc.
 \t\t-o          output directory
 \t\t-S          plot speedup (default: 1, disabled: 0)
 \t\t-t          data type: time (default) or gflops or roofline
