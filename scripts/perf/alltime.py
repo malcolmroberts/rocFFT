@@ -12,12 +12,12 @@ import tempfile
 usage = '''A timing script for rocfft the generates lots of data
 
 Usage:
-# FIXME: update
 \talltime.py
-\t\t-A          working directory A
-\t\t-B          working directory B (optional)
-\t\t-a          label for directory A
-\t\t-b          label for directory B
+\t\t-i          Append to list of binary directories (appendable)
+\t\t-o          Specify output directories for raw data
+                   appendable; defaults to "dir0", "dir1", etc.
+\t\t-l          Specify labels for runs
+                   appendable; defaults to "dir0", "dir1", etc.
 \t\t-o          output directory
 \t\t-S          plot speedup (default: 1, disabled: 0)
 \t\t-t          data type: time (default) or gflops or roofline
@@ -765,9 +765,9 @@ def main(argv):
     print("device number: " + str(devicenum))
 
 
-    # check that docdir exits:
-    
     print("document output in", docdir)
+    if not os.path.exists(docdir):
+        os.makedirs(docdir)
     
     for outdir in outdirlist:
         if not os.path.exists(outdir):
