@@ -62,6 +62,9 @@ enum ComputeScheme
     CS_REAL_2D_EVEN,
     CS_REAL_3D_EVEN,
 
+    CS_REAL_TRANSFORM_PAIR,
+    // FIXME: add kernels
+    
     CS_BLUESTEIN,
     CS_KERNEL_CHIRP,
     CS_KERNEL_PAD_MUL,
@@ -238,7 +241,8 @@ public:
     void build_real_even_1D();
     void build_real_even_2D();
     void build_real_even_3D();
-
+    void build_real_pair_1D();
+    
     // 1D node builders:
     void build_1D();
     void build_1DBluestein();
@@ -269,6 +273,9 @@ public:
     void assign_buffers_CS_REAL_3D_EVEN(OperatingBuffer& flipIn,
                                         OperatingBuffer& flipOut,
                                         OperatingBuffer& obOutBuf);
+    void assign_buffers_CS_REAL_TRANSFORM_PAIR(OperatingBuffer& flipIn,
+                                               OperatingBuffer& flipOut,
+                                               OperatingBuffer& obOutBuf);
     void assign_buffers_CS_BLUESTEIN(OperatingBuffer& flipIn,
                                      OperatingBuffer& flipOut,
                                      OperatingBuffer& obOutBuf);
@@ -297,6 +304,7 @@ public:
     void assign_params_CS_REAL_TRANSFORM_EVEN();
     void assign_params_CS_REAL_2D_EVEN();
     void assign_params_CS_REAL_3D_EVEN();
+    void assign_params_CS_REAL_TRANSFORM_PAIR();
     void assign_params_CS_L1D_CC();
     void assign_params_CS_L1D_CRT();
     void assign_params_CS_BLUESTEIN();
