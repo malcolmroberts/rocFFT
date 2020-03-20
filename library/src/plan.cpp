@@ -1273,12 +1273,13 @@ void TreeNode::build_real_pair_1D()
         auto cplan = TreeNode::CreateNode(this);
         cplan->length    = length;
         cplan->dimension = 1;
+        cplan->inArrayType = rocfft_array_type_complex_planar;
+        cplan->outArrayType = rocfft_array_type_complex_planar;
+        cplan->batch = batch / 2;
         cplan->RecursiveBuildTree();
         childNodes.push_back(cplan);
-        
+
         // FIXME: implement
-        
-        // childNodes.push_back(cplan);
         
         // // Unpack the results into two Hermitian-symmetric arrays
         // auto unpack = TreeNode::CreateNode(this);
@@ -1828,7 +1829,7 @@ void TreeNode::build_CS_3D_RTRT()
     childNodes.push_back(trans2Plan);
 }
 
-///////////////////////////////////////////////////////////////////////////////
+
 /// Buffer assignment
 
 // Assign buffers, taking into account out-of-place transposes and
@@ -2277,7 +2278,7 @@ void TreeNode::assign_buffers_CS_REAL_3D_EVEN(OperatingBuffer& flipIn,
         obOut = childNodes[childNodes.size() - 1]->obOut;
     }
 
-#if 0
+#if 1
     rocfft_cout << PrintScheme(scheme) << std::endl;
     for(int i = 0; i < childNodes.size(); ++i)
     {
@@ -2292,7 +2293,34 @@ void TreeNode::assign_buffers_CS_REAL_TRANSFORM_PAIR(OperatingBuffer& flipIn,
                                                      OperatingBuffer& flipOut,
                                                      OperatingBuffer& obOutBuf)
 {
-    // FIXME: implement
+    std::cout << "assign_buffers_CS_REAL_TRANSFORM_PAIR" << std::endl;
+
+    
+    if(parent == nullptr)
+    {
+        obIn  = OB_USER_IN;
+        obOut = placement == rocfft_placement_inplace ? OB_USER_IN : OB_USER_OUT;
+    }
+    
+    if(direction == -1)
+    {
+        auto cplan = childNodes[0];
+        if(parent == nullptr)
+        {
+            cplan->obIn = obIn;
+            cplan->obOut = obOut;
+        }
+        
+        cplan->TraverseTreeAssignBuffersLogicA(flipIn, flipOut, obOutBuf);
+
+        // FIXME: add other part.
+        
+    }
+    else
+    {
+            // FIXME: implement
+    }
+
     
 }
 
@@ -3702,6 +3730,13 @@ void TreeNode::assign_params_CS_REAL_TRANSFORM_PAIR()
 {
     // FIXME: implement
     
+    auto cplan = childNodes[0];
+    cplan->inStride = inStride;
+    cplan->iDist = iDist; // FIXME: correct?
+    cplan->outStride = inStride;
+    cplan->oDist = iDist;
+    cplan->TraverseTreeAssignParamsLogicA();
+
 }
 
 void TreeNode::assign_params_CS_2D_RC_STRAIGHT()

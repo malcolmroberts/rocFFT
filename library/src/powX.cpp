@@ -278,6 +278,8 @@ static float max_memory_bandwidth_GB_per_s()
     return result;
 }
 
+// Internal plan executor.
+// For in-place transforms, in_buffer == out_buffer.
 void TransformPowX(const ExecPlan&       execPlan,
                    void*                 in_buffer[],
                    void*                 out_buffer[],
@@ -299,14 +301,57 @@ void TransformPowX(const ExecPlan&       execPlan,
     }
     for(size_t i = 0; i < execPlan.execSeq.size(); i++)
     {
-        DeviceCallIn  data;
-        DeviceCallOut back;
-
+        DeviceCallIn data;
         data.node          = execPlan.execSeq[i];
         data.rocfft_stream = (info == nullptr) ? 0 : info->rocfft_stream;
-        size_t inBytes     = (data.node->precision == rocfft_precision_single) ? sizeof(float) * 2
-                                                                           : sizeof(double) * 2;
 
+        // Size of complex type
+        const size_t complexTSize  = (data.node->precision == rocfft_precision_single)
+            ? sizeof(float) * 2
+            : sizeof(double) * 2;
+
+        if(execPlan.rootPlan->inArrayType == rocfft_array_type_real &&
+           (data.node->inArrayType == rocfft_array_type_complex_planar ||
+            data.node->outArrayType == rocfft_array_type_complex_planar)
+            )
+        {
+            // We conclude that we are performing real/complex paired transform, where the real
+            // values are treated as the real and complex parts of a complex/complex transform in
+            // planar format.
+
+            // Size of real type
+            const size_t realTSize  = (data.node->precision == rocfft_precision_single)
+                ? sizeof(float)
+                : sizeof(double);
+            
+            ptrdiff_t ioffset = 0;
+            if(execPlan.rootPlan->dimension == 1)
+            {
+                // FIXME: implement
+                // pointer separation is determined from idist
+
+                const ptrdiff_t ioffset = execPlan.rootPlan->iDist * realTSize;
+            }
+            else
+            {
+                // FIXME: implement
+                // pointer separation is determined from istride
+                exit(1);
+            }
+
+            if(data.node->inArrayType == rocfft_array_type_complex_planar)
+            {
+                data.bufIn[1] = (void*)((char*)in_buffer[0] + ioffset);
+            }
+            if(data.node->outArrayType == rocfft_array_type_complex_planar)
+            {
+                data.bufOut[1] = (void*)((char*)out_buffer[0] + ioffset);
+            }
+
+            
+            continue;
+        }
+        
         switch(data.node->obIn)
         {
         case OB_USER_IN:
@@ -334,17 +379,17 @@ void TransformPowX(const ExecPlan&       execPlan,
                 // interleaved format, and we just need to split it for
                 // planar.
                 data.bufIn[1]
-                    = (void*)((char*)info->workBuffer + execPlan.workBufSize * inBytes / 2);
+                    = (void*)((char*)info->workBuffer + execPlan.workBufSize * complexTSize / 2);
             }
             break;
         case OB_TEMP_CMPLX_FOR_REAL:
-            data.bufIn[0] = (void*)((char*)info->workBuffer + execPlan.tmpWorkBufSize * inBytes);
+            data.bufIn[0] = (void*)((char*)info->workBuffer + execPlan.tmpWorkBufSize * complexTSize);
             break;
         case OB_TEMP_BLUESTEIN:
             data.bufIn[0] = (void*)((char*)info->workBuffer
                                     + (execPlan.tmpWorkBufSize + execPlan.copyWorkBufSize
                                        + data.node->iOffset)
-                                          * inBytes);
+                                          * complexTSize);
             break;
         case OB_UNINIT:
             std::cerr << "Error: operating buffer not initialized for kernel!\n";
@@ -381,17 +426,17 @@ void TransformPowX(const ExecPlan&       execPlan,
                 // interleaved format, and we just need to split it for
                 // planar.
                 data.bufOut[1]
-                    = (void*)((char*)info->workBuffer + execPlan.workBufSize * inBytes / 2);
+                    = (void*)((char*)info->workBuffer + execPlan.workBufSize * complexTSize / 2);
             }
             break;
         case OB_TEMP_CMPLX_FOR_REAL:
-            data.bufOut[0] = (void*)((char*)info->workBuffer + execPlan.tmpWorkBufSize * inBytes);
+            data.bufOut[0] = (void*)((char*)info->workBuffer + execPlan.tmpWorkBufSize * complexTSize);
             break;
         case OB_TEMP_BLUESTEIN:
             data.bufOut[0] = (void*)((char*)info->workBuffer
                                      + (execPlan.tmpWorkBufSize + execPlan.copyWorkBufSize
                                         + data.node->oOffset)
-                                           * inBytes);
+                                           * complexTSize);
             break;
         default:
             assert(false);
@@ -502,6 +547,7 @@ void TransformPowX(const ExecPlan&       execPlan,
             // execution kernel:
             if(emit_profile_log)
                 hipEventRecord(start);
+            DeviceCallOut back;
             fn(&data, &back);
             if(emit_profile_log)
                 hipEventRecord(stop);
