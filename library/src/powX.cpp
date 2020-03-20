@@ -324,31 +324,20 @@ void TransformPowX(const ExecPlan&       execPlan,
                 ? sizeof(float)
                 : sizeof(double);
             
-            ptrdiff_t ioffset = 0;
-            if(execPlan.rootPlan->dimension == 1)
-            {
-                // FIXME: implement
-                // pointer separation is determined from idist
+            const ptrdiff_t offset = (execPlan.rootPlan->dimension == 1) ?
+                execPlan.rootPlan->iDist * realTSize
+                : 0; // FIXME: implement multi-d case.
 
-                const ptrdiff_t ioffset = execPlan.rootPlan->iDist * realTSize;
-            }
-            else
-            {
-                // FIXME: implement
-                // pointer separation is determined from istride
-                exit(1);
-            }
-
+            assert(offset != 0);
+            
             if(data.node->inArrayType == rocfft_array_type_complex_planar)
             {
-                data.bufIn[1] = (void*)((char*)in_buffer[0] + ioffset);
+                data.bufIn[1] = (void*)((char*)in_buffer[0] + offset);
             }
             if(data.node->outArrayType == rocfft_array_type_complex_planar)
             {
-                data.bufOut[1] = (void*)((char*)out_buffer[0] + ioffset);
+                data.bufOut[1] = (void*)((char*)out_buffer[0] + offset);
             }
-
-            
             continue;
         }
         
