@@ -306,7 +306,8 @@ void TransformPowX(const ExecPlan&       execPlan,
         data.rocfft_stream = (info == nullptr) ? 0 : info->rocfft_stream;
 
         // Size of complex type
-        const size_t complexTSize  = (data.node->precision == rocfft_precision_single)
+        const size_t complexTSize
+            = (data.node->precision == rocfft_precision_single)
             ? sizeof(float) * 2
             : sizeof(double) * 2;
 
@@ -319,14 +320,21 @@ void TransformPowX(const ExecPlan&       execPlan,
             // values are treated as the real and complex parts of a complex/complex transform in
             // planar format.
 
+            // We impose that the c2c transform be in-place on the input buffer.
+            assert(data.node->obIn == OB_USER_IN);
+            assert(data.node->obOut == OB_USER_IN);
+            
             // Size of real type
             const size_t realTSize  = (data.node->precision == rocfft_precision_single)
                 ? sizeof(float)
                 : sizeof(double);
-            
-            const ptrdiff_t offset = (execPlan.rootPlan->dimension == 1) ?
-                execPlan.rootPlan->iDist * realTSize
-                : 0; // FIXME: implement multi-d case.
+
+            // FIXME: what about inverse transforms?
+
+            const ptrdiff_t offset
+                = (execPlan.rootPlan->batch % 2 == 0)
+                ? realTSize * execPlan.rootPlan->iDist
+                : realTSize * execPlan.rootPlan->inStride[1];
 
             assert(offset != 0);
             
@@ -364,7 +372,7 @@ void TransformPowX(const ExecPlan&       execPlan,
             if(data.node->inArrayType == rocfft_array_type_complex_planar
                || data.node->inArrayType == rocfft_array_type_hermitian_planar)
             {
-                // assume planar using the same extra size of memory as
+                // Assume planar using the same extra size of memory as
                 // interleaved format, and we just need to split it for
                 // planar.
                 data.bufIn[1]

@@ -888,11 +888,13 @@ void TreeNode::build_real()
         }
     }
 
-    // TODO: add more cases here.
-    if(dimension == 1 && batch % 2 == 0)
+    // Recall that the lengths are column-major.
+    const size_t otherdims = std::accumulate(length.begin() + 1, length.end(), 1,
+                                             std::multiplies<size_t>());
+    if((batch % 2 == 0) || (otherdims % 2 == 0))
     {
         // Paired algorithm
-        build_real_pair_1D();
+        build_real_pair();
         return;
     }
 
@@ -1258,11 +1260,16 @@ void TreeNode::build_real_even_3D()
 }
 
 // FIXME: document
-void TreeNode::build_real_pair_1D()
+void TreeNode::build_real_pair()
 {
-    // FIXME: implement
-    assert(batch % 2 == 0);
 
+    // Recall that the lengths are column-major.
+    const size_t otherdims = std::accumulate(length.begin() + 1, length.end(), 1,
+                                             std::multiplies<size_t>());
+    // FIXME: implement
+    assert(batch % 2 == 0 || otherdims % 2 == 0);
+
+    
     scheme = CS_REAL_TRANSFORM_PAIR;
 
     if(direction == -1)
@@ -2293,7 +2300,7 @@ void TreeNode::assign_buffers_CS_REAL_TRANSFORM_PAIR(OperatingBuffer& flipIn,
                                                      OperatingBuffer& flipOut,
                                                      OperatingBuffer& obOutBuf)
 {
-    std::cout << "assign_buffers_CS_REAL_TRANSFORM_PAIR" << std::endl;
+    std::cout << "assign_buffers_CS_REAL_TRANSFORM_PAIR" << std::endl; // FIXME: temp
 
     
     if(parent == nullptr)
@@ -2307,8 +2314,9 @@ void TreeNode::assign_buffers_CS_REAL_TRANSFORM_PAIR(OperatingBuffer& flipIn,
         auto cplan = childNodes[0];
         if(parent == nullptr)
         {
+            // We impose that the first plan be in-place.
             cplan->obIn = obIn;
-            cplan->obOut = obOut;
+            cplan->obOut = obIn;
         }
         
         cplan->TraverseTreeAssignBuffersLogicA(flipIn, flipOut, obOutBuf);
