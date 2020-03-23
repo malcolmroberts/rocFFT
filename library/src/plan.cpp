@@ -1266,9 +1266,13 @@ void TreeNode::build_real_pair()
     // Recall that the lengths are column-major.
     const size_t otherdims = std::accumulate(length.begin() + 1, length.end(), 1,
                                              std::multiplies<size_t>());
-    // FIXME: implement
-    assert(batch % 2 == 0 || otherdims % 2 == 0);
+    const bool evendims = otherdims % 2 == 0;
+    const bool evenbatch = batch % 2 == 0;
 
+    assert(evenbatch || evendims);
+
+    // We prefer to pair over dimensions instead of by batches, but we're open to the idea that
+    // pairing over batches might be better.
     
     scheme = CS_REAL_TRANSFORM_PAIR;
 
@@ -1276,13 +1280,13 @@ void TreeNode::build_real_pair()
     {
         // Direct
 
-        // Perform a c2c FFT on two real input arrays using planar format
+        // First stage: perform a c2c FFT on two real input arrays using planar format
         auto cplan = TreeNode::CreateNode(this);
         cplan->length    = length;
         cplan->dimension = 1;
         cplan->inArrayType = rocfft_array_type_complex_planar;
         cplan->outArrayType = rocfft_array_type_complex_planar;
-        cplan->batch = batch / 2;
+        cplan->batch = evendims ? batch : batch / 2;
         cplan->RecursiveBuildTree();
         childNodes.push_back(cplan);
 
@@ -1292,12 +1296,24 @@ void TreeNode::build_real_pair()
         // auto unpack = TreeNode::CreateNode(this);
 
         // childNodes.push_back(unpack);
+
+        // FIXME: if dimension > 1, then we need to launch a sub-dimensional c2c transform
     }
     else
     {
         // Inverse
 
-        // FIXME: implement
+        // TODO: repack the results, add node.
+
+        // Last stage:
+        auto cplan = TreeNode::CreateNode(this);
+        cplan->length    = length;
+        cplan->dimension = 1;
+        cplan->inArrayType = rocfft_array_type_complex_planar;
+        cplan->outArrayType = rocfft_array_type_complex_planar;
+        cplan->batch = evendims ? batch : batch / 2;
+        cplan->RecursiveBuildTree();
+        childNodes.push_back(cplan);
     }
 }
 
