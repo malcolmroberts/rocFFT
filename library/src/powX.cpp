@@ -320,6 +320,8 @@ void TransformPowX(const ExecPlan&       execPlan,
             // values are treated as the real and complex parts of a complex/complex transform in
             // planar format.
 
+            // FIXME: use planar_offset != 0 as a test instead.
+            
             // We impose that the c2c transform be in-place on the input buffer.
             assert(data.node->obIn == OB_USER_IN);
             assert(data.node->obOut == OB_USER_IN);
@@ -330,11 +332,11 @@ void TransformPowX(const ExecPlan&       execPlan,
                 : sizeof(double);
 
             // FIXME: what about inverse transforms?
-
+            
             const ptrdiff_t offset
                 = (execPlan.rootPlan->batch % 2 == 0)
                 ? realTSize * execPlan.rootPlan->iDist
-                : realTSize * execPlan.rootPlan->inStride[1];
+                : realTSize * execPlan.rootPlan->inStride[data.node->pairdim];
 
             assert(offset != 0);
             

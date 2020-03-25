@@ -700,8 +700,8 @@ ROCFFT_EXPORT rocfft_status rocfft_repo_get_total_plan_count(size_t* count)
     return rocfft_status_success;
 }
 
-///////////////////////////////////////////////////////////////////////////////
-/// Tree node builders
+
+// Tree node builders
 
 // NB:
 // Don't assign inArrayType and outArrayType when building any tree node.
@@ -1262,31 +1262,54 @@ void TreeNode::build_real_even_3D()
 // FIXME: document
 void TreeNode::build_real_pair()
 {
-
+    scheme = CS_REAL_TRANSFORM_PAIR;
+    
     // Recall that the lengths are column-major.
     const size_t otherdims = std::accumulate(length.begin() + 1, length.end(), 1,
                                              std::multiplies<size_t>());
-    const bool evendims = otherdims % 2 == 0;
+    
+    const bool evendims  = otherdims % 2 == 0;
     const bool evenbatch = batch % 2 == 0;
 
     assert(evenbatch || evendims);
 
     // We prefer to pair over dimensions instead of by batches, but we're open to the idea that
     // pairing over batches might be better.
-    
-    scheme = CS_REAL_TRANSFORM_PAIR;
 
+    const size_t dim = length.size();
+
+    // Lengths and batch size for the paired c2c in-place transform
+    auto pairlength = length;
+    size_t c2c_pairdim = 0;
+    if(evendims)
+    {
+        // We are pairing over higher dimensions, so we need to figure out the new lengths.
+        // This implies that we are guaranteed that the transform is mult-dimensional.
+        assert(dim > 1);
+        for(int idx = 1; idx < dim; ++idx)
+        {
+            if(pairlength[idx] % 2 == 0)
+            {
+                pairlength[idx] /= 2;
+                c2c_pairdim = idx;
+                break;
+            }
+        }
+    }
+    const size_t pairbatch = evendims ? batch : batch / 2;
+    
     if(direction == -1)
     {
         // Direct
 
         // First stage: perform a c2c FFT on two real input arrays using planar format
         auto cplan = TreeNode::CreateNode(this);
-        cplan->length    = length;
-        cplan->dimension = 1;
-        cplan->inArrayType = rocfft_array_type_complex_planar;
+        cplan->length       = pairlength;
+        cplan->batch        = pairbatch;
+        cplan->pairdim      = c2c_pairdim;
+        cplan->dimension    = 1;
+        cplan->inArrayType  = rocfft_array_type_complex_planar;
         cplan->outArrayType = rocfft_array_type_complex_planar;
-        cplan->batch = evendims ? batch : batch / 2;
         cplan->RecursiveBuildTree();
         childNodes.push_back(cplan);
 
@@ -1307,11 +1330,12 @@ void TreeNode::build_real_pair()
 
         // Last stage:
         auto cplan = TreeNode::CreateNode(this);
-        cplan->length    = length;
-        cplan->dimension = 1;
-        cplan->inArrayType = rocfft_array_type_complex_planar;
+        cplan->length       = pairlength;
+        cplan->batch        = pairbatch;
+        cplan->pairdim      = c2c_pairdim;
+        cplan->dimension    = 1;
+        cplan->inArrayType  = rocfft_array_type_complex_planar;
         cplan->outArrayType = rocfft_array_type_complex_planar;
-        cplan->batch = evendims ? batch : batch / 2;
         cplan->RecursiveBuildTree();
         childNodes.push_back(cplan);
     }
@@ -2771,8 +2795,8 @@ void TreeNode::TraverseTreeAssignPlacementsLogicA(const rocfft_array_type rootIn
     }
 }
 
-///////////////////////////////////////////////////////////////////////////////
-/// Set strides and distances
+
+// Set strides and distances
 
 void TreeNode::TraverseTreeAssignParamsLogicA()
 {
@@ -2802,8 +2826,8 @@ void TreeNode::TraverseTreeAssignParamsLogicA()
     rocfft_cout << std::endl;
 #endif
 
-    assert(length.size() == inStride.size());
-    assert(length.size() == outStride.size());
+    // assert(length.size() == inStride.size());
+    // assert(length.size() == outStride.size());
 
     switch(scheme)
     {
@@ -3753,14 +3777,27 @@ void TreeNode::assign_params_CS_REAL_3D_EVEN()
 void TreeNode::assign_params_CS_REAL_TRANSFORM_PAIR()
 {
     // FIXME: implement
-    
-    auto cplan = childNodes[0];
-    cplan->inStride = inStride;
-    cplan->iDist = iDist; // FIXME: correct?
-    cplan->outStride = inStride;
-    cplan->oDist = iDist;
-    cplan->TraverseTreeAssignParamsLogicA();
 
+    if(direction == -1)
+    {
+        auto cplan       = childNodes[0];
+        cplan->inStride  = inStride;
+        cplan->iDist     = iDist;
+        cplan->outStride = inStride;
+        cplan->oDist     = iDist;
+        if(cplan->pairdim != 0)
+        {
+            cplan->inStride[cplan->pairdim] *= 2;
+            cplan->outStride[cplan->pairdim] *= 2;
+        }
+        cplan->TraverseTreeAssignParamsLogicA();
+    }
+    else
+    {
+        // FIXME: implement
+        assert(false);
+    }
+    
 }
 
 void TreeNode::assign_params_CS_2D_RC_STRAIGHT()
@@ -3931,43 +3968,47 @@ void TreeNode::Print(rocfft_ostream& os, const int indent) const
     while(i--)
         indentStr += "    ";
 
-    os << std::endl << indentStr.c_str() << "scheme: " << PrintScheme(scheme).c_str();
-    os << std::endl << indentStr.c_str();
+    os << "\n" << indentStr.c_str() << "scheme: " << PrintScheme(scheme).c_str();
+    os << "\n" << indentStr.c_str();
     os << "dimension: " << dimension;
-    os << std::endl << indentStr.c_str();
+    os << "\n" << indentStr.c_str();
     os << "batch: " << batch;
-    os << std::endl << indentStr.c_str();
+    os << "\n" << indentStr.c_str();
     os << "length: ";
     for(size_t i = 0; i < length.size(); i++)
     {
         os << length[i] << " ";
     }
 
-    os << std::endl << indentStr.c_str() << "iStrides: ";
+    os << "\n" << indentStr.c_str() << "iStrides: ";
     for(size_t i = 0; i < inStride.size(); i++)
         os << inStride[i] << " ";
 
-    os << std::endl << indentStr.c_str() << "oStrides: ";
+    os << "\n" << indentStr.c_str() << "oStrides: ";
     for(size_t i = 0; i < outStride.size(); i++)
         os << outStride[i] << " ";
 
-    os << std::endl << indentStr.c_str();
+    os << "\n" << indentStr.c_str();
     os << "iOffset: " << iOffset;
-    os << std::endl << indentStr.c_str();
+    os << "\n" << indentStr.c_str();
     os << "oOffset: " << oOffset;
 
-    os << std::endl << indentStr.c_str();
+    os << "\n" << indentStr.c_str();
     os << "iDist: " << iDist;
-    os << std::endl << indentStr.c_str();
+    os << "\n" << indentStr.c_str();
     os << "oDist: " << oDist;
+    
+    os << "\n" << indentStr.c_str();
+    os << "pairdim: " << pairdim;
 
-    os << std::endl << indentStr.c_str();
+    os << "\n" << indentStr.c_str();
     os << "direction: " << direction;
 
-    os << std::endl << indentStr.c_str();
+    os << "\n" << indentStr.c_str();
     os << ((placement == rocfft_placement_inplace) ? "inplace" : "not inplace");
 
     os << "\n" << indentStr.c_str();
+
     os << ((precision == rocfft_precision_single) ? "single-precision" : "double-precision");
 
     os << std::endl << indentStr.c_str();
@@ -4015,14 +4056,14 @@ void TreeNode::Print(rocfft_ostream& os, const int indent) const
         os << "unset";
         break;
     }
-    os << std::endl << indentStr.c_str() << "TTD: " << transTileDir;
-    os << std::endl << indentStr.c_str() << "large1D: " << large1D;
-    os << std::endl << indentStr.c_str() << "lengthBlue: " << lengthBlue << std::endl;
+    os << "\n" << indentStr.c_str() << "TTD: " << transTileDir;
+    os << "\n" << indentStr.c_str() << "large1D: " << large1D;
+    os << "\n" << indentStr.c_str() << "lengthBlue: " << lengthBlue << "\n";
 
     os << indentStr << PrintOperatingBuffer(obIn) << " -> " << PrintOperatingBuffer(obOut)
-       << std::endl;
+       << "\n";
     os << indentStr << PrintOperatingBufferCode(obIn) << " -> " << PrintOperatingBufferCode(obOut)
-       << std::endl;
+       << "\n";
 
     if(childNodes.size())
     {
@@ -4032,6 +4073,7 @@ void TreeNode::Print(rocfft_ostream& os, const int indent) const
             (*children_p)->Print(os, indent + 1);
         }
     }
+    std::cout << std::flush;
 }
 
 void ProcessNode(ExecPlan& execPlan)
