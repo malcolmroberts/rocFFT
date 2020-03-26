@@ -173,7 +173,7 @@ public:
     size_t pairdim;
     
     // Direction of the transform (-1: forward, +1: inverse)
-    int                     direction;
+    int direction;
 
     // FIXME: document
     rocfft_result_placement placement;

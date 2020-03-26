@@ -320,7 +320,7 @@ void TransformPowX(const ExecPlan&       execPlan,
             // values are treated as the real and complex parts of a complex/complex transform in
             // planar format.
 
-            // FIXME: use planar_offset != 0 as a test instead.
+            // FIXME: use planar_offset != 0 as a test instead?
             
             // We impose that the c2c transform be in-place on the input buffer.
             assert(data.node->obIn == OB_USER_IN);
