@@ -122,7 +122,8 @@ find_package( hip REQUIRED CONFIG PATHS )
 # Quietly look for CUDA, but if not found it's not an error.
 # The presense of hip is not sufficient to determine if we want a rocm
 # or cuda backend.
-find_package( CUDA QUIET )
+# FIXME: do not always fund this.
+#find_package( CUDA QUIET )
 
 # CMake list of machine targets
 set( AMDGPU_TARGETS gfx803;gfx900;gfx906;gfx908 CACHE STRING
