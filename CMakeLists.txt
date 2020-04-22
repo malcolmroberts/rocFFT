@@ -59,16 +59,16 @@ else()
 endif()
 
 # The nvcc backend can be used to compile for CUDA devices.
-if( $ENV{HIP_PLATFORM} MATCHES "nvcc")
+if( USE_CUDA )
+  set( ENV{HIP_PLATFORM} "nvcc" )
   set( HIP_PLATFORM "nvcc" )
   set( CMAKE_C_COMPILE_OPTIONS_PIC
-    "-Xcompiler ${CMAKE_C_COMPILE_OPTIONS_PIC}" )
+    -Xcompiler ${CMAKE_C_COMPILE_OPTIONS_PIC} )
   set( CMAKE_CXX_COMPILE_OPTIONS_PIC
-    "-Xcompiler ${CMAKE_CXX_COMPILE_OPTIONS_PIC}" )
+    -Xcompiler ${CMAKE_CXX_COMPILE_OPTIONS_PIC} )
   set( CMAKE_SHARED_LIBRARY_C_FLAGS
-    "-Xlinker ${CMAKE_SHARED_LIBRARY_C_FLAGS}" )
-  set( CMAKE_SHARED_LIBRARY_CXX_FLAGS
-    "-Xlinker ${CMAKE_SHARED_LIBRARY_CXX_FLAGS}" )
+    -Xlinker ${CMAKE_SHARED_LIBRARY_C_FLAGS} )
+  set( CMAKE_SHARED_LIBRARY_CXX_FLAGS "-Xlinker -fPIC" )
   set( CMAKE_SHARED_LIBRARY_SONAME_C_FLAG "-Xlinker -soname," )
   set( CMAKE_SHARED_LIBRARY_SONAME_CXX_FLAG "-Xlinker -soname," )
   set( CMAKE_SHARED_LIBRARY_RUNTIME_C_FLAG "-Xlinker -rpath," )
