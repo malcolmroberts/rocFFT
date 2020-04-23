@@ -81,20 +81,20 @@ if( CMAKE_CXX_COMPILER MATCHES ".*/hcc$" )
   target_link_libraries( rocfft-test PRIVATE hip::device )
 endif()
 
-  # FIXME: re-enable?
-# if( CUDA_FOUND )
-#   target_include_directories( rocfft-test
-#     PRIVATE
-#       $<BUILD_INTERFACE:${CUDA_INCLUDE_DIRS}>
-#       $<BUILD_INTERFACE:${hip_INCLUDE_DIRS}>
-#     )
-#   target_compile_definitions( rocfft-test PRIVATE __HIP_PLATFORM_NVCC__ )
-#   target_link_libraries( rocfft-test PRIVATE ${CUDA_LIBRARIES} )
-# else( )
-#  target_link_libraries( rocfft-test PRIVATE hip::device )
-#endif( )
 
-target_compile_options( rocfft-test PRIVATE -Wno-unused-command-line-argument )
+if( USE_CUDA )
+  target_include_directories( rocfft-test
+    PRIVATE
+      $<BUILD_INTERFACE:${CUDA_INCLUDE_DIRS}>
+      $<BUILD_INTERFACE:${hip_INCLUDE_DIRS}>
+    )
+  target_compile_definitions( rocfft-test PRIVATE __HIP_PLATFORM_NVCC__ )
+  target_link_libraries( rocfft-test PRIVATE ${CUDA_LIBRARIES} )
+else()
+  target_compile_options( rocfft-test PRIVATE -Wno-unused-command-line-argument )
+endif( )
+
+
 
 
 # set( THREADS_PREFER_PTHREAD_FLAG ON )

@@ -70,7 +70,7 @@ if( NOT hip_FOUND)
 endif()
 
 
-if( $ENV{HIP_PLATFORM} MATCHES "nvcc")
+if( USE_CUDA)
   set( HIP_PLATFORM "nvcc" )
   find_package( CUDA REQUIRED )
 endif()
