@@ -539,7 +539,7 @@ inline std::vector<T1> compute_stride(const std::vector<T1>& length,
 template <typename Tval, typename Tint1, typename Tint2, typename Tint3>
 inline void copy_buffers_1to1(const Tval*  input,
                               Tval*        output,
-                              const Tint1& length,
+                              const Tint1& whole_length,
                               const size_t nbatch,
                               const Tint2& istride,
                               const size_t idist,
@@ -549,16 +549,21 @@ inline void copy_buffers_1to1(const Tval*  input,
     bool   idx_equals_odx = istride == ostride && idist == odist;
     size_t idx_base       = 0;
     size_t odx_base       = 0;
+    auto   partitions     = partition_rowmajor(whole_length);
     for(size_t b = 0; b < nbatch; b++, idx_base += idist, odx_base += odist)
     {
-        Tint1 index;
-        memset(&index, 0, sizeof(index));
-        do
+#pragma omp parallel for num_threads(partitions.size())
+        for(size_t part = 0; part < partitions.size(); ++part)
         {
-            const int idx = compute_index(index, istride, idx_base);
-            const int odx = idx_equals_odx ? idx : compute_index(index, ostride, odx_base);
-            output[odx]   = input[idx];
-        } while(increment_rowmajor(index, length));
+            auto       index  = partitions[part].first;
+            const auto length = partitions[part].second;
+            do
+            {
+                const int idx = compute_index(index, istride, idx_base);
+                const int odx = idx_equals_odx ? idx : compute_index(index, ostride, odx_base);
+                output[odx]   = input[idx];
+            } while(increment_rowmajor(index, length));
+        }
     }
 }
 
@@ -569,7 +574,7 @@ template <typename Tval, typename Tint1, typename Tint2, typename Tint3>
 inline void copy_buffers_2to1(const Tval*         input0,
                               const Tval*         input1,
                               std::complex<Tval>* output,
-                              const Tint1&        length,
+                              const Tint1&        whole_length,
                               const size_t        nbatch,
                               const Tint2&        istride,
                               const size_t        idist,
@@ -579,16 +584,21 @@ inline void copy_buffers_2to1(const Tval*         input0,
     bool   idx_equals_odx = istride == ostride && idist == odist;
     size_t idx_base       = 0;
     size_t odx_base       = 0;
+    auto   partitions     = partition_rowmajor(whole_length);
     for(size_t b = 0; b < nbatch; b++, idx_base += idist, odx_base += odist)
     {
-        Tint1 index;
-        memset(&index, 0, sizeof(index));
-        do
+#pragma omp parallel for num_threads(partitions.size())
+        for(size_t part = 0; part < partitions.size(); ++part)
         {
-            const int idx = compute_index(index, istride, idx_base);
-            const int odx = idx_equals_odx ? idx : compute_index(index, ostride, odx_base);
-            output[odx]   = std::complex<Tval>(input0[idx], input1[idx]);
-        } while(increment_rowmajor(index, length));
+            auto       index  = partitions[part].first;
+            const auto length = partitions[part].second;
+            do
+            {
+                const int idx = compute_index(index, istride, idx_base);
+                const int odx = idx_equals_odx ? idx : compute_index(index, ostride, odx_base);
+                output[odx]   = std::complex<Tval>(input0[idx], input1[idx]);
+            } while(increment_rowmajor(index, length));
+        }
     }
 }
 
@@ -599,7 +609,7 @@ template <typename Tval, typename Tint1, typename Tint2, typename Tint3>
 inline void copy_buffers_1to2(const std::complex<Tval>* input,
                               Tval*                     output0,
                               Tval*                     output1,
-                              const Tint1&              length,
+                              const Tint1&              whole_length,
                               const size_t              nbatch,
                               const Tint2&              istride,
                               const size_t              idist,
@@ -609,17 +619,22 @@ inline void copy_buffers_1to2(const std::complex<Tval>* input,
     bool   idx_equals_odx = istride == ostride && idist == odist;
     size_t idx_base       = 0;
     size_t odx_base       = 0;
+    auto   partitions     = partition_rowmajor(whole_length);
     for(size_t b = 0; b < nbatch; b++, idx_base += idist, odx_base += odist)
     {
-        Tint1 index;
-        memset(&index, 0, sizeof(index));
-        do
+#pragma omp parallel for num_threads(partitions.size())
+        for(size_t part = 0; part < partitions.size(); ++part)
         {
-            const int idx = compute_index(index, istride, idx_base);
-            const int odx = idx_equals_odx ? idx : compute_index(index, ostride, odx_base);
-            output0[odx]  = input[idx].real();
-            output1[odx]  = input[idx].imag();
-        } while(increment_rowmajor(index, length));
+            auto       index  = partitions[part].first;
+            const auto length = partitions[part].second;
+            do
+            {
+                const int idx = compute_index(index, istride, idx_base);
+                const int odx = idx_equals_odx ? idx : compute_index(index, ostride, odx_base);
+                output0[odx]  = input[idx].real();
+                output1[odx]  = input[idx].imag();
+            } while(increment_rowmajor(index, length));
+        }
     }
 }
 
