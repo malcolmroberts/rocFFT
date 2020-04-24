@@ -860,7 +860,7 @@ inline void copy_buffers(const std::vector<std::vector<char, Tallocator1>>& inpu
 template <typename Tcomplex, typename Tint1, typename Tint2, typename Tint3>
 inline std::pair<double, double> LinfL2diff_1to1_complex(const Tcomplex* input,
                                                          const Tcomplex* output,
-                                                         const Tint1&    length,
+                                                         const Tint1&    whole_length,
                                                          const size_t    nbatch,
                                                          const Tint2&    istride,
                                                          const size_t    idist,
@@ -873,24 +873,33 @@ inline std::pair<double, double> LinfL2diff_1to1_complex(const Tcomplex* input,
     bool   idx_equals_odx = istride == ostride && idist == odist;
     size_t idx_base       = 0;
     size_t odx_base       = 0;
+    auto   partitions     = partition_colmajor(whole_length);
     for(size_t b = 0; b < nbatch; b++, idx_base += idist, odx_base += odist)
     {
-        Tint1 index;
-        memset(&index, 0, sizeof(index));
-
-        do
+#pragma omp parallel for reduction(max : linf) reduction(+ : l2) num_threads(partitions.size())
+        for(size_t part = 0; part < partitions.size(); ++part)
         {
-            const int    idx   = compute_index(index, istride, idx_base);
-            const int    odx   = idx_equals_odx ? idx : compute_index(index, ostride, odx_base);
-            const double rdiff = std::abs(output[odx].real() - input[idx].real());
-            linf               = std::max(rdiff, linf);
-            l2 += rdiff * rdiff;
+            double     cur_linf = 0.0;
+            double     cur_l2   = 0.0;
+            auto       index    = partitions[part].first;
+            const auto length   = partitions[part].second;
 
-            const double idiff = std::abs(output[odx].imag() - input[idx].imag());
-            linf               = std::max(idiff, linf);
-            l2 += idiff * idiff;
+            do
+            {
+                const int    idx   = compute_index(index, istride, idx_base);
+                const int    odx   = idx_equals_odx ? idx : compute_index(index, ostride, odx_base);
+                const double rdiff = std::abs(output[odx].real() - input[idx].real());
+                cur_linf           = std::max(rdiff, cur_linf);
+                cur_l2 += rdiff * rdiff;
 
-        } while(increment_colmajor(index, length));
+                const double idiff = std::abs(output[odx].imag() - input[idx].imag());
+                cur_linf           = std::max(idiff, cur_linf);
+                cur_l2 += idiff * idiff;
+
+            } while(increment_colmajor(index, length));
+            linf = std::max(linf, cur_linf);
+            l2 += cur_l2;
+        }
     }
     return std::make_pair(linf, l2);
 }
@@ -901,7 +910,7 @@ inline std::pair<double, double> LinfL2diff_1to1_complex(const Tcomplex* input,
 template <typename Tfloat, typename Tint1, typename Tint2, typename Tint3>
 inline std::pair<double, double> LinfL2diff_1to1_real(const Tfloat* input,
                                                       const Tfloat* output,
-                                                      const Tint1&  length,
+                                                      const Tint1&  whole_length,
                                                       const size_t  nbatch,
                                                       const Tint2&  istride,
                                                       const size_t  idist,
@@ -913,19 +922,28 @@ inline std::pair<double, double> LinfL2diff_1to1_real(const Tfloat* input,
     bool   idx_equals_odx = istride == ostride && idist == odist;
     size_t idx_base       = 0;
     size_t odx_base       = 0;
+    auto   partitions     = partition_rowmajor(whole_length);
     for(size_t b = 0; b < nbatch; b++, idx_base += idist, odx_base += odist)
     {
-        Tint1 index;
-        memset(&index, 0, sizeof(index));
-        do
+#pragma omp parallel for reduction(max : linf) reduction(+ : l2) num_threads(partitions.size())
+        for(size_t part = 0; part < partitions.size(); ++part)
         {
-            const int    idx  = compute_index(index, istride, idx_base);
-            const int    odx  = idx_equals_odx ? idx : compute_index(index, ostride, odx_base);
-            const double diff = std::abs(output[odx] - input[idx]);
-            linf              = std::max(diff, linf);
-            l2 += diff * diff;
+            double     cur_linf = 0.0;
+            double     cur_l2   = 0.0;
+            auto       index    = partitions[part].first;
+            const auto length   = partitions[part].second;
+            do
+            {
+                const int    idx  = compute_index(index, istride, idx_base);
+                const int    odx  = idx_equals_odx ? idx : compute_index(index, ostride, odx_base);
+                const double diff = std::abs(output[odx] - input[idx]);
+                cur_linf          = std::max(diff, cur_linf);
+                cur_l2 += diff * diff;
 
-        } while(increment_rowmajor(index, length));
+            } while(increment_rowmajor(index, length));
+            linf = std::max(linf, cur_linf);
+            l2 += cur_l2;
+        }
     }
     return std::make_pair(linf, l2);
 }
@@ -937,7 +955,7 @@ template <typename Tval, typename T1, typename T2, typename T3>
 inline std::pair<double, double> LinfL2diff_1to2(const std::complex<Tval>* input,
                                                  const Tval*               output0,
                                                  const Tval*               output1,
-                                                 const T1&                 length,
+                                                 const T1&                 whole_length,
                                                  const size_t              nbatch,
                                                  const T2&                 istride,
                                                  const size_t              idist,
@@ -949,23 +967,32 @@ inline std::pair<double, double> LinfL2diff_1to2(const std::complex<Tval>* input
     bool   idx_equals_odx = istride == ostride && idist == odist;
     size_t idx_base       = 0;
     size_t odx_base       = 0;
+    auto   partitions     = partition_rowmajor(whole_length);
     for(size_t b = 0; b < nbatch; b++, idx_base += idist, odx_base += odist)
     {
-        T1 index;
-        memset(&index, 0, sizeof(index));
-        do
+#pragma omp parallel for reduction(max : linf) reduction(+ : l2) num_threads(partitions.size())
+        for(size_t part = 0; part < partitions.size(); ++part)
         {
-            const int    idx   = compute_index(index, istride, idx_base);
-            const int    odx   = idx_equals_odx ? idx : compute_index(index, ostride, odx_base);
-            const double rdiff = std::abs(output0[odx] - input[idx].real());
-            linf               = std::max(rdiff, linf);
-            l2 += rdiff * rdiff;
+            double     cur_linf = 0.0;
+            double     cur_l2   = 0.0;
+            auto       index    = partitions[part].first;
+            const auto length   = partitions[part].second;
+            do
+            {
+                const int    idx   = compute_index(index, istride, idx_base);
+                const int    odx   = idx_equals_odx ? idx : compute_index(index, ostride, odx_base);
+                const double rdiff = std::abs(output0[odx] - input[idx].real());
+                cur_linf           = std::max(rdiff, cur_linf);
+                cur_l2 += rdiff * rdiff;
 
-            const double idiff = std::abs(output1[odx] - input[idx].imag());
-            linf               = std::max(idiff, linf);
-            l2 += idiff * idiff;
+                const double idiff = std::abs(output1[odx] - input[idx].imag());
+                cur_linf           = std::max(idiff, cur_linf);
+                cur_l2 += idiff * idiff;
 
-        } while(increment_rowmajor(index, length));
+            } while(increment_rowmajor(index, length));
+            linf = std::max(linf, cur_linf);
+            l2 += cur_l2;
+        }
     }
     return std::make_pair(linf, l2);
 }
