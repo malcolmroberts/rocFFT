@@ -69,12 +69,6 @@ if( NOT hip_FOUND)
   find_package( hip REQUIRED CONFIG PATHS )
 endif()
 
-
-if( USE_CUDA)
-  set( HIP_PLATFORM "nvcc" )
-  find_package( CUDA REQUIRED )
-endif()
-
 if( BUILD_CLIENTS_SAMPLES )
   add_subdirectory( samples )
 endif( )

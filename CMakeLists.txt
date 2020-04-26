@@ -60,6 +60,8 @@ endif()
 
 # The nvcc backend can be used to compile for CUDA devices.
 if( USE_CUDA )
+  # NB: CUDA has first-class since cmake 2.8; find_package(CUDA) is deprecated.
+  # See, eg, https://cmake.org/cmake/help/v3.12/module/FindCUDA.html
   set( ENV{HIP_PLATFORM} "nvcc" )
   set( HIP_PLATFORM "nvcc" )
   set( CMAKE_C_COMPILE_OPTIONS_PIC
@@ -118,12 +120,6 @@ endif( )
 # Hip headers required of all clients; clients use hip to allocate
 # device memory
 find_package( hip REQUIRED CONFIG PATHS )
-
-# Quietly look for CUDA, but if not found it's not an error.
-# The presense of hip is not sufficient to determine if we want a rocm
-# or cuda backend.
-# FIXME: do not always fund this.
-#find_package( CUDA QUIET )
 
 # CMake list of machine targets
 set( AMDGPU_TARGETS gfx803;gfx900;gfx906;gfx908 CACHE STRING
