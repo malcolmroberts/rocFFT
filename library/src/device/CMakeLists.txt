@@ -107,9 +107,9 @@ endif()
 
 if(HIP_PLATFORM STREQUAL "nvcc")
   target_compile_options( rocfft-device PRIVATE
-    "-gencode arch=compute_75,code=sm_75" )
-    # target_compile_options( rocfft-device PRIVATE
-    # "-gencode arch=compute_75,code=sm_75 -gencode arch=compute_70,code=sm_70 -gencode arch=compute_60,code=sm_60" )
+    "-gencode arch=compute_75,code=sm_75"
+    "-gencode arch=compute_70,code=sm_70"
+    "-gencode arch=compute_60,code=sm_60" )
     target_compile_options( rocfft-device PRIVATE -Xcompiler -fPIC)
 else()
   target_compile_options( rocfft-device PRIVATE -fno-gpu-rdc )
