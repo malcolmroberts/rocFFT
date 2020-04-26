@@ -72,36 +72,10 @@ foreach( rider ${rider_list})
       )
   endif()
   
-  # hipcc (FIXME: and hip-clang?) find this automatically, but hcc does not
+  # hipcc find this automatically, but hcc does not
   if( CMAKE_CXX_COMPILER MATCHES ".*/hcc$" )
     target_link_libraries( ${rider} PRIVATE hip::device )
   endif()
-
-  # FIXME: re-enable?
-  # if( CUDA_FOUND )
-  #   target_include_directories( ${rider}
-  #     PRIVATE
-  #     $<BUILD_INTERFACE:${CUDA_INCLUDE_DIRS}>
-  #     $<BUILD_INTERFACE:${hip_INCLUDE_DIRS}>
-  #     )
-  #   target_compile_definitions( ${rider} PRIVATE __HIP_PLATFORM_NVCC__ )
-  #   target_link_libraries( ${rider} PRIVATE ${CUDA_LIBRARIES} )
-  # endif( )
-
-  # if(CMAKE_CXX_COMPILER MATCHES ".*/hcc$")
-  #   target_compile_options( ${rider} PRIVATE
-  #     -Wno-unused-command-line-argument -hc )
-  # endif( )
-
-  # if(HIP_PLATFORM STREQUAL "hip-clang")
-  #   target_compile_options( ${rider} PRIVATE
-  #     -Wno-unused-command-line-argument )
-  # endif( )
-  
-
-  # set( THREADS_PREFER_PTHREAD_FLAG ON )
-  # find_package( Threads REQUIRED )
-  # target_link_libraries( ${rider} PRIVATE Threads::Threads)
   
   set_target_properties( ${rider} PROPERTIES DEBUG_POSTFIX "-d"
     CXX_EXTENSIONS NO )

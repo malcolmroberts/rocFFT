@@ -76,7 +76,7 @@ target_link_libraries( rocfft-test
   ${FFTW_LIBRARIES}
   ${Boost_LIBRARIES} )
 
-# hipcc (FIXME: and hip-clang?) find this automatically, but hcc does not
+# hipcc find this automatically, but hcc does not
 if( CMAKE_CXX_COMPILER MATCHES ".*/hcc$" )
   target_link_libraries( rocfft-test PRIVATE hip::device )
 endif()
@@ -94,13 +94,8 @@ else()
   target_compile_options( rocfft-test PRIVATE -Wno-unused-command-line-argument )
 endif( )
 
-
-
-
-# set( THREADS_PREFER_PTHREAD_FLAG ON )
-# find_package( Threads REQUIRED )
-# target_link_libraries( rocfft-test PRIVATE Threads::Threads)
-
-set_target_properties( rocfft-test PROPERTIES DEBUG_POSTFIX "-d" CXX_EXTENSIONS NO )
+set_target_properties( rocfft-test
+  PROPERTIES DEBUG_POSTFIX "-d"
+  CXX_EXTENSIONS NO )
 set_target_properties( rocfft-test
   PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/staging" )
