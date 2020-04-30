@@ -139,6 +139,8 @@ set( CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION "\${CPACK_PACKAGING_INSTALL_P
 
 set( ROCFFT_CONFIG_DIR "\${CPACK_PACKAGING_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}" CACHE PATH "Path placed into ldconfig file" )
 
+set( package_name rocfft )
+
 rocm_create_package(
     NAME ${package_name}
     DESCRIPTION "Radeon Open Compute FFT library"
