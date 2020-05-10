@@ -285,6 +285,7 @@ void rocfft_transform(const std::vector<size_t>                                 
     else
     {
         auto obuffer_sizes = buffer_sizes(precision, otype, gpu_odist, nbatch);
+        obuffer.resize(obuffer_sizes.size());
         for (unsigned int i = 0; i < obuffer.size(); ++i)
         {
             hip_status = hipMalloc(&obuffer[i], obuffer_sizes[i]);

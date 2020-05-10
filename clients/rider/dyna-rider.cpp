@@ -501,6 +501,7 @@ int main(int argc, char* argv[])
     else
     {
         auto obuffer_sizes = buffer_sizes(precision, otype, odist, nbatch);
+        obuffer.resize(obuffer_sizes.size());
         for (unsigned int i = 0; i < obuffer.size(); ++i)
         {
             hip_status = hipMalloc(&obuffer[i], obuffer_sizes[i]);
