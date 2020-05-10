@@ -269,11 +269,29 @@ void rocfft_transform(const std::vector<size_t>                                 
     }
 
     // GPU input and output buffers:
-    std::vector<void*> ibuffer = alloc_buffer(precision, itype, gpu_idist, nbatch);
-    std::vector<void*> obuffer = (place == rocfft_placement_inplace)
-                                     ? ibuffer
-                                     : alloc_buffer(precision, otype, gpu_odist, nbatch);
-
+    auto ibuffer_sizes = buffer_sizes(precision, itype, gpu_idist, nbatch);
+    std::vector<void*> ibuffer(ibuffer_sizes.size());
+    for (unsigned int i = 0; i < ibuffer.size(); ++i)
+    {
+        hip_status = hipMalloc(&ibuffer[i], ibuffer_sizes[i]);
+        EXPECT_TRUE(hip_status == hipSuccess) << "hipMalloc failure";
+    }
+    
+    std::vector<void*> obuffer;
+    if(place == rocfft_placement_inplace)
+    {
+        obuffer = ibuffer;
+    }
+    else
+    {
+        auto obuffer_sizes = buffer_sizes(precision, otype, gpu_odist, nbatch);
+        for (unsigned int i = 0; i < obuffer.size(); ++i)
+        {
+            hip_status = hipMalloc(&obuffer[i], obuffer_sizes[i]);
+            EXPECT_TRUE(hip_status == hipSuccess) << "hipMalloc failure";
+        }
+    }
+     
     // Copy the input data to the GPU:
     for(int idx = 0; idx < gpu_input.size(); ++idx)
     {
