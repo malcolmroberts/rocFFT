@@ -315,11 +315,11 @@ int main(int argc, char* argv[])
     }
 
     hipError_t hip_status = hipSuccess;
-    
+
     // GPU input and output buffers:
-    auto ibuffer_sizes = buffer_sizes(precision, itype, idist, nbatch);
+    auto               ibuffer_sizes = buffer_sizes(precision, itype, idist, nbatch);
     std::vector<void*> ibuffer(ibuffer_sizes.size());
-    for (unsigned int i = 0; i < ibuffer.size(); ++i)
+    for(unsigned int i = 0; i < ibuffer.size(); ++i)
     {
         hip_status = hipMalloc(&ibuffer[i], ibuffer_sizes[i]);
         if(hip_status != hipSuccess)
@@ -328,7 +328,7 @@ int main(int argc, char* argv[])
             exit(1);
         }
     }
-    
+
     std::vector<void*> obuffer;
     if(place == rocfft_placement_inplace)
     {
@@ -338,7 +338,7 @@ int main(int argc, char* argv[])
     {
         auto obuffer_sizes = buffer_sizes(precision, otype, odist, nbatch);
         obuffer.resize(obuffer_sizes.size());
-        for (unsigned int i = 0; i < obuffer.size(); ++i)
+        for(unsigned int i = 0; i < obuffer.size(); ++i)
         {
             hip_status = hipMalloc(&obuffer[i], obuffer_sizes[i]);
             if(hip_status != hipSuccess)
@@ -348,7 +348,7 @@ int main(int argc, char* argv[])
             }
         }
     }
-    
+
     // Run the transform several times and record the execution time:
     std::vector<double> gpu_time(ntrial);
 
