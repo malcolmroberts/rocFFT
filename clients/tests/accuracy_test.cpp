@@ -275,8 +275,7 @@ void rocfft_transform(const std::vector<size_t>                                 
     {
         hip_status = hipMalloc(&ibuffer[i], ibuffer_sizes[i]);
         EXPECT_TRUE(hip_status == hipSuccess)
-            << "hipMalloc failure for input buffer " << i
-            << " size " << ibuffer_sizes[i];
+            << "hipMalloc failure for input buffer " << i << " size " << ibuffer_sizes[i];
     }
 
     std::vector<void*> obuffer;
@@ -291,9 +290,8 @@ void rocfft_transform(const std::vector<size_t>                                 
         for(unsigned int i = 0; i < obuffer.size(); ++i)
         {
             hip_status = hipMalloc(&obuffer[i], obuffer_sizes[i]);
-            EXPECT_TRUE(hip_status == hipSuccess) 
-            << "hipMalloc failure for output buffer " << i
-            << " size " << obuffer_sizes[i];
+            EXPECT_TRUE(hip_status == hipSuccess)
+                << "hipMalloc failure for output buffer " << i << " size " << obuffer_sizes[i];
         }
     }
 
