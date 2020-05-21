@@ -231,12 +231,12 @@ void rocfft_transform(const std::vector<size_t>                                 
     hipError_t hip_status = hipSuccess;
 
     // Allocate work memory and associate with the execution info
-    void* wbuffer = NULL;
+    gpubuf wbuffer;
     if(workbuffersize > 0)
     {
-        hip_status = hipMalloc(&wbuffer, workbuffersize);
+        hip_status = wbuffer.alloc(workbuffersize);
         EXPECT_TRUE(hip_status == hipSuccess) << "hipMalloc failure for work buffer";
-        fft_status = rocfft_execution_info_set_work_buffer(info, wbuffer, workbuffersize);
+        fft_status = rocfft_execution_info_set_work_buffer(info, wbuffer.data(), workbuffersize);
         EXPECT_TRUE(fft_status == rocfft_status_success) << "rocFFT set work buffer failure";
     }
 
@@ -389,11 +389,6 @@ void rocfft_transform(const std::vector<size_t>                                 
     desc = NULL;
     rocfft_execution_info_destroy(info);
     info = NULL;
-    if(wbuffer)
-    {
-        hipFree(wbuffer);
-        wbuffer = NULL;
-    }
     for(auto& buf : ibuffer)
     {
         hipFree(buf);
