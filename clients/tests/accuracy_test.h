@@ -34,9 +34,13 @@
 class gpubuf
 {
 public:
-    gpubuf() : buf(nullptr) {}
+    gpubuf()
+        : buf(nullptr)
+    {
+    }
 
-    ~gpubuf() {
+    ~gpubuf()
+    {
         if(buf != nullptr)
         {
             hipFree(buf);
@@ -44,16 +48,19 @@ public:
         }
     }
 
-    hipError_t alloc(const size_t size) {
+    hipError_t alloc(const size_t size)
+    {
         auto ret = hipMalloc(&buf, size);
         if(ret != hipSuccess)
             buf = nullptr;
         return ret;
     }
-   
-    void* data() {
+
+    void* data()
+    {
         return buf;
     }
+
 private:
     // The GPU buffer
     void* buf;

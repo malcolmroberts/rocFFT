@@ -269,9 +269,9 @@ void rocfft_transform(const std::vector<size_t>                                 
     }
 
     // GPU input and output buffers:
-    auto               ibuffer_sizes = buffer_sizes(precision, itype, gpu_idist, nbatch);
+    auto                ibuffer_sizes = buffer_sizes(precision, itype, gpu_idist, nbatch);
     std::vector<gpubuf> ibuffer(ibuffer_sizes.size());
-    std::vector<void*> pibuffer(ibuffer_sizes.size());
+    std::vector<void*>  pibuffer(ibuffer_sizes.size());
     for(unsigned int i = 0; i < ibuffer.size(); ++i)
     {
         hip_status = ibuffer[i].alloc(ibuffer_sizes[i]);
@@ -305,12 +305,13 @@ void rocfft_transform(const std::vector<size_t>                                 
     // Copy the input data to the GPU:
     for(int idx = 0; idx < gpu_input.size(); ++idx)
     {
-        hip_status = hipMemcpy(
-            ibuffer[idx].data(), gpu_input[idx].data(), gpu_input[idx].size(), hipMemcpyHostToDevice);
+        hip_status = hipMemcpy(ibuffer[idx].data(),
+                               gpu_input[idx].data(),
+                               gpu_input[idx].size(),
+                               hipMemcpyHostToDevice);
         EXPECT_TRUE(hip_status == hipSuccess) << "hipMemcpy failure";
     }
 
-    
     // Execute the transform:
     fft_status = rocfft_execute(gpu_plan, // plan
                                 (void**)pibuffer.data(), // in buffers
@@ -323,8 +324,10 @@ void rocfft_transform(const std::vector<size_t>                                 
         precision, otype, olength, gpu_ostride, gpu_odist, nbatch);
     for(int idx = 0; idx < gpu_output.size(); ++idx)
     {
-        hip_status = hipMemcpy(
-            gpu_output[idx].data(), obuffer[idx].data(), gpu_output[idx].size(), hipMemcpyDeviceToHost);
+        hip_status = hipMemcpy(gpu_output[idx].data(),
+                               obuffer[idx].data(),
+                               gpu_output[idx].size(),
+                               hipMemcpyDeviceToHost);
         EXPECT_TRUE(hip_status == hipSuccess) << "hipMemcpy failure";
     }
 
