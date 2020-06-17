@@ -200,6 +200,14 @@ bool PlanPowX(ExecPlan& execPlan)
             ptr = &c2r_1d_pre;
             // specify grid params only if the kernel from code generator
             break;
+        case CS_KERNEL_PAIR_UNPACK:
+            ptr = &complex2pair_unpack;
+            // specify grid params only if the kernel from code generator
+            break;
+        case CS_KERNEL_PAIR_PACK:
+            ptr = &pair2complex_pack;
+            // specify grid params only if the kernel from code generator
+            break;
         case CS_KERNEL_CHIRP:
             ptr      = &FN_PRFX(chirp);
             gp.tpb_x = 64;
@@ -213,12 +221,13 @@ bool PlanPowX(ExecPlan& execPlan)
         default:
             rocfft_cout << "should not be in this case" << std::endl;
             rocfft_cout << "scheme: " << PrintScheme(execPlan.execSeq[i]->scheme) << std::endl;
+            assert(false);
         }
 
         execPlan.devFnCall.push_back(ptr);
         execPlan.gridParam.push_back(gp);
     }
-
+    
     return true;
 }
 
@@ -249,6 +258,7 @@ static size_t data_size_bytes(const std::vector<size_t>& lengths,
     }
     case rocfft_array_type_unset:
         // we should really have an array type at this point
+        assert(false);
         return 0;
     }
 }
@@ -300,7 +310,7 @@ void TransformPowX(const ExecPlan&       execPlan,
         max_memory_bw = max_memory_bandwidth_GB_per_s();
     }
     for(size_t i = 0; i < execPlan.execSeq.size(); i++)
-    {
+    {        
         DeviceCallIn data;
         data.node          = execPlan.execSeq[i];
         data.rocfft_stream = (info == nullptr) ? 0 : info->rocfft_stream;
@@ -311,11 +321,14 @@ void TransformPowX(const ExecPlan&       execPlan,
             ? sizeof(float) * 2
             : sizeof(double) * 2;
 
-        if(execPlan.rootPlan->inArrayType == rocfft_array_type_real &&
-           (data.node->inArrayType == rocfft_array_type_complex_planar ||
-            data.node->outArrayType == rocfft_array_type_complex_planar)
-            )
+        if(data.node->parent->scheme == CS_REAL_TRANSFORM_PAIR && i == 0)
+        // if(execPlan.rootPlan->inArrayType == rocfft_array_type_real &&
+        //    (data.node->inArrayType == rocfft_array_type_complex_planar ||
+        //     data.node->outArrayType == rocfft_array_type_complex_planar)
+        //     )
         {
+            std::cout << "sneaky!" << std::endl;
+            assert(data.node->parent->scheme == CS_REAL_TRANSFORM_PAIR);
             // We conclude that we are performing real/complex paired transform, where the real
             // values are treated as the real and complex parts of a complex/complex transform in
             // planar format.
@@ -332,7 +345,9 @@ void TransformPowX(const ExecPlan&       execPlan,
                 : sizeof(double);
 
             // FIXME: what about inverse transforms?
-            
+
+            // Calculate the pointer to the planar format when using the paired real/complex
+            // method.
             const ptrdiff_t offset
                 = (execPlan.rootPlan->batch % 2 == 0)
                 ? realTSize * execPlan.rootPlan->iDist
@@ -342,13 +357,12 @@ void TransformPowX(const ExecPlan&       execPlan,
             
             if(data.node->inArrayType == rocfft_array_type_complex_planar)
             {
-                data.bufIn[1] = (void*)((char*)in_buffer[0] + offset);
+                data.bufIn[1] = (void*)((char*)data.bufIn[0] + offset);
             }
             if(data.node->outArrayType == rocfft_array_type_complex_planar)
             {
-                data.bufOut[1] = (void*)((char*)out_buffer[0] + offset);
+                data.bufOut[1] = (void*)((char*)data.bufOut[0] + offset);
             }
-            continue;
         }
         
         switch(data.node->obIn)
@@ -388,7 +402,7 @@ void TransformPowX(const ExecPlan&       execPlan,
             data.bufIn[0] = (void*)((char*)info->workBuffer
                                     + (execPlan.tmpWorkBufSize + execPlan.copyWorkBufSize
                                        + data.node->iOffset)
-                                          * complexTSize);
+                                    * complexTSize);
             break;
         case OB_UNINIT:
             std::cerr << "Error: operating buffer not initialized for kernel!\n";
@@ -435,12 +449,12 @@ void TransformPowX(const ExecPlan&       execPlan,
             data.bufOut[0] = (void*)((char*)info->workBuffer
                                      + (execPlan.tmpWorkBufSize + execPlan.copyWorkBufSize
                                         + data.node->oOffset)
-                                           * complexTSize);
+                                     * complexTSize);
             break;
         default:
             assert(false);
         }
-
+            
         data.gridParam = execPlan.gridParam[i];
 
 #ifdef TMP_DEBUG

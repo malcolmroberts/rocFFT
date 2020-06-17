@@ -68,6 +68,8 @@ std::string PrintScheme(ComputeScheme cs)
            {ENUMSTR(CS_REAL_3D_EVEN)},
            
            {ENUMSTR(CS_REAL_TRANSFORM_PAIR)},
+           {ENUMSTR(CS_KERNEL_PAIR_PACK)},
+           {ENUMSTR(CS_KERNEL_PAIR_UNPACK)},
            
            {ENUMSTR(CS_BLUESTEIN)},
            {ENUMSTR(CS_KERNEL_CHIRP)},
@@ -1315,10 +1317,14 @@ void TreeNode::build_real_pair()
 
         // FIXME: implement
         
-        // // Unpack the results into two Hermitian-symmetric arrays
-        // auto unpack = TreeNode::CreateNode(this);
-
-        // childNodes.push_back(unpack);
+        // Unpack the results into two Hermitian-symmetric arrays
+        auto unpack = TreeNode::CreateNode(this);
+        unpack->scheme    = CS_KERNEL_PAIR_UNPACK;
+        unpack->dimension    = 1;
+        unpack->length = pairlength;
+        unpack->inArrayType  = rocfft_array_type_complex_planar;
+        unpack->outArrayType = rocfft_array_type_hermitian_interleaved;
+        childNodes.push_back(unpack);
 
         // FIXME: if dimension > 1, then we need to launch a sub-dimensional c2c transform
     }
@@ -1919,7 +1925,7 @@ void TreeNode::TraverseTreeAssignBuffersLogicA(OperatingBuffer& flipIn,
         }
     }
 
-#if 0
+#if 1
     auto        here = this;
     auto        up   = parent;
     std::string tabs;
@@ -2360,17 +2366,25 @@ void TreeNode::assign_buffers_CS_REAL_TRANSFORM_PAIR(OperatingBuffer& flipIn,
         }
         
         cplan->TraverseTreeAssignBuffersLogicA(flipIn, flipOut, obOutBuf);
+        
+        auto unpack = childNodes[1];
+        assert(unpack->scheme == CS_KERNEL_PAIR_UNPACK);
+        unpack->obIn = obIn;
+        unpack->obOut = obOut;
 
+        
         // FIXME: add other part.
         
     }
     else
     {
+        exit(1);
             // FIXME: implement
     }
 
     
 }
+
 
 void TreeNode::assign_buffers_CS_BLUESTEIN(OperatingBuffer& flipIn,
                                            OperatingBuffer& flipOut,
@@ -3791,6 +3805,21 @@ void TreeNode::assign_params_CS_REAL_TRANSFORM_PAIR()
             cplan->outStride[cplan->pairdim] *= 2;
         }
         cplan->TraverseTreeAssignParamsLogicA();
+
+        // FIXME: check this
+        auto unpack       = childNodes[1];
+        assert(unpack->scheme == CS_KERNEL_PAIR_UNPACK);
+        unpack->inStride  = inStride;
+        unpack->iDist     = iDist;
+        unpack->outStride = inStride;
+        unpack->oDist     = iDist;
+        if(unpack->pairdim != 0)
+        {
+            unpack->inStride[unpack->pairdim] *= 2;
+            unpack->outStride[unpack->pairdim] *= 2;
+        }
+        
+        
     }
     else
     {
@@ -3922,7 +3951,7 @@ void TreeNode::assign_params_CS_3D_RC_STRAIGHT()
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-/// Colletct leaf node and calculate work memory requirements
+/// Collect leaf node and calculate work memory requirements
 
 void TreeNode::TraverseTreeCollectLeafsLogicA(std::vector<TreeNode*>& seq,
                                               size_t&                 tmpBufSize,

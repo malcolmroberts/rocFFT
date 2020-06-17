@@ -404,6 +404,7 @@ __global__ static void real_pre_process_kernel_planar(const size_t      half_N,
 // Entrance function for c2r pre-processing kernel
 void c2r_1d_pre(const void* data_p, void*)
 {
+    
     // map to interleaved kernels
     std::map<std::tuple<rocfft_precision, bool>, decltype(&real_pre_process_kernel<double2, true>)>
         kernelmap;

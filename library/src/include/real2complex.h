@@ -30,7 +30,7 @@ void complex2real(const void* data, void* back);
 void r2c_1d_post(const void* data, void* back);
 void c2r_1d_pre(const void* data, void* back);
 
-void complex2pair(const void* data, void* back);
-void pair2complex(const void* data, void* back);
+void complex2pair_unpack(const void* data, void* back);
+void pair2complex_pack(const void* data, void* back);
 
 #endif // REAL_TO_COMPLEX_H

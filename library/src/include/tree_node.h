@@ -63,7 +63,8 @@ enum ComputeScheme
     CS_REAL_3D_EVEN,
 
     CS_REAL_TRANSFORM_PAIR,
-    // FIXME: add kernels
+    CS_KERNEL_PAIR_PACK,
+    CS_KERNEL_PAIR_UNPACK,
     
     CS_BLUESTEIN,
     CS_KERNEL_CHIRP,
@@ -345,9 +346,8 @@ public:
     //void RecursiveBuildTreeLogicB();
 };
 
-extern "C" {
 typedef void (*DevFnCall)(const void*, void*);
-}
+
 
 struct GridParam
 {
