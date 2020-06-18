@@ -354,16 +354,22 @@ void TransformPowX(const ExecPlan&       execPlan,
                 : realTSize * execPlan.rootPlan->inStride[data.node->pairdim];
 
             assert(offset != 0);
+
+            std::cout << "offset: " << offset << std::endl;
             
-            if(data.node->inArrayType == rocfft_array_type_complex_planar)
-            {
-                data.bufIn[1] = (void*)((char*)data.bufIn[0] + offset);
-            }
-            if(data.node->outArrayType == rocfft_array_type_complex_planar)
-            {
-                data.bufOut[1] = (void*)((char*)data.bufOut[0] + offset);
-            }
+            data.bufIn[0] = in_buffer[0];
+            data.bufIn[1] = (void*)((char*)data.bufIn[0] + offset);
+
+            assert(data.node->obIn == OB_USER_IN);
+            // We impose that this transform is in-place.
+            data.bufOut[0] =  data.bufIn[0];
+            data.bufOut[1] =  data.bufIn[1];
         }
+        else
+        {
+            std::cout << "not sneaky!" << std::endl;
+        
+        
         
         switch(data.node->obIn)
         {
@@ -453,6 +459,7 @@ void TransformPowX(const ExecPlan&       execPlan,
             break;
         default:
             assert(false);
+        }
         }
             
         data.gridParam = execPlan.gridParam[i];
