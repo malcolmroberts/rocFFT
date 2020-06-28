@@ -1305,27 +1305,32 @@ void TreeNode::build_real_pair()
         // Direct
 
         // First stage: perform a c2c FFT on two real input arrays using planar format
-        auto cplan = TreeNode::CreateNode(this);
-        cplan->length       = pairlength;
-        cplan->batch        = pairbatch;
-        cplan->pairdim      = c2c_pairdim;
-        cplan->dimension    = 1;
-        cplan->inArrayType  = rocfft_array_type_complex_planar;
-        cplan->outArrayType = rocfft_array_type_complex_planar;
-        cplan->RecursiveBuildTree();
-        childNodes.push_back(cplan);
-
-        // FIXME: implement
+        {
+            auto cplan = TreeNode::CreateNode(this);
+            cplan->length       = pairlength;
+            cplan->batch        = pairbatch;
+            cplan->pairdim      = c2c_pairdim;
+            cplan->dimension    = 1;
+            cplan->inArrayType  = rocfft_array_type_complex_planar;
+            cplan->outArrayType = rocfft_array_type_complex_planar;
+            cplan->RecursiveBuildTree();
+            childNodes.push_back(cplan);
+        }
+        
         
         // Unpack the results into two Hermitian-symmetric arrays
-        auto unpack = TreeNode::CreateNode(this);
-        unpack->scheme    = CS_KERNEL_PAIR_UNPACK;
-        unpack->dimension    = 1;
-        unpack->length = pairlength;
-        unpack->inArrayType  = rocfft_array_type_complex_planar;
-        unpack->outArrayType = rocfft_array_type_hermitian_interleaved;
-        childNodes.push_back(unpack);
-
+        {
+            auto unpack          = TreeNode::CreateNode(this);
+            unpack->scheme       = CS_KERNEL_PAIR_UNPACK;
+            unpack->dimension    = 1;
+            unpack->length       = pairlength;
+            unpack->batch        = pairbatch;
+            unpack->pairdim      = c2c_pairdim;
+            unpack->inArrayType  = rocfft_array_type_complex_planar;
+            unpack->outArrayType = rocfft_array_type_hermitian_interleaved;
+            childNodes.push_back(unpack);
+        }
+        
         // FIXME: if dimension > 1, then we need to launch a sub-dimensional c2c transform
     }
     else

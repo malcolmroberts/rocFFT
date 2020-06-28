@@ -321,14 +321,16 @@ void TransformPowX(const ExecPlan&       execPlan,
             ? sizeof(float) * 2
             : sizeof(double) * 2;
 
-        if(data.node->parent->scheme == CS_REAL_TRANSFORM_PAIR && i == 0)
+        //if(data.node->parent->scheme == CS_REAL_TRANSFORM_PAIR && i == 0)
         // if(execPlan.rootPlan->inArrayType == rocfft_array_type_real &&
         //    (data.node->inArrayType == rocfft_array_type_complex_planar ||
         //     data.node->outArrayType == rocfft_array_type_complex_planar)
         //     )
+        if(data.node->parent->scheme == CS_REAL_TRANSFORM_PAIR)
         {
             std::cout << "sneaky!" << std::endl;
-            assert(data.node->parent->scheme == CS_REAL_TRANSFORM_PAIR);
+            // assert(data.node->parent->scheme == CS_REAL_TRANSFORM_PAIR);
+            
             // We conclude that we are performing real/complex paired transform, where the real
             // values are treated as the real and complex parts of a complex/complex transform in
             // planar format.
@@ -336,8 +338,8 @@ void TransformPowX(const ExecPlan&       execPlan,
             // FIXME: use planar_offset != 0 as a test instead?
             
             // We impose that the c2c transform be in-place on the input buffer.
-            assert(data.node->obIn == OB_USER_IN);
-            assert(data.node->obOut == OB_USER_IN);
+            // assert(data.node->obIn == OB_USER_IN);
+            // assert(data.node->obOut == OB_USER_IN);
             
             // Size of real type
             const size_t realTSize  = (data.node->precision == rocfft_precision_single)
@@ -360,17 +362,38 @@ void TransformPowX(const ExecPlan&       execPlan,
             data.bufIn[0] = in_buffer[0];
             data.bufIn[1] = (void*)((char*)data.bufIn[0] + offset);
 
-            // We impose that this transform is in-place.
-            assert(data.node->obIn == OB_USER_IN);
-            data.bufOut[0] =  data.bufIn[0];
-            data.bufOut[1] =  data.bufIn[1];
+            if(data.node->outArrayType == rocfft_array_type_complex_planar)
+            {
+                // We impose that this transform is in-place.
+                assert(data.node->obIn == OB_USER_IN);
+                data.bufOut[0] =  data.bufIn[0];
+                data.bufOut[1] =  data.bufIn[1];
+            }
+            else
+            {
+                switch(data.node->obIn)
+                {
+                case OB_USER_IN:
+                    data.bufIn[0] = in_buffer[0];
+                    break;
+                case OB_USER_OUT:
+                    data.bufIn[0] = out_buffer[0];
+                    break;
+                case OB_TEMP:
+                    data.bufIn[0] = info->workBuffer;
+                    break;
+                default:
+                    std::cerr << "Error: operating buffer not specified for kernel!\n";
+                    assert(false);
+                }
+            }
+            
         }
         else
         {
             std::cout << "not sneaky!" << std::endl;
         
-        
-        
+                
             switch(data.node->obIn)
             {
             case OB_USER_IN:
