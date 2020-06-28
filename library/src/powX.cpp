@@ -117,10 +117,10 @@ bool PlanPowX(ExecPlan& execPlan)
             size_t numTransforms;
             GetWGSAndNT(execPlan.execSeq[i]->length[0], workGroupSize, numTransforms);
             ptr = (execPlan.execSeq[0]->precision == rocfft_precision_single)
-                      ? function_pool::get_function_single(
-                          std::make_pair(execPlan.execSeq[i]->length[0], CS_KERNEL_STOCKHAM))
-                      : function_pool::get_function_double(
-                          std::make_pair(execPlan.execSeq[i]->length[0], CS_KERNEL_STOCKHAM));
+                ? function_pool::get_function_single(
+                    std::make_pair(execPlan.execSeq[i]->length[0], CS_KERNEL_STOCKHAM))
+                : function_pool::get_function_double(
+                    std::make_pair(execPlan.execSeq[i]->length[0], CS_KERNEL_STOCKHAM));
             size_t batch = execPlan.execSeq[i]->batch;
             for(size_t j = 1; j < execPlan.execSeq[i]->length.size(); j++)
                 batch *= execPlan.execSeq[i]->length[j];
@@ -131,10 +131,10 @@ bool PlanPowX(ExecPlan& execPlan)
         break;
         case CS_KERNEL_STOCKHAM_BLOCK_CC:
             ptr = (execPlan.execSeq[0]->precision == rocfft_precision_single)
-                      ? function_pool::get_function_single(std::make_pair(
-                          execPlan.execSeq[i]->length[0], CS_KERNEL_STOCKHAM_BLOCK_CC))
-                      : function_pool::get_function_double(std::make_pair(
-                          execPlan.execSeq[i]->length[0], CS_KERNEL_STOCKHAM_BLOCK_CC));
+                ? function_pool::get_function_single(std::make_pair(
+                                                         execPlan.execSeq[i]->length[0], CS_KERNEL_STOCKHAM_BLOCK_CC))
+                : function_pool::get_function_double(std::make_pair(
+                                                         execPlan.execSeq[i]->length[0], CS_KERNEL_STOCKHAM_BLOCK_CC));
             GetBlockComputeTable(execPlan.execSeq[i]->length[0], bwd, wgs, lds);
             gp.b_x = (execPlan.execSeq[i]->length[1]) / bwd * execPlan.execSeq[i]->batch;
             if(execPlan.execSeq[i]->length.size() == 3)
@@ -145,10 +145,10 @@ bool PlanPowX(ExecPlan& execPlan)
             break;
         case CS_KERNEL_STOCKHAM_BLOCK_RC:
             ptr = (execPlan.execSeq[0]->precision == rocfft_precision_single)
-                      ? function_pool::get_function_single(std::make_pair(
-                          execPlan.execSeq[i]->length[0], CS_KERNEL_STOCKHAM_BLOCK_RC))
-                      : function_pool::get_function_double(std::make_pair(
-                          execPlan.execSeq[i]->length[0], CS_KERNEL_STOCKHAM_BLOCK_RC));
+                ? function_pool::get_function_single(std::make_pair(
+                                                         execPlan.execSeq[i]->length[0], CS_KERNEL_STOCKHAM_BLOCK_RC))
+                : function_pool::get_function_double(std::make_pair(
+                                                         execPlan.execSeq[i]->length[0], CS_KERNEL_STOCKHAM_BLOCK_RC));
             GetBlockComputeTable(execPlan.execSeq[i]->length[0], bwd, wgs, lds);
             gp.b_x = (execPlan.execSeq[i]->length[1]) / bwd * execPlan.execSeq[i]->batch;
             if(execPlan.execSeq[i]->length.size() == 3)
@@ -320,13 +320,13 @@ void TransformPowX(const ExecPlan&       execPlan,
             = (data.node->precision == rocfft_precision_single)
             ? sizeof(float) * 2
             : sizeof(double) * 2;
-
+        
         //if(data.node->parent->scheme == CS_REAL_TRANSFORM_PAIR && i == 0)
         // if(execPlan.rootPlan->inArrayType == rocfft_array_type_real &&
         //    (data.node->inArrayType == rocfft_array_type_complex_planar ||
         //     data.node->outArrayType == rocfft_array_type_complex_planar)
         //     )
-        if(data.node->parent->scheme == CS_REAL_TRANSFORM_PAIR)
+        if(data.node->parent != NULL && data.node->parent->scheme == CS_REAL_TRANSFORM_PAIR)
         {
             std::cout << "sneaky!" << std::endl;
             // assert(data.node->parent->scheme == CS_REAL_TRANSFORM_PAIR);
@@ -391,7 +391,7 @@ void TransformPowX(const ExecPlan&       execPlan,
         }
         else
         {
-            std::cout << "not sneaky!" << std::endl;
+            std::cerr << "not sneaky!" << std::endl;
         
                 
             switch(data.node->obIn)
@@ -421,11 +421,13 @@ void TransformPowX(const ExecPlan&       execPlan,
                     // interleaved format, and we just need to split it for
                     // planar.
                     data.bufIn[1]
-                        = (void*)((char*)info->workBuffer + execPlan.workBufSize * complexTSize / 2);
+                        = (void*)((char*)info->workBuffer
+                                  + execPlan.workBufSize * complexTSize / 2);
                 }
                 break;
             case OB_TEMP_CMPLX_FOR_REAL:
-                data.bufIn[0] = (void*)((char*)info->workBuffer + execPlan.tmpWorkBufSize * complexTSize);
+                data.bufIn[0] = (void*)((char*)info->workBuffer
+                                        + execPlan.tmpWorkBufSize * complexTSize);
                 break;
             case OB_TEMP_BLUESTEIN:
                 data.bufIn[0] = (void*)((char*)info->workBuffer
@@ -468,11 +470,13 @@ void TransformPowX(const ExecPlan&       execPlan,
                     // interleaved format, and we just need to split it for
                     // planar.
                     data.bufOut[1]
-                        = (void*)((char*)info->workBuffer + execPlan.workBufSize * complexTSize / 2);
+                        = (void*)((char*)info->workBuffer
+                                  + execPlan.workBufSize * complexTSize / 2);
                 }
                 break;
             case OB_TEMP_CMPLX_FOR_REAL:
-                data.bufOut[0] = (void*)((char*)info->workBuffer + execPlan.tmpWorkBufSize * complexTSize);
+                data.bufOut[0]
+                    = (void*)((char*)info->workBuffer + execPlan.tmpWorkBufSize * complexTSize);
                 break;
             case OB_TEMP_BLUESTEIN:
                 data.bufOut[0] = (void*)((char*)info->workBuffer
@@ -482,7 +486,7 @@ void TransformPowX(const ExecPlan&       execPlan,
                 break;
             default:
                 assert(false);
-        }
+            }
         }
             
         data.gridParam = execPlan.gridParam[i];
