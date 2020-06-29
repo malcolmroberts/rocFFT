@@ -36,6 +36,8 @@
 /// X_r = (Z_r + Z_{N - r}^*)/2,   Y_r = (Z_r - Z_{N - r}^*)/(2i)
 ///
 /// for r = 1, ... , \floor{N/2} + 1.
+///
+/// Contiguous data version.
 template <typename Treal>
 __global__ static void complex2pair_unpack_kernel(const size_t      half_N,
                                                   const void*       input,
@@ -47,36 +49,42 @@ __global__ static void complex2pair_unpack_kernel(const size_t      half_N,
     const size_t idx_q = half_N - idx_p;
 
     const auto quarter_N = (half_N + 1) / 2;
-    
+        
     if(idx_p < quarter_N)
     {
         const auto inputRe = (Treal*)input;
         const auto inputIm = (Treal*)((char*)input + ioffset);
         auto outputX = (complex_type_t<Treal>*)output;
         auto outputY = (complex_type_t<Treal>*)((char*)output + ooffset);
+
+        const Treal Rep = inputRe[idx_p];
+        const Treal Imp = inputIm[idx_p];
         
+        const Treal Req = inputRe[idx_q];
+        const Treal Imq = inputIm[idx_q];
+
+        complex_type_t<Treal> X;
+        complex_type_t<Treal> Y;
+                
         if(idx_p == 0)
         {
-            outputX[idx_p].x = inputRe[idx_p];
-            outputX[idx_p].y = 0.0;
+            X.x = Rep;
+            X.y = 0.0;
 
-            outputY[idx_p].x = inputIm[idx_p];
-            outputY[idx_p].y = 0.0;
-
+            Y.x = Imp;
+            Y.y = 0.0;
         }
         else
         {
-            const Treal Rep = inputRe[idx_p];
-            const Treal Imp = inputIm[idx_p];
-            const Treal Req = inputRe[idx_q];
-            const Treal Imq = inputIm[idx_q];
-            
-            outputX[idx_p].x = 0.5 * (Rep + Req);
-            outputX[idx_p].y = 0.5 * (Imp - Imq);
+            X.x = 0.5 * (Rep + Req);
+            X.y = 0.5 * (Imp - Imq);
 
-            outputY[idx_p].x = 0.5 * (Imp + Imq);
-            outputY[idx_p].y = -0.5 * (Rep - Req);
-        } 
+            Y.x = 0.5 * (Imp + Imq);
+            Y.y = -0.5 * (Rep - Req);
+        }
+        
+        outputX[idx_p] = X;
+        outputY[idx_p] = Y;
     }
 }
 
