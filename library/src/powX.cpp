@@ -350,14 +350,20 @@ void TransformPowX(const ExecPlan&       execPlan,
 
             // Calculate the pointer to the planar format when using the paired real/complex
             // method.
-            const ptrdiff_t offset
+            const ptrdiff_t ioffset
                 = (execPlan.rootPlan->batch % 2 == 0)
                 ? realTSize * execPlan.rootPlan->iDist
                 : realTSize * execPlan.rootPlan->inStride[data.node->pairdim];
 
-            assert(offset != 0);
+            assert(ioffset != 0);
 
-            std::cout << "offset: " << offset << std::endl;
+            const ptrdiff_t ooffset
+                = (execPlan.rootPlan->batch % 2 == 0)
+                ? realTSize * execPlan.rootPlan->oDist
+                : realTSize * execPlan.rootPlan->outStride[data.node->pairdim];
+
+            
+            std::cout << "ioffset: " << ioffset << std::endl;
             
             if(data.node->outArrayType == rocfft_array_type_complex_planar)
             {
@@ -369,7 +375,7 @@ void TransformPowX(const ExecPlan&       execPlan,
                 assert(data.node->obOut == OB_USER_IN);
 
                 data.bufIn[0] = in_buffer[0];
-                data.bufIn[1] = (void*)((char*)data.bufIn[0] + offset);
+                data.bufIn[1] = (void*)((char*)data.bufIn[0] + ioffset);
 
                 data.bufOut[0] =  data.bufIn[0];
                 data.bufOut[1] =  data.bufIn[1];
@@ -380,7 +386,6 @@ void TransformPowX(const ExecPlan&       execPlan,
                 assert(data.node->scheme == CS_KERNEL_PAIR_UNPACK);
                 
                 data.bufIn[0] = in_buffer[0];
-                data.bufIn[1] = (void*)((char*)data.bufIn[0] + offset);
                 
                 switch(data.node->obOut)
                 {
@@ -398,6 +403,7 @@ void TransformPowX(const ExecPlan&       execPlan,
                     assert(false);
                 }
 
+                data.bufOut[1] = (void*)((char*)data.bufOut[0] + ooffset);
                 // FIXME: we need to figure out the offset here; might not be the same as the input
                 // offset.
                 

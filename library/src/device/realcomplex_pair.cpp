@@ -38,10 +38,10 @@
 /// for r = 1, ... , \floor{N/2} + 1.
 template <typename Treal>
 __global__ static void complex2pair_unpack_kernel(const size_t      half_N,
-                                                  const void*       input0,
-                                                  const void*       input1,
-                                                  void*        output0_,
-                                                  void*        output1_)
+                                                  const void*       input,
+                                                  const size_t     ioffset,
+                                                  void*        output,
+                                                  const size_t ooffset)
 {
     const size_t idx_p = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
     const size_t idx_q = half_N - idx_p;
@@ -50,18 +50,18 @@ __global__ static void complex2pair_unpack_kernel(const size_t      half_N,
     
     if(idx_p < quarter_N)
     {
-        const auto inputRe = (Treal*)input0;
-        const auto inputIm = (Treal*)input1;
-        auto output0 = (complex_type_t<Treal>*)output0_;
-        auto output1 = (complex_type_t<Treal>*)output1_;
+        const auto inputRe = (Treal*)input;
+        const auto inputIm = (Treal*)((char*)input + ioffset);
+        auto outputX = (complex_type_t<Treal>*)output;
+        auto outputY = (complex_type_t<Treal>*)((char*)output + ooffset);
         
         if(idx_p == 0)
         {
-            output0[idx_p].x = inputRe[idx_p];
-            output0[idx_p].y = 0.0;
+            outputX[idx_p].x = inputRe[idx_p];
+            outputX[idx_p].y = 0.0;
 
-            output1[idx_p].x = inputIm[idx_p];
-            output1[idx_p].y = 0.0;
+            outputY[idx_p].x = inputIm[idx_p];
+            outputY[idx_p].y = 0.0;
 
         }
         else
@@ -71,11 +71,11 @@ __global__ static void complex2pair_unpack_kernel(const size_t      half_N,
             const Treal Req = inputRe[idx_q];
             const Treal Imq = inputIm[idx_q];
             
-            output0[idx_p].x = 0.5 * (Rep + Req);
-            output0[idx_p].y = 0.5 * (Imp - Imq);
+            outputX[idx_p].x = 0.5 * (Rep + Req);
+            outputX[idx_p].y = 0.5 * (Imp - Imq);
 
-            output1[idx_p].x = 0.5 * (Imp + Imq);
-            output1[idx_p].y = -0.5 * (Rep - Req);
+            outputY[idx_p].x = 0.5 * (Imp + Imq);
+            outputY[idx_p].y = -0.5 * (Rep - Req);
         } 
     }
 }
@@ -91,10 +91,26 @@ void complex2pair_unpack(const void* data_p, void*)
     const size_t odist = data->node->oDist;
 
     void* bufIn0  = data->bufIn[0];
-    void* bufIn1  = data->bufIn[1];
     void* bufOut0 = data->bufOut[0];
-    void* bufOut1 = data->bufOut[1];
+    
+    // Size of real type
+    const size_t realTsize  = (data->node->precision == rocfft_precision_single)
+        ? sizeof(float)
+        : sizeof(double);
 
+    // Size of complex type
+    const size_t complexTsize =  2 * realTsize;
+        
+    const ptrdiff_t ioffset
+        = realTsize * ((data->node->parent->batch % 2 == 0)
+                       ?  data->node->iDist
+                       : data->node->inStride[data->node->pairdim]);
+
+    // complex output, so 2x
+    const ptrdiff_t ooffset
+        = complexTsize * ((data->node->parent->batch % 2 == 0)
+                          ? data->node->oDist
+                          : data->node->outStride[data->node->pairdim]);
 
     const size_t half_N = data->node->length[0];
     const size_t high_dimension = std::accumulate(
@@ -114,11 +130,13 @@ void complex2pair_unpack(const void* data_p, void*)
     {
     case rocfft_precision_single:
         complex2pair_unpack_kernel<float><<<grid, threads, 0>>>(half_N,
-                                                                bufIn0, bufIn1, bufOut0, bufOut1);
+                                                                bufIn0, ioffset,
+                                                                bufOut0, ooffset);
         break;
     case rocfft_precision_double:
         complex2pair_unpack_kernel<double><<<grid, threads, 0>>>(half_N,
-                                                                 bufIn0, bufIn1, bufOut0, bufOut1);
+                                                                 bufIn0, ioffset,
+                                                                 bufOut0, ooffset);
         break;
     default:
         std::cerr << "invalid precision for complex2pair\n";

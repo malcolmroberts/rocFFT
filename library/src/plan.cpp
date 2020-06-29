@@ -3816,8 +3816,8 @@ void TreeNode::assign_params_CS_REAL_TRANSFORM_PAIR()
         assert(unpack->scheme == CS_KERNEL_PAIR_UNPACK);
         unpack->inStride  = inStride;
         unpack->iDist     = iDist;
-        unpack->outStride = inStride;
-        unpack->oDist     = iDist;
+        unpack->outStride = outStride;
+        unpack->oDist     = oDist;
         if(unpack->pairdim != 0)
         {
             unpack->inStride[unpack->pairdim] *= 2;
