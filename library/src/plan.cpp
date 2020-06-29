@@ -1327,7 +1327,7 @@ void TreeNode::build_real_pair()
             unpack->batch        = pairbatch;
             unpack->pairdim      = c2c_pairdim;
             unpack->inArrayType  = rocfft_array_type_complex_planar;
-            unpack->outArrayType = rocfft_array_type_hermitian_interleaved;
+            unpack->outArrayType = outArrayType;
             childNodes.push_back(unpack);
         }
         

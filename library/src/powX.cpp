@@ -359,33 +359,48 @@ void TransformPowX(const ExecPlan&       execPlan,
 
             std::cout << "offset: " << offset << std::endl;
             
-            data.bufIn[0] = in_buffer[0];
-            data.bufIn[1] = (void*)((char*)data.bufIn[0] + offset);
-
             if(data.node->outArrayType == rocfft_array_type_complex_planar)
             {
+                // We infer that this node is the real-as-planar c2c transform.
+                
+                
                 // We impose that this transform is in-place.
                 assert(data.node->obIn == OB_USER_IN);
+                assert(data.node->obOut == OB_USER_IN);
+
+                data.bufIn[0] = in_buffer[0];
+                data.bufIn[1] = (void*)((char*)data.bufIn[0] + offset);
+
                 data.bufOut[0] =  data.bufIn[0];
                 data.bufOut[1] =  data.bufIn[1];
             }
             else
             {
-                switch(data.node->obIn)
+                // We infer that this node is the unpack plan.
+                assert(data.node->scheme == CS_KERNEL_PAIR_UNPACK);
+                
+                data.bufIn[0] = in_buffer[0];
+                data.bufIn[1] = (void*)((char*)data.bufIn[0] + offset);
+                
+                switch(data.node->obOut)
                 {
                 case OB_USER_IN:
-                    data.bufIn[0] = in_buffer[0];
+                    data.bufOut[0] = in_buffer[0];
                     break;
                 case OB_USER_OUT:
-                    data.bufIn[0] = out_buffer[0];
+                    data.bufOut[0] = out_buffer[0];
                     break;
                 case OB_TEMP:
-                    data.bufIn[0] = info->workBuffer;
+                    data.bufOut[0] = info->workBuffer;
                     break;
                 default:
                     std::cerr << "Error: operating buffer not specified for kernel!\n";
                     assert(false);
                 }
+
+                // FIXME: we need to figure out the offset here; might not be the same as the input
+                // offset.
+                
             }
             
         }
