@@ -310,7 +310,9 @@ void TransformPowX(const ExecPlan&       execPlan,
         max_memory_bw = max_memory_bandwidth_GB_per_s();
     }
     for(size_t i = 0; i < execPlan.execSeq.size(); i++)
-    {        
+    {
+        //std::cout << "execSeq: " << i << std::endl; // FIXME: temp
+        
         DeviceCallIn data;
         data.node          = execPlan.execSeq[i];
         data.rocfft_stream = (info == nullptr) ? 0 : info->rocfft_stream;
@@ -328,7 +330,7 @@ void TransformPowX(const ExecPlan&       execPlan,
         //     )
         if(data.node->parent != NULL && data.node->parent->scheme == CS_REAL_TRANSFORM_PAIR)
         {
-            std::cout << "sneaky!" << std::endl;
+            //std::cout << "sneaky!" << std::endl;
             // assert(data.node->parent->scheme == CS_REAL_TRANSFORM_PAIR);
             
             // We conclude that we are performing real/complex paired transform, where the real
@@ -412,7 +414,7 @@ void TransformPowX(const ExecPlan&       execPlan,
         }
         else
         {
-            std::cerr << "not sneaky!" << std::endl;
+            //std::cerr << "not sneaky!" << std::endl;
         
                 
             switch(data.node->obIn)

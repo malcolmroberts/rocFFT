@@ -893,7 +893,13 @@ void TreeNode::build_real()
     // Recall that the lengths are column-major.
     const size_t otherdims = std::accumulate(length.begin() + 1, length.end(), 1,
                                              std::multiplies<size_t>());
-    if((batch % 2 == 0) || (otherdims % 2 == 0))
+    // NB: currently only works with single-kernel c2c sub-transform
+    if(dimension == 1
+       && direction == -1
+       && SupportedLength(length[0])
+       && length[0] < Large1DThreshold(precision)
+       && outArrayType != rocfft_array_type_hermitian_planar
+       && (batch % 2 == 0)) // || (otherdims % 2 == 0))
     {
         // Paired algorithm
         build_real_pair();
@@ -1930,7 +1936,7 @@ void TreeNode::TraverseTreeAssignBuffersLogicA(OperatingBuffer& flipIn,
         }
     }
 
-#if 1
+#if 0
     auto        here = this;
     auto        up   = parent;
     std::string tabs;
@@ -2357,7 +2363,7 @@ void TreeNode::assign_buffers_CS_REAL_TRANSFORM_PAIR(OperatingBuffer& flipIn,
     if(parent == nullptr)
     {
         obIn  = OB_USER_IN;
-        obOut = placement == rocfft_placement_inplace ? OB_USER_IN : OB_USER_OUT;
+        obOut = (placement == rocfft_placement_inplace) ? OB_USER_IN : OB_USER_OUT;
     }
     
     if(direction == -1)
@@ -2369,8 +2375,7 @@ void TreeNode::assign_buffers_CS_REAL_TRANSFORM_PAIR(OperatingBuffer& flipIn,
             cplan->obIn = obIn;
             cplan->obOut = obIn;
         }
-        
-        cplan->TraverseTreeAssignBuffersLogicA(flipIn, flipOut, obOutBuf);
+        cplan->TraverseTreeAssignBuffersLogicA(flipIn, flipIn, obIn);
         
         auto unpack = childNodes[1];
         assert(unpack->scheme == CS_KERNEL_PAIR_UNPACK);
@@ -4133,6 +4138,8 @@ void ProcessNode(ExecPlan& execPlan)
     execPlan.rootPlan->TraverseTreeCollectLeafsLogicA(
         execPlan.execSeq, tmpBufSize, cmplxForRealSize, blueSize, chirpSize);
 
+    blueSize *= 2; // FIXME: temp
+    
     execPlan.workBufSize      = tmpBufSize + cmplxForRealSize + blueSize + chirpSize;
     execPlan.tmpWorkBufSize   = tmpBufSize;
     execPlan.copyWorkBufSize  = cmplxForRealSize;

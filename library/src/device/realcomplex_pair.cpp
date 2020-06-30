@@ -46,12 +46,13 @@ __global__ static void complex2pair_unpack_kernel(const size_t      half_N,
                                                   const size_t ooffset)
 {
     const size_t idx_p = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
-    const size_t idx_q = half_N - idx_p;
 
     const auto quarter_N = (half_N + 1) / 2;
         
     if(idx_p < quarter_N)
     {
+        const size_t idx_q = half_N - idx_p;
+    
         const auto inputRe = (Treal*)input;
         const auto inputIm = (Treal*)((char*)input + ioffset);
         auto outputX = (complex_type_t<Treal>*)output;
