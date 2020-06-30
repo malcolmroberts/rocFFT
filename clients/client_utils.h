@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <complex>
 #include <numeric>
+#include <omp.h>
 
 #include "rocfft.h"
 #include <hip/hip_runtime_api.h>
