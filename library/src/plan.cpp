@@ -898,7 +898,7 @@ void TreeNode::build_real()
        && direction == -1
        && SupportedLength(length[0])
        && length[0] < Large1DThreshold(precision)
-       && outArrayType != rocfft_array_type_hermitian_planar
+       //&& outArrayType != rocfft_array_type_hermitian_planar
        && (batch % 2 == 0)) // || (otherdims % 2 == 0))
     {
         // Paired algorithm

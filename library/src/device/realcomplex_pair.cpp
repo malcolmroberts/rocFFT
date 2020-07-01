@@ -26,7 +26,7 @@
 #include <iostream>
 #include <numeric>
 
-/// Kernel for unpacking two complex arrays with Hermitian symmetry from one complex array
+/// Kernels for unpacking two complex arrays with Hermitian symmetry from one complex array
 /// which is the output of a c2c transform where the input is two real arrays x and y.
 ///
 /// That is, given Z = \mathcal{F}(x + iy) = X + i Y, we compute
@@ -36,8 +36,8 @@
 /// X_r = (Z_r + Z_{N - r}^*)/2,   Y_r = (Z_r - Z_{N - r}^*)/(2i)
 ///
 /// for r = 1, ... , \floor{N/2} + 1.
-///
-/// Contiguous data version.
+
+/// Interleaved data version.
 template <typename Treal>
 __global__ static void complex2pair_unpack_kernel(const size_t      half_N,
                                                   const void*       input,
@@ -46,21 +46,20 @@ __global__ static void complex2pair_unpack_kernel(const size_t      half_N,
                                                   const size_t ooffset)
 {
     const size_t idx_p = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
-
     const auto quarter_N = (half_N + 1) / 2;
         
     if(idx_p < quarter_N)
     {
-        const size_t idx_q = half_N - idx_p;
-    
         const auto inputRe = (Treal*)input;
-        const auto inputIm = (Treal*)((char*)input + ioffset);
+        const auto inputIm = inputRe + ioffset;
+        
         auto outputX = (complex_type_t<Treal>*)output;
-        auto outputY = (complex_type_t<Treal>*)((char*)output + ooffset);
+        auto outputY = outputX + ooffset;
 
         const Treal Rep = inputRe[idx_p];
         const Treal Imp = inputIm[idx_p];
         
+        const size_t idx_q = half_N - idx_p;
         const Treal Req = inputRe[idx_q];
         const Treal Imq = inputIm[idx_q];
 
@@ -89,6 +88,65 @@ __global__ static void complex2pair_unpack_kernel(const size_t      half_N,
     }
 }
 
+/// Planar data version.
+template <typename Treal>
+__global__ static void complex2pair_unpack_kernel(const size_t      half_N,
+                                                  const void*       input,
+                                                  const size_t     ioffset,
+                                                  void*        outputRe,
+                                                  void*        outputIm,
+                                                  const size_t ooffset)
+{
+    const size_t idx_p = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
+    const auto quarter_N = (half_N + 1) / 2;
+        
+    if(idx_p < quarter_N)
+    {
+        const auto inputRe = (Treal*)input;
+        const auto inputIm = inputRe + ioffset;
+
+        const auto Rep = inputRe[idx_p];
+        const auto Imp = inputIm[idx_p];
+        
+        const size_t idx_q = half_N - idx_p;
+        const auto Req = inputRe[idx_q];
+        const auto Imq = inputIm[idx_q];
+
+        auto outputXRe = (Treal*)outputRe;
+        auto outputYRe = outputXRe + ooffset;
+        
+        auto outputXIm = (Treal*)outputIm;
+        auto outputYIm = outputXIm + ooffset;
+        
+        complex_type_t<Treal> X;
+        complex_type_t<Treal> Y;
+                
+        if(idx_p == 0)
+        {
+            X.x = Rep;
+            X.y = 0.0;
+
+            Y.x = Imp;
+            Y.y = 0.0;
+        }
+        else
+        {
+            X.x = 0.5 * (Rep + Req);
+            X.y = 0.5 * (Imp - Imq);
+
+            Y.x = 0.5 * (Imp + Imq);
+            Y.y = -0.5 * (Rep - Req);
+        }
+        
+        outputXRe[idx_p] = X.x;
+        outputXIm[idx_p] = X.y;
+
+        outputYRe[idx_p] = Y.x;
+        outputYIm[idx_p] = Y.y;
+    }
+}
+
+
 /// Unpack two (Hermitian-symmetric) complex arrays from a full-length complex array for a
 /// real-to-complex transform
 void complex2pair_unpack(const void* data_p, void*)
@@ -102,25 +160,18 @@ void complex2pair_unpack(const void* data_p, void*)
     void* bufIn0  = data->bufIn[0];
     void* bufOut0 = data->bufOut[0];
     
-    // Size of real type
-    const size_t realTsize  = (data->node->precision == rocfft_precision_single)
-        ? sizeof(float)
-        : sizeof(double);
-
-    // Size of complex type
-    const size_t complexTsize =  2 * realTsize;
+    void* bufOut1 = data->bufOut[1];
         
     const ptrdiff_t ioffset
-        = realTsize * ((data->node->parent->batch % 2 == 0)
-                       ?  data->node->iDist
-                       : data->node->inStride[data->node->pairdim]);
+        = (data->node->parent->batch % 2 == 0)
+        ?  data->node->iDist
+        : data->node->inStride[data->node->pairdim];
 
-    // complex output, so 2x
     const ptrdiff_t ooffset
-        = complexTsize * ((data->node->parent->batch % 2 == 0)
-                          ? data->node->oDist
-                          : data->node->outStride[data->node->pairdim]);
-
+        = (data->node->parent->batch % 2 == 0)
+        ? data->node->oDist
+        : data->node->outStride[data->node->pairdim];
+    
     const size_t half_N = data->node->length[0];
     const size_t high_dimension = std::accumulate(
         data->node->length.begin() + 1, data->node->length.end(), 1, std::multiplies<size_t>());
@@ -134,24 +185,50 @@ void complex2pair_unpack(const void* data_p, void*)
 
     std::cout << "threads: " << threads.x << std::endl; // FIXME: temp
     std::cout << "half_N: " << half_N << std::endl; // FIXME: temp
-    
-    switch(data->node->precision)
+
+    switch(data->node->outArrayType)
     {
-    case rocfft_precision_single:
-        complex2pair_unpack_kernel<float><<<grid, threads, 0>>>(half_N,
-                                                                bufIn0, ioffset,
-                                                                bufOut0, ooffset);
+    case rocfft_array_type_hermitian_interleaved:
+        switch(data->node->precision)
+        {
+        case rocfft_precision_single:
+            complex2pair_unpack_kernel<float><<<grid, threads, 0>>>(half_N,
+                                                                    bufIn0, ioffset,
+                                                                    bufOut0, ooffset);
+            break;
+        case rocfft_precision_double:
+            complex2pair_unpack_kernel<double><<<grid, threads, 0>>>(half_N,
+                                                                     bufIn0, ioffset,
+                                                                     bufOut0, ooffset);
+            break;
+        default:
+            std::cerr << "invalid precision for complex2pair\n";
+            assert(false);
+        }
         break;
-    case rocfft_precision_double:
-        complex2pair_unpack_kernel<double><<<grid, threads, 0>>>(half_N,
-                                                                 bufIn0, ioffset,
-                                                                 bufOut0, ooffset);
+    case rocfft_array_type_hermitian_planar:
+        switch(data->node->precision)
+        {
+        case rocfft_precision_single:
+            complex2pair_unpack_kernel<float><<<grid, threads, 0>>>(half_N,
+                                                                    bufIn0, ioffset,
+                                                                    bufOut0, bufOut1, ooffset);
+            break;
+        case rocfft_precision_double:
+            complex2pair_unpack_kernel<double><<<grid, threads, 0>>>(half_N,
+                                                                     bufIn0, ioffset,
+                                                                     bufOut0, bufOut1, ooffset);
+            break;
+        default:
+            std::cerr << "invalid precision for complex2pair\n";
+            assert(false);
+        }
         break;
     default:
-        std::cerr << "invalid precision for complex2pair\n";
+        std::cerr << "invalid output type for complex2pair" << std::endl;
         assert(false);
     }
-
+    
 }
 
 

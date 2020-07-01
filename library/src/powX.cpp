@@ -343,34 +343,25 @@ void TransformPowX(const ExecPlan&       execPlan,
             // assert(data.node->obIn == OB_USER_IN);
             // assert(data.node->obOut == OB_USER_IN);
             
-            // Size of real type
-            const size_t realTSize  = (data.node->precision == rocfft_precision_single)
-                ? sizeof(float)
-                : sizeof(double);
-
             // FIXME: what about inverse transforms?
 
-            // Calculate the pointer to the planar format when using the paired real/complex
-            // method.
-            const ptrdiff_t ioffset
-                = (execPlan.rootPlan->batch % 2 == 0)
-                ? realTSize * execPlan.rootPlan->iDist
-                : realTSize * execPlan.rootPlan->inStride[data.node->pairdim];
-
-            assert(ioffset != 0);
-
-            const ptrdiff_t ooffset
-                = (execPlan.rootPlan->batch % 2 == 0)
-                ? realTSize * execPlan.rootPlan->oDist
-                : realTSize * execPlan.rootPlan->outStride[data.node->pairdim];
-
-            
-            std::cout << "ioffset: " << ioffset << std::endl;
-            
             if(data.node->outArrayType == rocfft_array_type_complex_planar)
             {
                 // We infer that this node is the real-as-planar c2c transform.
                 
+                
+                // Size of real type
+                const size_t realTSize  = (data.node->precision == rocfft_precision_single)
+                    ? sizeof(float)
+                    : sizeof(double);
+
+                // Calculate the pointer to the planar format when using the paired
+                // real/complex method.
+                const ptrdiff_t ioffset
+                    = (execPlan.rootPlan->batch % 2 == 0)
+                    ? realTSize * execPlan.rootPlan->iDist
+                    : realTSize * execPlan.rootPlan->inStride[data.node->pairdim];
+                assert(ioffset != 0);
                 
                 // We impose that this transform is in-place.
                 assert(data.node->obIn == OB_USER_IN);
@@ -393,22 +384,20 @@ void TransformPowX(const ExecPlan&       execPlan,
                 {
                 case OB_USER_IN:
                     data.bufOut[0] = in_buffer[0];
+                    data.bufOut[1] = in_buffer[1];
                     break;
                 case OB_USER_OUT:
                     data.bufOut[0] = out_buffer[0];
+                    data.bufOut[1] = out_buffer[1];
                     break;
                 case OB_TEMP:
                     data.bufOut[0] = info->workBuffer;
+                    // FIXME: what about planar in work buffer?  Not a thing?
                     break;
                 default:
                     std::cerr << "Error: operating buffer not specified for kernel!\n";
                     assert(false);
                 }
-
-                data.bufOut[1] = (void*)((char*)data.bufOut[0] + ooffset);
-                // FIXME: we need to figure out the offset here; might not be the same as the input
-                // offset.
-                
             }
             
         }
