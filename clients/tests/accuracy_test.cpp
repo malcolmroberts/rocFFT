@@ -31,6 +31,7 @@
 #include "rocfft.h"
 #include "rocfft_against_fftw.h"
 
+
 // Given an array type, return the name as a string.
 std::string array_type_name(const rocfft_array_type type)
 {
