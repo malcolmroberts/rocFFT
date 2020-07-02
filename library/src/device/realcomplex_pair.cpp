@@ -151,7 +151,7 @@ __global__ static void complex2pair_unpack_kernel(const size_t      half_N,
 /// real-to-complex transform
 void complex2pair_unpack(const void* data_p, void*)
 {
-    std::cout << "complex2pair" << std::endl;
+//    std::cout << "complex2pair" << std::endl;
     const DeviceCallIn* data = (DeviceCallIn*)data_p;
 
     const size_t idist = data->node->iDist;
@@ -183,8 +183,8 @@ void complex2pair_unpack(const void* data_p, void*)
     dim3 grid(blocks, high_dimension, batch);
     dim3 threads(block_size, 1, 1);
 
-    std::cout << "threads: " << threads.x << std::endl; // FIXME: temp
-    std::cout << "half_N: " << half_N << std::endl; // FIXME: temp
+    // std::cout << "threads: " << threads.x << std::endl; // FIXME: temp
+    // std::cout << "half_N: " << half_N << std::endl; // FIXME: temp
 
     switch(data->node->outArrayType)
     {

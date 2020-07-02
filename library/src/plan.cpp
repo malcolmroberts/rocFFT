@@ -2342,7 +2342,7 @@ void TreeNode::assign_buffers_CS_REAL_3D_EVEN(OperatingBuffer& flipIn,
         obOut = childNodes[childNodes.size() - 1]->obOut;
     }
 
-#if 1
+#if 0
     rocfft_cout << PrintScheme(scheme) << std::endl;
     for(int i = 0; i < childNodes.size(); ++i)
     {
@@ -2357,7 +2357,7 @@ void TreeNode::assign_buffers_CS_REAL_TRANSFORM_PAIR(OperatingBuffer& flipIn,
                                                      OperatingBuffer& flipOut,
                                                      OperatingBuffer& obOutBuf)
 {
-    std::cout << "assign_buffers_CS_REAL_TRANSFORM_PAIR" << std::endl; // FIXME: temp
+//    std::cout << "assign_buffers_CS_REAL_TRANSFORM_PAIR" << std::endl; // FIXME: temp
 
     
     if(parent == nullptr)
