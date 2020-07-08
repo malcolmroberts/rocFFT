@@ -2371,15 +2371,15 @@ void TreeNode::assign_buffers_CS_REAL_TRANSFORM_PAIR(OperatingBuffer& flipIn,
         auto cplan = childNodes[0];
         if(parent == nullptr)
         {
-            // We impose that the first plan be in-place.
             cplan->obIn = obIn;
-            cplan->obOut = obIn;
+            cplan->obOut = OB_TEMP;
         }
         cplan->TraverseTreeAssignBuffersLogicA(flipIn, flipIn, obIn);
         
         auto unpack = childNodes[1];
         assert(unpack->scheme == CS_KERNEL_PAIR_UNPACK);
-        unpack->obIn = obIn;
+        // The unpack plan cannot be in-place due to a race condition
+        unpack->obIn = OB_TEMP;
         unpack->obOut = obOut;
 
         
