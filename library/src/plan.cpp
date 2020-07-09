@@ -894,11 +894,13 @@ void TreeNode::build_real()
     const size_t otherdims = std::accumulate(length.begin() + 1, length.end(), 1,
                                              std::multiplies<size_t>());
     // NB: currently only works with single-kernel c2c sub-transform
+    // The transpose kernel does not handle planar-to-interleaved.
+    // Bluestein seems to not seem to handle planar-to-planar.
     if(dimension == 1
        && direction == -1
        && SupportedLength(length[0])
        && length[0] < Large1DThreshold(precision)
-       //&& outArrayType != rocfft_array_type_hermitian_planar
+       && outArrayType != rocfft_array_type_hermitian_planar
        && (batch % 2 == 0)) // || (otherdims % 2 == 0))
     {
         // Paired algorithm
@@ -1924,6 +1926,12 @@ void TreeNode::TraverseTreeAssignBuffersLogicA(OperatingBuffer& flipIn,
             obOutBuf = (direction == -1 || placement == rocfft_placement_inplace) ? OB_USER_IN
                                                                                   : OB_USER_OUT;
             break;
+        case CS_REAL_TRANSFORM_PAIR:
+            flipIn = OB_USER_IN;
+            flipOut  = OB_TEMP;
+            obOutBuf = placement == rocfft_placement_inplace ? OB_USER_IN : OB_USER_OUT;
+            break;
+
         case CS_BLUESTEIN:
             flipIn   = OB_TEMP_BLUESTEIN;
             flipOut  = OB_TEMP;
@@ -2374,12 +2382,12 @@ void TreeNode::assign_buffers_CS_REAL_TRANSFORM_PAIR(OperatingBuffer& flipIn,
             cplan->obIn = obIn;
             cplan->obOut = OB_TEMP;
         }
-        cplan->TraverseTreeAssignBuffersLogicA(flipIn, flipIn, obIn);
+        cplan->TraverseTreeAssignBuffersLogicA(flipIn, flipOut, obIn);
         
         auto unpack = childNodes[1];
         assert(unpack->scheme == CS_KERNEL_PAIR_UNPACK);
         // The unpack plan cannot be in-place due to a race condition
-        unpack->obIn = OB_TEMP;
+        unpack->obIn = cplan->obOut;
         unpack->obOut = obOut;
 
         
@@ -2469,13 +2477,13 @@ void TreeNode::assign_buffers_CS_L1D_TRTRT(OperatingBuffer& flipIn,
     {
         childNodes[1]->TraverseTreeAssignBuffersLogicA(flipIn, flipOut, obOutBuf);
 
-        size_t cs            = childNodes[1]->childNodes.size();
+        const size_t cs      = childNodes[1]->childNodes.size();
         childNodes[1]->obIn  = childNodes[1]->childNodes[0]->obIn;
         childNodes[1]->obOut = childNodes[1]->childNodes[cs - 1]->obOut;
     }
     else
     {
-        childNodes[1]->obIn  = flipIn;
+        childNodes[1]->obIn  =  childNodes[0]->obOut;
         childNodes[1]->obOut = obOutBuf;
 
         if(flipIn != obOutBuf)
@@ -2499,13 +2507,13 @@ void TreeNode::assign_buffers_CS_L1D_TRTRT(OperatingBuffer& flipIn,
         }
         else
         {
-            childNodes[2]->obIn  = obOutBuf;
-            childNodes[2]->obOut = OB_TEMP;
+            childNodes[2]->obIn  = childNodes[1]->obOut;
+            childNodes[2]->obOut = flipOut;
 
-            childNodes[3]->obIn  = OB_TEMP;
-            childNodes[3]->obOut = OB_TEMP;
+            childNodes[3]->obIn  = childNodes[2]->obOut;
+            childNodes[3]->obOut = flipOut;
 
-            childNodes[4]->obIn  = OB_TEMP;
+            childNodes[4]->obIn  = childNodes[3]->obOut;
             childNodes[4]->obOut = obOutBuf;
         }
 
@@ -2514,6 +2522,7 @@ void TreeNode::assign_buffers_CS_L1D_TRTRT(OperatingBuffer& flipIn,
     }
     else
     {
+        // TODO: document this assert.
         assert(obIn == obOut);
 
         if(obOut == obOutBuf)
@@ -3800,8 +3809,6 @@ void TreeNode::assign_params_CS_REAL_3D_EVEN()
 
 void TreeNode::assign_params_CS_REAL_TRANSFORM_PAIR()
 {
-    // FIXME: implement
-
     if(direction == -1)
     {
         auto cplan       = childNodes[0];

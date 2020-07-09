@@ -363,9 +363,9 @@ void TransformPowX(const ExecPlan&       execPlan,
                     : realTSize * execPlan.rootPlan->inStride[data.node->pairdim];
                 assert(ioffset != 0);
                 
-                // We impose that this transform is in-place.
-                assert(data.node->obIn == OB_USER_IN);
-                assert(data.node->obOut == OB_USER_IN);
+                // // We impose that this transform is in-place.
+                // assert(data.node->obIn == OB_USER_IN);
+                // assert(data.node->obOut == OB_USER_IN);
 
                 data.bufIn[0] = in_buffer[0];
                 data.bufIn[1] = (void*)((char*)data.bufIn[0] + ioffset);
