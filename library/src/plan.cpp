@@ -1269,7 +1269,6 @@ void TreeNode::build_real_even_3D()
     }
 }
 
-// FIXME: document
 void TreeNode::build_real_pair()
 {
     scheme = CS_REAL_TRANSFORM_PAIR;
@@ -1339,24 +1338,14 @@ void TreeNode::build_real_pair()
             childNodes.push_back(unpack);
         }
         
-        // FIXME: if dimension > 1, then we need to launch a sub-dimensional c2c transform
+        // TODO: if dimension > 1, then we need to launch a sub-dimensional c2c transform
     }
     else
     {
         // Inverse
 
-        // TODO: repack the results, add node.
-
-        // Last stage:
-        auto cplan = TreeNode::CreateNode(this);
-        cplan->length       = pairlength;
-        cplan->batch        = pairbatch;
-        cplan->pairdim      = c2c_pairdim;
-        cplan->dimension    = 1;
-        cplan->inArrayType  = rocfft_array_type_complex_planar;
-        cplan->outArrayType = rocfft_array_type_complex_planar;
-        cplan->RecursiveBuildTree();
-        childNodes.push_back(cplan);
+        // TODO: implement
+        assert(false);
     }
 }
 
@@ -2365,9 +2354,6 @@ void TreeNode::assign_buffers_CS_REAL_TRANSFORM_PAIR(OperatingBuffer& flipIn,
                                                      OperatingBuffer& flipOut,
                                                      OperatingBuffer& obOutBuf)
 {
-//    std::cout << "assign_buffers_CS_REAL_TRANSFORM_PAIR" << std::endl; // FIXME: temp
-
-    
     if(parent == nullptr)
     {
         obIn  = OB_USER_IN;
@@ -2391,16 +2377,14 @@ void TreeNode::assign_buffers_CS_REAL_TRANSFORM_PAIR(OperatingBuffer& flipIn,
         unpack->obOut = obOut;
 
         
-        // FIXME: add other part.
+        // TODO: implment multi-dimensional transforms
         
     }
     else
     {
-        exit(1);
-            // FIXME: implement
+        assert(false);
+        // TODO: implement
     }
-
-    
 }
 
 
@@ -3002,7 +2986,6 @@ void TreeNode::assign_params_CS_REAL_TRANSFORM_EVEN()
         // Strides are in complex types
         for(int i = 1; i < prePlan->outStride.size(); ++i)
         {
-            //prePlan->inStride[i] /= 2;
             prePlan->outStride[i] /= 2;
         }
 
@@ -3822,8 +3805,6 @@ void TreeNode::assign_params_CS_REAL_TRANSFORM_PAIR()
             cplan->outStride[cplan->pairdim] *= 2;
         }
         cplan->TraverseTreeAssignParamsLogicA();
-
-        // FIXME: check this
         auto unpack       = childNodes[1];
         assert(unpack->scheme == CS_KERNEL_PAIR_UNPACK);
         unpack->inStride  = inStride;
@@ -3835,15 +3816,12 @@ void TreeNode::assign_params_CS_REAL_TRANSFORM_PAIR()
             unpack->inStride[unpack->pairdim] *= 2;
             unpack->outStride[unpack->pairdim] *= 2;
         }
-        
-        
     }
     else
     {
-        // FIXME: implement
+        // TODO: implement
         assert(false);
     }
-    
 }
 
 void TreeNode::assign_params_CS_2D_RC_STRAIGHT()
@@ -4144,8 +4122,6 @@ void ProcessNode(ExecPlan& execPlan)
     size_t chirpSize        = 0;
     execPlan.rootPlan->TraverseTreeCollectLeafsLogicA(
         execPlan.execSeq, tmpBufSize, cmplxForRealSize, blueSize, chirpSize);
-
-    blueSize *= 2; // FIXME: temp
     
     execPlan.workBufSize      = tmpBufSize + cmplxForRealSize + blueSize + chirpSize;
     execPlan.tmpWorkBufSize   = tmpBufSize;
