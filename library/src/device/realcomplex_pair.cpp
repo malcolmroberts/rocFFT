@@ -45,14 +45,11 @@ __global__ static void complex2pair_unpack_kernel(const size_t      N,
                                                   void*        output,
                                                   const size_t ooffset)
 {
-    const size_t idx_p = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
-    const auto half_N = (N + 1) / 2;
-    const auto quarter_N = (half_N + 1) / 2;
+   const size_t idx_p = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
+   const auto half_N = (N + 1) / 2;
         
-    if(idx_p <= quarter_N)
+    if(idx_p < half_N)
     {
-        // NB: the nyquist is double-counted.
-        
         const auto inputRe = (Treal*)input;
         const auto inputIm = inputRe + ioffset;
         
@@ -66,54 +63,28 @@ __global__ static void complex2pair_unpack_kernel(const size_t      N,
         const Treal Req = inputRe[idx_q];
         const Treal Imq = inputIm[idx_q];
 
-        // For in-place transforms, we need to run two sets of indices
-        // in order to avoid race conditions.
-        
-        const size_t idx_r = half_N - idx_p;
-        const Treal Rer = inputRe[idx_r];
-        const Treal Imr = inputIm[idx_r];
-
-        const size_t idx_s = N - idx_r;
-        const Treal Res = inputRe[idx_s];
-        const Treal Ims = inputIm[idx_s];
-
-        
-        complex_type_t<Treal> Xp;
-        complex_type_t<Treal> Yp;
-
-        complex_type_t<Treal> Xr;
-        complex_type_t<Treal> Yr;
-        
+        complex_type_t<Treal> X;
+        complex_type_t<Treal> Y;
+                
         if(idx_p == 0)
         {
-            Xp.x = Rep;
-            Xp.y = 0.0;
+            X.x = Rep;
+            X.y = 0.0;
 
-            Yp.x = Imp;
-            Yp.y = 0.0;
+            Y.x = Imp;
+            Y.y = 0.0;
         }
         else
         {
-            Xp.x = 0.5 * (Rep + Req);
-            Xp.y = 0.5 * (Imp - Imq);
+            X.x = 0.5 * (Rep + Req);
+            X.y = 0.5 * (Imp - Imq);
 
-            Yp.x = 0.5 * (Imp + Imq);
-            Yp.y = -0.5 * (Rep - Req);
-
-            Xr.x = 0.5 * (Rer + Res);
-            Xr.y = 0.5 * (Imr - Ims);
-
-            Yr.x = 0.5 * (Imr + Ims);
-            Yr.y = -0.5 * (Rer - Res);
-
+            Y.x = 0.5 * (Imp + Imq);
+            Y.y = -0.5 * (Rep - Req);
         }
-        // For the Nyquist, we only set idx_p, so write it last: idx_r
-        // equals idx_p in this case.
-        outputX[idx_r] = Xr;
-        outputY[idx_r] = Yr;
         
-        outputX[idx_p] = Xp;
-        outputY[idx_p] = Yp;
+        outputX[idx_p] = X;
+        outputY[idx_p] = Y;
     }
 }
 
