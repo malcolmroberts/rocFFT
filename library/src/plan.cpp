@@ -2445,7 +2445,6 @@ void TreeNode::assign_buffers_CS_BLUESTEIN(OperatingBuffer& flipIn,
     flipOut  = savFlipOut;
     obOutBuf = savOutBuf;
 }
-
 void TreeNode::assign_buffers_CS_L1D_TRTRT(OperatingBuffer& flipIn,
                                            OperatingBuffer& flipOut,
                                            OperatingBuffer& obOutBuf)
@@ -2461,13 +2460,13 @@ void TreeNode::assign_buffers_CS_L1D_TRTRT(OperatingBuffer& flipIn,
     {
         childNodes[1]->TraverseTreeAssignBuffersLogicA(flipIn, flipOut, obOutBuf);
 
-        const size_t cs      = childNodes[1]->childNodes.size();
+        size_t cs            = childNodes[1]->childNodes.size();
         childNodes[1]->obIn  = childNodes[1]->childNodes[0]->obIn;
         childNodes[1]->obOut = childNodes[1]->childNodes[cs - 1]->obOut;
     }
     else
     {
-        childNodes[1]->obIn  =  childNodes[0]->obOut;
+        childNodes[1]->obIn  = flipIn;
         childNodes[1]->obOut = obOutBuf;
 
         if(flipIn != obOutBuf)
@@ -2491,13 +2490,13 @@ void TreeNode::assign_buffers_CS_L1D_TRTRT(OperatingBuffer& flipIn,
         }
         else
         {
-            childNodes[2]->obIn  = childNodes[1]->obOut;
-            childNodes[2]->obOut = flipOut;
+            childNodes[2]->obIn  = obOutBuf;
+            childNodes[2]->obOut = OB_TEMP;
 
-            childNodes[3]->obIn  = childNodes[2]->obOut;
-            childNodes[3]->obOut = flipOut;
+            childNodes[3]->obIn  = OB_TEMP;
+            childNodes[3]->obOut = OB_TEMP;
 
-            childNodes[4]->obIn  = childNodes[3]->obOut;
+            childNodes[4]->obIn  = OB_TEMP;
             childNodes[4]->obOut = obOutBuf;
         }
 
@@ -2506,7 +2505,6 @@ void TreeNode::assign_buffers_CS_L1D_TRTRT(OperatingBuffer& flipIn,
     }
     else
     {
-        // TODO: document this assert.
         assert(obIn == obOut);
 
         if(obOut == obOutBuf)
