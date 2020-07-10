@@ -94,6 +94,9 @@ else()
   target_compile_options( rocfft-test PRIVATE -Wno-unused-command-line-argument )
 endif( )
 
+target_compile_options(rocfft-test PRIVATE -fopenmp)
+target_link_libraries(rocfft-test PRIVATE -fopenmp -L${HIP_CLANG_ROOT}/lib -Wl,-rpath=${HIP_CLANG_ROOT}/lib)
+
 set_target_properties( rocfft-test
   PROPERTIES DEBUG_POSTFIX "-d"
   CXX_EXTENSIONS NO )
