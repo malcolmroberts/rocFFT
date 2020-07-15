@@ -195,6 +195,7 @@ size_t count_iters(const std::tuple<T1, T1, T1>& i)
 template <typename T1>
 static size_t compute_partition_count(T1 length)
 {
+#ifdef BUILD_CLIENTS_TESTS_OPENMP
     // we seem to get contention from too many threads, which slows
     // things down.  particularly noticeable with mix_3D tests
     static const size_t MAX_PARTITIONS = 8;
@@ -210,6 +211,9 @@ static size_t compute_partition_count(T1 length)
 
     // either use the whole CPU, or use ceil(iters/iters_per_thread)
     return std::min(hw_threads, (iters + MIN_ITERS_PER_THREAD + 1) / MIN_ITERS_PER_THREAD);
+#else
+    return 1;
+#endif
 }
 
 // break a scalar length into some number of pieces, returning
