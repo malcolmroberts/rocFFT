@@ -77,10 +77,8 @@ target_link_libraries( rocfft-test
   ${FFTW_LIBRARIES}
   ${Boost_LIBRARIES} )
 
-# hipcc find this automatically, but hcc does not
-if( CMAKE_CXX_COMPILER MATCHES ".*/hcc$" )
-  target_link_libraries( rocfft-test PRIVATE hip::device )
-endif()
+target_link_libraries(rocfft-test INTERFACE hip::host)
+target_link_libraries( rocfft-test PRIVATE hip::device )
 
 
 if( USE_CUDA )
