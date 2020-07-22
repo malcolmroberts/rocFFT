@@ -78,7 +78,6 @@ target_link_libraries( rocfft-test
   ${Boost_LIBRARIES} )
 
 target_link_libraries(rocfft-test INTERFACE hip::host)
-target_link_libraries( rocfft-test PRIVATE hip::device )
 
 
 if( USE_CUDA )

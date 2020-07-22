@@ -57,12 +57,15 @@ foreach( rider ${rider_list})
     target_link_libraries( ${rider}
       PRIVATE
       roc::rocfft
-      ${Boost_LIBRARIES} )
+      ${Boost_LIBRARIES}
+      )
   else()
     target_link_libraries( ${rider} 
       PRIVATE
       ${CMAKE_DL_LIBS}
-      ${Boost_LIBRARIES} )
+      ${Boost_LIBRARIES}
+      hip::host
+      )
 
     # We need to include both rocfft.h and rocfft-export.h
     target_include_directories( ${rider}

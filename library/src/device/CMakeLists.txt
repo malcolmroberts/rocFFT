@@ -101,7 +101,7 @@ target_compile_features( rocfft-device PRIVATE
   cxx_static_assert cxx_nullptr cxx_auto_type )
 
 target_link_libraries(rocfft-device INTERFACE hip::host)
-target_link_libraries(rocfft-device PRIVATE hip::device)
+#target_link_libraries(rocfft-device PRIVATE hip::device)
 
 if(HIP_PLATFORM STREQUAL "nvcc")
   target_compile_options( rocfft-device PRIVATE
