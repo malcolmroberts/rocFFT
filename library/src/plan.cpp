@@ -3829,11 +3829,11 @@ void TreeNode::assign_params_CS_REAL_TRANSFORM_PAIR()
         unpack->iDist     = iDist;
         unpack->outStride = outStride;
         unpack->oDist     = oDist;
-        if(unpack->pairdim != 0)
-        {
-            unpack->inStride[unpack->pairdim] *= 2;
-            unpack->outStride[unpack->pairdim] *= 2;
-        }
+        // if(unpack->pairdim != 0)
+        // {
+        //     unpack->inStride[unpack->pairdim] *= 2;
+        //     unpack->outStride[unpack->pairdim] *= 2;
+        // }
     }
     else
     {
