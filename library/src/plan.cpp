@@ -2390,12 +2390,6 @@ void TreeNode::assign_buffers_CS_REAL_TRANSFORM_PAIR(TraverseState&   state,
                                                      OperatingBuffer& flipOut,
                                                      OperatingBuffer& obOutBuf)
 {
-    if(parent == nullptr)
-    {
-        obIn  = OB_USER_IN;
-        obOut = (placement == rocfft_placement_inplace) ? OB_USER_IN : OB_USER_OUT;
-    }
-    
     if(direction == -1)
     {
         auto cplan = childNodes[0];
@@ -3822,12 +3816,13 @@ void TreeNode::assign_params_CS_REAL_TRANSFORM_PAIR()
         cplan->iDist     = iDist;
         cplan->outStride = inStride;
         cplan->oDist     = iDist;
-        if(cplan->pairdim != 0)
-        {
-            cplan->inStride[cplan->pairdim] *= 2;
-            cplan->outStride[cplan->pairdim] *= 2;
-        }
+        // if(cplan->pairdim != 0)
+        // {
+        //     cplan->inStride[cplan->pairdim] *= 2;
+        //     cplan->outStride[cplan->pairdim] *= 2;
+        // }
         cplan->TraverseTreeAssignParamsLogicA();
+        
         auto unpack       = childNodes[1];
         assert(unpack->scheme == CS_KERNEL_PAIR_UNPACK);
         unpack->inStride  = inStride;
