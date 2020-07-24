@@ -900,7 +900,7 @@ void TreeNode::build_real()
        && direction == -1
        && SupportedLength(length[0])
        && length[0] < Large1DThreshold(precision)
-       && outArrayType != rocfft_array_type_hermitian_planar
+       //&& outArrayType != rocfft_array_type_hermitian_planar
        && (batch % 2 == 0)) // || (otherdims % 2 == 0))
     {
         // Paired algorithm
@@ -2396,7 +2396,8 @@ void TreeNode::assign_buffers_CS_REAL_TRANSFORM_PAIR(TraverseState&   state,
         if(parent == nullptr)
         {
             cplan->obIn = obIn;
-            cplan->obOut = OB_TEMP;
+	    // FIXME: hack
+            cplan->obOut = (placement == rocfft_placement_inplace) ? OB_TEMP : obIn;
         }
         cplan->TraverseTreeAssignBuffersLogicA(state, flipIn, flipOut, obIn);
         
@@ -3811,25 +3812,28 @@ void TreeNode::assign_params_CS_REAL_TRANSFORM_PAIR()
 {
     if(direction == -1)
     {
+      // A planar-to-planar c2c node, where we use the next batch (or dimension) as the imaginary
+      // part.  Thus, strides and distances are real-value sized.
         auto cplan       = childNodes[0];
         cplan->inStride  = inStride;
-        cplan->iDist     = iDist;
+	cplan->iDist     = 2 * iDist;
         cplan->outStride = inStride;
-        cplan->oDist     = iDist;
+        cplan->oDist     = 2 * iDist;
         // if(cplan->pairdim != 0)
         // {
         //     cplan->inStride[cplan->pairdim] *= 2;
         //     cplan->outStride[cplan->pairdim] *= 2;
         // }
         cplan->TraverseTreeAssignParamsLogicA();
-        
+
+	// The unpack plan is real-to-complex.
         auto unpack       = childNodes[1];
         assert(unpack->scheme == CS_KERNEL_PAIR_UNPACK);
         unpack->inStride  = inStride;
         unpack->iDist     = iDist;
         unpack->outStride = outStride;
         unpack->oDist     = oDist;
-        // if(unpack->pairdim != 0)
+        // if(unpack->pairdim == 0)
         // {
         //     unpack->inStride[unpack->pairdim] *= 2;
         //     unpack->outStride[unpack->pairdim] *= 2;

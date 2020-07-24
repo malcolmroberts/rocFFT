@@ -162,17 +162,16 @@ void complex2pair_unpack(const void* data_p, void*)
 
     void* bufIn0  = data->bufIn[0];
     void* bufOut0 = data->bufOut[0];
-    
     void* bufOut1 = data->bufOut[1];
         
     const ptrdiff_t ioffset
         = (data->node->parent->batch % 2 == 0)
-        ?  data->node->iDist
+        ?  idist
         : data->node->inStride[data->node->pairdim];
 
     const ptrdiff_t ooffset
         = (data->node->parent->batch % 2 == 0)
-        ? data->node->oDist
+        ? odist
         : data->node->outStride[data->node->pairdim];
     
     const size_t N = data->node->length[0];
