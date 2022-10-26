@@ -23,10 +23,8 @@
 
 struct StockhamKernelCC : public StockhamKernel
 {
-    explicit StockhamKernelCC(const StockhamGeneratorSpecs& specs,
-                              bool                          largeTwdBatchIsTransformCount)
+    explicit StockhamKernelCC(const StockhamGeneratorSpecs& specs)
         : StockhamKernel(specs)
-        , largeTwdBatchIsTransformCount(largeTwdBatchIsTransformCount)
     {
         large_twiddle_steps.decl_default = 3;
         large_twiddle_base.decl_default  = 8;
@@ -39,7 +37,6 @@ struct StockhamKernelCC : public StockhamKernel
     Variable apply_large_twiddle{"apply_large_twiddle", "bool"};
     Variable large_twiddle_steps{"large_twiddle_steps", "size_t"};
     Variable large_twiddle_base{"large_twiddle_base", "size_t"};
-    bool     largeTwdBatchIsTransformCount = false;
 
     //
     // arguments
@@ -433,7 +430,7 @@ struct StockhamKernelCC : public StockhamKernel
                              Parens{large_twd_lds},
                              Parens{large_twiddles}};
         args.push_back(which);
-        args.push_back(largeTwdBatchIsTransformCount ? batch : transform);
+        args.push_back(transform);
         return args;
     }
 

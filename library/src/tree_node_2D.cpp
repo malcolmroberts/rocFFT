@@ -110,18 +110,17 @@ void RTRT2DNode::AssignParams_internal()
     auto& trans1Plan     = childNodes[1];
     trans1Plan->inStride = row1Plan->outStride;
     trans1Plan->iDist    = row1Plan->oDist;
-    trans1Plan->outStride.push_back(trans1Plan->length[1]);
     trans1Plan->outStride.push_back(1);
-    trans1Plan->oDist = trans1Plan->length[0] * trans1Plan->outStride[0];
+    trans1Plan->outStride.push_back(trans1Plan->length[1]);
+    trans1Plan->oDist = trans1Plan->length[0] * trans1Plan->outStride[1];
     for(size_t index = 2; index < length.size(); index++)
     {
         trans1Plan->outStride.push_back(trans1Plan->oDist);
         trans1Plan->oDist *= length[index];
     }
 
-    auto& row2Plan     = childNodes[2];
-    row2Plan->inStride = trans1Plan->outStride;
-    std::swap(row2Plan->inStride[0], row2Plan->inStride[1]);
+    auto& row2Plan      = childNodes[2];
+    row2Plan->inStride  = trans1Plan->outStride;
     row2Plan->iDist     = trans1Plan->oDist;
     row2Plan->outStride = row2Plan->inStride;
     row2Plan->oDist     = row2Plan->iDist;
@@ -131,8 +130,7 @@ void RTRT2DNode::AssignParams_internal()
     trans2Plan->inStride  = row2Plan->outStride;
     trans2Plan->iDist     = row2Plan->oDist;
     trans2Plan->outStride = outStride;
-    std::swap(trans2Plan->outStride[0], trans2Plan->outStride[1]);
-    trans2Plan->oDist = oDist;
+    trans2Plan->oDist     = oDist;
 }
 
 /*****************************************************
