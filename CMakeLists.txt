@@ -1,3 +1,4 @@
+
 # #############################################################################
 # Copyright (C) 2016 - 2022 Advanced Micro Devices, Inc. All rights reserved.
 #
@@ -53,7 +54,7 @@ if( USE_HIP_CLANG )
   set( HIP_PLATFORM "hip-clang" )
   set( HIP_COMPILER "clang" )
 else()
-  set( HIP_PLATFORM "hcc" )
+  #set( HIP_PLATFORM "hcc" )
 endif()
 
 # This finds the rocm-cmake project, and installs it if not found
