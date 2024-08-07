@@ -55,7 +55,7 @@ if( USE_HIP_CLANG )
   set( HIP_PLATFORM "hip-clang" )
   set( HIP_COMPILER "clang" )
 else()
-  set( HIP_PLATFORM "hcc" )
+  #set( HIP_PLATFORM "hcc" )
 endif()
 
 # The nvcc backend can be used to compile for CUDA devices.
