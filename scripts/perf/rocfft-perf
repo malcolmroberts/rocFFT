@@ -122,6 +122,7 @@ import os
 import tempfile
 import re
 import collections
+import configparser
 
 from pathlib import Path
 
@@ -833,15 +834,37 @@ def command_bweff(arguments):
 
 def main():
 
+    conf_parser = argparse.ArgumentParser(
+        prog='rocfftslurm',
+        epilog="For a detailed usage overview, run: %(prog)s overview",
+        add_help=False)
+
+    conf_parser.add_argument("--config_file", metavar="FILE")
+    
+    args, remaining_args = conf_parser.parse_known_args()
+    config = {}
+    # configparser can't handle lists, so we have to deal with this separately:
+    listvars = {'modules': [], 'exports': []}
+    if args.config_file:
+        config = configparser.ConfigParser()
+        config.read([args.config_file])
+        for k in listvars:
+            if config.has_option('Defaults', '--' + k):
+                listvars[k] = config.get('Defaults', '--' + k).split(" ")
+
+    print(config)
+                    
     parser = argparse.ArgumentParser(
         prog='rocfft-perf',
-        epilog="For a detailed usage overview, run: %(prog)s overview")
+        epilog="For a detailed usage overview, run: %(prog)s overview",
+        parents=[conf_parser])
+    
     parser.add_argument('-v', '--verbose', action='store_true', default=False)
     parser.add_argument('--logfile',
                         type=str,
                         help="log file name",
                         default="rocfft-perf.log")
-
+    
     subparsers = parser.add_subparsers(dest='command')
 
     subparsers.add_parser('overview', help='print a general usage overview')
@@ -929,12 +952,7 @@ def main():
     run_parser.add_argument('-o',
                             '--out',
                             type=str,
-                            help='output (appendable)',
-                            action='append')
-    run_parser.add_argument('-S',
-                            '--suite',
-                            type=str,
-                            help='test suite name (appendable)',
+                            help='output directory (appendable)',
                             action='append')
     run_parser.add_argument('-w',
                             '--bench',
@@ -945,86 +963,11 @@ def main():
                             type=str,
                             help='test library path (appendable)',
                             action='append')
-    run_parser.add_argument('-r', '--radix', type=int, help='radix')
-    run_parser.add_argument('-x',
-                            '--xmin',
-                            type=int,
-                            help='minimum problem size in x direction')
-    run_parser.add_argument('-X',
-                            '--xmax',
-                            type=int,
-                            help='maximum problem size in x direction')
-    run_parser.add_argument('-y',
-                            '--ymin',
-                            type=int,
-                            help='minimum problem size in y direction')
-    run_parser.add_argument('-Y',
-                            '--ymax',
-                            type=int,
-                            help='maximum problem size in y direction')
-    run_parser.add_argument('-z',
-                            '--zmin',
-                            type=int,
-                            help='minimum problem size in z direction')
-    run_parser.add_argument('-Z',
-                            '--zmax',
-                            type=int,
-                            help='maximum problem size in z direction')
-    run_parser.add_argument('-D',
-                            '--direction',
-                            type=int,
-                            help='direction of transform')
-    run_parser.add_argument('-I',
-                            '--inplace',
-                            help='make transform in-place',
-                            action='store_true',
-                            default=False)
-    run_parser.add_argument('-O',
-                            '--outplace',
-                            help='make transform out-of-place',
-                            action='store_true',
-                            default=False)
-    run_parser.add_argument('-R',
-                            '--real',
-                            help='make transform real/complex',
-                            action='store_true',
-                            default=False)
-    run_parser.add_argument('-C',
-                            '--complex',
-                            help='make transform complex/complex',
-                            action='store_true',
-                            default=False)
-    run_parser.add_argument('-d',
-                            '--dimension',
-                            type=int,
-                            help='dimension of transform',
-                            action='append')
-    run_parser.add_argument('-b',
-                            '--nbatch',
-                            type=int,
-                            help='number of batches')
-    run_parser.add_argument('-N',
-                            '--ntrial',
-                            type=int,
-                            help='number of trials',
-                            default=20)
-    run_parser.add_argument('-mp_size',
-                            '--mp_size',
-                            type=int,
-                            help='number of MPI processors',
-                            default=1)
-
-    run_parser.add_argument('-mp_exec',
-                            '--mp_exec',
+    run_parser.add_argument('-S',
+                            '--suite',
                             type=str,
-                            help="path to mpi executable",
-                            default="/usr/bin/mpirun")
-
-    run_parser.add_argument('-ngpus',
-                            '--ngpus',
-                            type=int,
-                            help='number of GPUs',
-                            default=1)
+                            help='test suite name (appendable)',
+                            action='append')
     run_parser.add_argument(
         '-T',
         '--timeout',
@@ -1033,26 +976,132 @@ def main():
         default=600)
     run_parser.add_argument('--sequence',
                             type=int,
-                            help='dyna-bench test sequence',
+                            help='dyna-bench test sequence for controlling ordering of tests',
                             default=0)
+   
+    generator_parser = run_parser.add_argument_group('Generator / filters')
+    generator_parser.add_argument('-r', '--radix', type=int, help='radix')
+    generator_parser.add_argument('-x',
+                            '--xmin',
+                            type=int,
+                            help='minimum problem size in x direction')
+    generator_parser.add_argument('-X',
+                            '--xmax',
+                            type=int,
+                            help='maximum problem size in x direction')
+    generator_parser.add_argument('-y',
+                            '--ymin',
+                            type=int,
+                            help='minimum problem size in y direction')
+    generator_parser.add_argument('-Y',
+                            '--ymax',
+                            type=int,
+                            help='maximum problem size in y direction')
+    generator_parser.add_argument('-z',
+                            '--zmin',
+                            type=int,
+                            help='minimum problem size in z direction')
+    generator_parser.add_argument('-Z',
+                            '--zmax',
+                            type=int,
+                            help='maximum problem size in z direction')
+    generator_parser.add_argument('-D',
+                            '--direction',
+                            type=int,
+                            help='direction of transform')
+    generator_parser.add_argument('-I',
+                            '--inplace',
+                            help='make transform in-place',
+                            action='store_true',
+                            default=False)
+    generator_parser.add_argument('-O',
+                            '--outplace',
+                            help='make transform out-of-place',
+                            action='store_true',
+                            default=False)
+    generator_parser.add_argument('-R',
+                            '--real',
+                            help='make transform real/complex',
+                            action='store_true',
+                            default=False)
+    generator_parser.add_argument('-C',
+                            '--complex',
+                            help='make transform complex/complex',
+                            action='store_true',
+                            default=False)
+    generator_parser.add_argument('-d',
+                            '--dimension',
+                            type=int,
+                            help='dimension of transform',
+                            action='append')
+    generator_parser.add_argument('-b',
+                            '--nbatch',
+                            type=int,
+                            help='number of batches')
+    generator_parser.add_argument('-N',
+                            '--ntrial',
+                            type=int,
+                            help='number of trials',
+                            default=20)
+    generator_parser.add_argument('-mp_size',
+                            '--mp_size',
+                            type=int,
+                            help='number of MPI processors',
+                            default=1)
+    generator_parser.add_argument('-f',
+                            '--precision',
+                            type=str,
+                            help='precision',
+                            action='append')
 
+    #slurm_parser = run_parser.add_argument_group('Slurm')
+    parser.add_argument('--launcher',
+                        type=str,
+                        default=None,
+                        help='mpi launcher')
+    parser.add_argument('--partition',
+                        type=str,
+                        default=None,
+                        help='slurm partition')
+    parser.add_argument('--acct', type=str, default=None, help='slurm acct')
+    parser.add_argument('--modules',
+                              nargs='+',
+                              default=[],
+                              help='Modules to load')
+    parser.add_argument('--exports',
+                              nargs='+',
+                              default=[],
+                              help='Exports for test')
+    parser.add_argument('--gpuspernode',
+                              type=int,
+                              help='Gpus per node on cluster',
+                              default=1)
+    parser.add_argument('--logdir',
+                        type=str,
+                        default=None,
+                        help='log base directory')
+
+    
+    run_parser.add_argument('-mp_exec',
+                            '--mp_exec',
+                            type=str,
+                            help="path to mpi executable",
+                            default="/usr/bin/mpirun")
+    run_parser.add_argument('-ngpus',
+                            '--ngpus',
+                            type=int,
+                            help='number of GPUs',
+                            default=1)
     run_parser.add_argument('--ingrid',
                             type=int,
                             required=False,
                             nargs='+',
                             help='input processors grid')
-
     run_parser.add_argument('--outgrid',
                             type=int,
                             required=False,
                             nargs='+',
                             help='output processors grid')
-
-    run_parser.add_argument('-f',
-                            '--precision',
-                            type=str,
-                            help='precision',
-                            action='append')
     run_parser.add_argument('-t',
                             '--accutest',
                             type=str,
@@ -1169,7 +1218,15 @@ def main():
                               help='target transform size in GiB',
                               default=5)
 
-    arguments = parser.parse_args()
+    
+    if args.config_file:
+        for k, v in config.items("Defaults"):
+            parser.parse_args([str(k), str(v)], args)
+        for k in listvars:
+            if (len(listvars.get(k)) > 0):
+                vars(args)[k] = listvars.get(k)
+                       
+    arguments = parser.parse_args(remaining_args, args)
 
     logging.basicConfig(filename=arguments.logfile,
                         format='%(asctime)s %(levelname)s: %(message)s',
