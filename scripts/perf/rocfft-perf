@@ -852,8 +852,6 @@ def main():
             if config.has_option('Defaults', '--' + k):
                 listvars[k] = config.get('Defaults', '--' + k).split(" ")
 
-    print(config)
-                    
     parser = argparse.ArgumentParser(
         prog='rocfft-perf',
         epilog="For a detailed usage overview, run: %(prog)s overview",
