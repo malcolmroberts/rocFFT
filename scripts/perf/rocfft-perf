@@ -123,6 +123,7 @@ import tempfile
 import re
 import collections
 import configparser
+import copy
 
 from pathlib import Path
 
@@ -504,17 +505,17 @@ def command_run(arguments):
 
     # build generator
     generator = None
-    if arguments.suite is not None:
-        generator = perflib.generators.SuiteProblemGenerator(arguments.suite)
-    else:
+    if arguments.suite is None:
         generator = perflib.generators.RadixProblemGenerator()
         for attr in [
                 'radix', 'xmin', 'xmax', 'ymin', 'ymax', 'zmin', 'zmax',
-                'verbose', 'timeout', 'hipskip'
+                'verbose', 'timeout', 'hipskip', 'mp_size'
         ]:
             update(attr, generator, arguments)
+    else:
+        generator = perflib.generators.SuiteProblemGenerator(arguments.suite)
 
-    for attr in ['nbatch', 'ingrid', 'outgrid', 'gpuspernode']:
+    for attr in ['nbatch', 'gpuspernode']:
         update(attr, generator, arguments)
 
     # build filter
@@ -533,14 +534,10 @@ def command_run(arguments):
         filtered.precision = arguments.precision
     if arguments.dimension:
         filtered.dimension = arguments.dimension
-    if arguments.ingrid:
-        filtered.ingrid = arguments.ingrid
-    if arguments.outgrid:
-        filtered.outgrid = arguments.outgrid
     if arguments.gpuspernode:
         filtered.gpuspernode = arguments.gpuspernode
-    if arguments.maxnodes:
-        filtered.maxnodes = arguments.maxnodes
+    if arguments.mp_size:
+        filtered.mp_size = arguments.mp_size
 
     if arguments.list:
         for test in filtered(generator).generate_problems():
@@ -548,7 +545,7 @@ def command_run(arguments):
         return
 
     if arguments.slurm:
-        # If we are using sbatch, we have to separate the individual runs into different groups
+        # If we are using slurm, we have to separate the individual runs into different groups
         # based on the node/gpu configuration.  Then we launch a separate processes.
 
         # Dictionary of problems associated to a number-of-ranks / gpus-per-rank configuration:
@@ -562,59 +559,59 @@ def command_run(arguments):
 
         # We now have arrays of problems, each array associted to an mp size.
         # We can launch these separately in slurm jobs.
+        
         for keyv in drank.keys():
             print(keyv, len(drank[keyv]))
+            # FIXME: this is just dev output, so remove on PR.
 
-        if len(drank.keys()) == 1:
-            print("release the kraken-slurm!")
-            # Actually, we just need to fall-through here to get to the run commands below.
-        else:
-            print("recurse!")
-            # We need to submit batch jobs here, somehow telling the recursed rocfft-perf that it
-            # just needs to look at the single gpus-per-rank / comm-size combo
+        print(sys.argv)
+        for configkey in drank.keys():
+            newargv = copy.deepcopy(sys.argv)
+            newargv.remove("--slurm")
+            newargv.append("mp_size")
+            mp_size = configkey
+            newargv.append(str(mp_size))
+            print(newargv)
+            # FIXME: launch sbatch jobs here.
             
-        sys.exit(0)
-
-    # FIXME: if we have just one mp-size/ngpus config, or are not running slurm, then execute.
-        
-    # build timer
-    if arguments.bench is None:
-        print("No benchmarker set... use -w /path/to/benchmarker.")
-        return
-    dyna = 'dyna' in arguments.bench
-    if dyna:
-        if not arguments.lib:
-            print(
-                "Need to set dynamically loaded library when using dyna-bench."
-            )
+        # FIXME: we need to collect and collate the output data.
+            
+    else:
+        # build timer
+        if arguments.bench is None:
+            print("No benchmarker set... use -w /path/to/benchmarker.")
             return
-    if not arguments.out:
-        nout = len(arguments.lib) if dyna else 1
-        arguments.out = ['out' + str(i) for i in range(nout)]
+        dyna = 'dyna' in arguments.bench
+        if dyna:
+            if not arguments.lib:
+                print(
+                    "Need to set dynamically loaded library when using dyna-bench."
+                )
+                return
+        if not arguments.out:
+            nout = len(arguments.lib) if dyna else 1
+            arguments.out = ['out' + str(i) for i in range(nout)]
 
-    timer = perflib.timer.GroupedTimer()
-    for attr in [
-            'device', 'bench', 'accutest', 'lib', 'out', 'device', 'ntrial',
-            'verbose', 'timeout', 'sequence', 'ingrid',
-            'outgrid', 'gpuspernode'
-    ]:
-        update(attr, timer, arguments)
+        timer = perflib.timer.GroupedTimer()
+        for attr in [
+                'device', 'bench', 'accutest', 'lib', 'out', 'device', 'ntrial',
+                'verbose', 'timeout', 'sequence', 'gpuspernode', 'mp_size'
+        ]:
+            update(attr, timer, arguments)
 
-    specs = perflib.specs.get_machine_specs(timer.device, arguments.specs_type)
-    for out in timer.out:
-        specs_file = Path(out) / 'specs.txt'
-        specs_file.parent.mkdir(parents=True, exist_ok=True)
-        specs_file.write_text(str(specs))
+        specs = perflib.specs.get_machine_specs(timer.device, arguments.specs_type)
+        for out in timer.out:
+            specs_file = Path(out) / 'specs.txt'
+            specs_file.parent.mkdir(parents=True, exist_ok=True)
+            specs_file.write_text(str(specs))
 
-    failed_tokens = timer.run_cases(filtered(generator))
+        failed_tokens = timer.run_cases(filtered(generator))
 
-    print()
+        print()
 
-    if failed_tokens:
-        logging.info("failed tokens: " + "\n".join(failed_tokens))
-        print("failed tokens:\n" + "\n".join(failed_tokens))
-
-    # FIXME: if this is the slurm launching version, we need to collect and collate the output data.
+        if failed_tokens:
+            logging.info("failed tokens: " + "\n".join(failed_tokens))
+            print("failed tokens:\n" + "\n".join(failed_tokens))
 
 def command_autoperf(arguments):
     """Compare performance of two builds automagically."""
@@ -858,9 +855,9 @@ def command_bweff(arguments):
 # Main
 #
 
-
 def main():
 
+    # First parser is to get the config file.
     conf_parser = argparse.ArgumentParser(
         prog='rocfftslurm',
         epilog="For a detailed usage overview, run: %(prog)s overview",
@@ -879,6 +876,9 @@ def main():
             if config.has_option('Defaults', '--' + k):
                 listvars[k] = config.get('Defaults', '--' + k).split(" ")
 
+    # Main argument parser is derived from the config file parser.
+    # All config-file arguments need to be handled by the main argument parser; argparse and
+    # conf_parser can't talk otherwise.
     parser = argparse.ArgumentParser(
         prog='rocfft-perf',
         epilog="For a detailed usage overview, run: %(prog)s overview",
@@ -901,6 +901,8 @@ def main():
     html_parser = subparsers.add_parser('html', help='generate html plots')
     docx_parser = subparsers.add_parser('docx', help='generate docx plots')
     test_parser = subparsers.add_parser('test', help='test for regressions')
+    bweff_parser = subparsers.add_parser('bweff', help='bandwidth efficiency collection')
+
     autoperf_parser = subparsers.add_parser(
         'autoperf',
         help='clone, build, run, post, and plot two rocFFT commits')
@@ -971,8 +973,13 @@ def main():
                             help='Launch the jobs via slurm')
     run_parser.add_argument('--maxnodes',
                             type=int,
-                            default=1,
+                            default=0,
                             help='Maximum number of nodes to use')
+    for p in [run_parser, bweff_parser]:
+        p.add_argument('--mp_size',
+                       type=int,
+                       help='Number of ranks ',
+                       default=1)
     run_parser.add_argument(
         '--hipskip',
         action=argparse.BooleanOptionalAction,
@@ -1081,16 +1088,6 @@ def main():
                             type=str,
                             help='precision',
                             action='append')
-    generator_parser.add_argument('--ingrid',
-                            type=int,
-                            required=False,
-                            nargs='+',
-                            help='input processors grid')
-    generator_parser.add_argument('--outgrid',
-                            type=int,
-                            required=False,
-                            nargs='+',
-                            help='output processors grid')
     
     #slurm_parser = run_parser.add_argument_group('Slurm')
     parser.add_argument('--launcher',
@@ -1185,8 +1182,6 @@ def main():
                                  choices=['default', 'host', 'device'],
                                  help="type of specs")
 
-    bweff_parser = subparsers.add_parser(
-        'bweff', help='bandwidth efficiency collection')
     # suite of tests to run
     bweff_parser.add_argument('-S',
                               '--suite',
@@ -1229,6 +1224,10 @@ def main():
                        
     arguments = parser.parse_args(remaining_args, args)
 
+    if arguments.maxnodes != None and arguments.mp_size != None:
+        print("no!")
+        sys.exit(0)
+    
     logging.basicConfig(filename=arguments.logfile,
                         format='%(asctime)s %(levelname)s: %(message)s',
                         level=logging.DEBUG)

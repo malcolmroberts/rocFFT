@@ -106,8 +106,8 @@ class FilteredProblemGenerator:
     real: List[bool] = field(default_factory=lambda: [True, False])
     precision: List[str] = field(default_factory=lambda: ["single", "double"])
     gpuspernode: int = 1
-    maxnodes: int = 1
-
+    maxnodes: int = 0
+    mp_size: int = 1
     
     def __call__(self, generator):
         self.generator = generator
@@ -115,9 +115,10 @@ class FilteredProblemGenerator:
 
     def generate_problems(self):
         import sympy
-        for mpsize in sympy.divisors(self.maxnodes):
+        # We can either use maxnodes or mp_size, but not both.
+        for mp_size in (sympy.divisors(self.maxnodes) if self.maxnodes > 0 else [self.mp_size]):
             for problem in self.generator.generate_problems():
-                problem.mp_size = mpsize
+                problem.mp_size = mp_size
                 if len(problem.length) in self.dimension \
                    and problem.direction in self.direction \
                    and problem.inplace in self.inplace \
