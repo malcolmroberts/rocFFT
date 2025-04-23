@@ -71,8 +71,6 @@ class Problem:
     inplace: bool = False
 
     mp_size: int = 1
-    ingrid: List[int] = None
-    outgrid: List[int] = None
     gpus_per_rank: int = 1
     
     min_wgs: int = 64

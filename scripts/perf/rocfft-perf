@@ -538,6 +538,8 @@ def command_run(arguments):
         filtered.gpuspernode = arguments.gpuspernode
     if arguments.mp_size:
         filtered.mp_size = arguments.mp_size
+    if arguments.maxnodes:
+        filtered.maxnodes = arguments.maxnodes
 
     if arguments.list:
         for test in filtered(generator).generate_problems():
@@ -567,8 +569,9 @@ def command_run(arguments):
         print(sys.argv)
         for configkey in drank.keys():
             newargv = copy.deepcopy(sys.argv)
-            newargv.remove("--slurm")
-            newargv.append("mp_size")
+            while '--slurm' in newargv:
+                newargv.remove('--slurm')
+            newargv.append('mp_size')
             mp_size = configkey
             newargv.append(str(mp_size))
             print(newargv)
@@ -973,13 +976,13 @@ def main():
                             help='Launch the jobs via slurm')
     run_parser.add_argument('--maxnodes',
                             type=int,
-                            default=0,
+                            default=None,
                             help='Maximum number of nodes to use')
     for p in [run_parser, bweff_parser]:
         p.add_argument('--mp_size',
                        type=int,
                        help='Number of ranks ',
-                       default=1)
+                       default=None)
     run_parser.add_argument(
         '--hipskip',
         action=argparse.BooleanOptionalAction,
@@ -1224,9 +1227,13 @@ def main():
                        
     arguments = parser.parse_args(remaining_args, args)
 
+    #
+    # Handle command-line option conflicts:
+    #
     if arguments.maxnodes != None and arguments.mp_size != None:
-        print("no!")
-        sys.exit(0)
+        print("maxnodes and mp_size cannot be both specified")
+        sys.exit(1)
+
     
     logging.basicConfig(filename=arguments.logfile,
                         format='%(asctime)s %(levelname)s: %(message)s',
