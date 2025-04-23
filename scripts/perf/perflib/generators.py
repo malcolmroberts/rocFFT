@@ -59,24 +59,27 @@ def mktag(tag, dimension, precision, direction, inplace, real):
 @dataclass
 class Problem:
     length: List[int]
+    direction: int = -1
+    nbatch: int = 1
+    precision: str = "single"
+    real: bool = False
+
     istride: List[int] = None
     ostride: List[int] = None
-    nbatch: int = 1
-    mp_size: int = 1
-    mp_exec: str = ""
-    ingrid: List[int] = None
-    outgrid: List[int] = None
-    ngpus: int = 1
     idist: int = 0
     odist: int = 0
-    direction: int = -1
     inplace: bool = False
-    real: bool = False
-    precision: str = "single"
-    tag: str = None
+
+    mp_size: int = 1
+    ingrid: List[int] = None
+    outgrid: List[int] = None
+    gpus_per_rank: int = 1
+    
     min_wgs: int = 64
     max_wgs: int = 512
+    
     full_token: bool = False
+    tag: str = None
     meta: Dict[str, str] = field(default_factory=dict)
 
     def toJSON(self):
@@ -102,19 +105,25 @@ class FilteredProblemGenerator:
     inplace: List[bool] = field(default_factory=lambda: [True, False])
     real: List[bool] = field(default_factory=lambda: [True, False])
     precision: List[str] = field(default_factory=lambda: ["single", "double"])
+    gpuspernode: int = 1
+    maxnodes: int = 1
 
+    
     def __call__(self, generator):
         self.generator = generator
         return self
 
     def generate_problems(self):
-        for problem in self.generator.generate_problems():
-            if len(problem.length) in self.dimension \
-               and problem.direction in self.direction \
-               and problem.inplace in self.inplace \
-               and problem.real in self.real \
-               and problem.precision in self.precision:
-                yield problem
+        import sympy
+        for mpsize in sympy.divisors(self.maxnodes):
+            for problem in self.generator.generate_problems():
+                problem.mp_size = mpsize
+                if len(problem.length) in self.dimension \
+                   and problem.direction in self.direction \
+                   and problem.inplace in self.inplace \
+                   and problem.real in self.real \
+                   and problem.precision in self.precision:
+                    yield problem
 
 
 @dataclass

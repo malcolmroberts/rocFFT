@@ -73,13 +73,15 @@ class Timer:
         for prob in generator.generate_problems():
             total_prob_count += 1
 
+            # FIXME: replace this with the code in FilteredProblemGenerator
+            
             n_resources = 1
             # scalability for single-proc multi-GPU:
             if self.ngpus > 1 and self.mp_size == 1:
                 n_resources = self.ngpus
-            # scalability for single-proc using 1-GPU per MPI:
-            elif self.mp_size > 1 and self.ngpus == 1:
-                n_resources = self.mp_size
+            # scalability for multi-proc using 1-GPU per MPI:
+            elif self.maxnodes > 1 and self.ngpus == 1:
+                n_resources = self.maxnodes
 
             scaling = prob.meta.get('scaling')
             if scaling != None:
@@ -87,6 +89,9 @@ class Timer:
             else:
                 list_of_gpus = [n_resources]
 
+            print(n_resources)
+            sys.exit(0)
+                
             ws_factor = 1
 
             for g in list_of_gpus:

@@ -39,7 +39,7 @@ def run(bench,
         mp_size=1,
         ingrid=None,
         outgrid=None,
-        ngpus=1,
+        gpuspernode=1,
         device=None,
         libraries=None,
         verbose=False,
@@ -93,7 +93,7 @@ def run(bench,
             else:
                 cmd += ['--omgrid'] + list(outgrid)
 
-    if (ngpus > 1):
+    if (gpuspernode > 1):
         cmd += ['--ngpus', ngpus]
 
     cmd += ['-N', ntrial]

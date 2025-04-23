@@ -34,11 +34,6 @@ all_reals = [True, False]
 def_tuning_min_wgs = 64
 def_tuning_max_wgs = 512
 def_export_full_token = False
-default_ngpus = 1
-def_mp_size = 1
-def_mp_exec = '/usr/bin/mpirun'
-def_ingrid = [1, 1, 1]
-def_outgrid = [1, 1, 1]
 
 # yapf: disable
 lengths = {
@@ -390,11 +385,11 @@ def mktag(tag, dimension, precision, direction, inplace, real):
 
 
 # yield problem sizes with default precision, direction, etc
-def default_length_params(tag, lengths, nbatch, ngpus=default_ngpus, mp_size=def_mp_size, \
-                          mp_exec=def_mp_exec, precisions=all_precisions, \
+def default_length_params(tag, lengths, nbatch,  \
+                          precisions=all_precisions, \
                           directions=all_directions, inplaces=all_inplaces, \
                           reals=all_reals, min_wgs=def_tuning_min_wgs, \
-                          max_wgs=def_tuning_max_wgs,  ingrid=def_ingrid, outgrid=def_outgrid, \
+                          max_wgs=def_tuning_max_wgs, \
                           full_token=def_export_full_token, meta = {}):
 
     for precision, direction, inplace, real in product(precisions, directions,
@@ -406,11 +401,6 @@ def default_length_params(tag, lengths, nbatch, ngpus=default_ngpus, mp_size=def
                           tag=mktag(tag, len(length), precision, direction,
                                     inplace, real),
                           nbatch=nbatch,
-                          ngpus=ngpus,
-                          mp_size=mp_size,
-                          mp_exec=mp_exec,
-                          ingrid=ingrid,
-                          outgrid=outgrid,
                           direction=direction,
                           inplace=inplace,
                           real=real,
