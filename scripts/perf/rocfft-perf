@@ -574,7 +574,8 @@ def command_run(arguments):
             # just needs to look at the single gpus-per-rank / comm-size combo
             
         sys.exit(0)
-    
+
+    # FIXME: if we have just one mp-size/ngpus config, or are not running slurm, then execute.
         
     # build timer
     if arguments.bench is None:
