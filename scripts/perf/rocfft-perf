@@ -509,7 +509,7 @@ def command_run(arguments):
         generator = perflib.generators.RadixProblemGenerator()
         for attr in [
                 'radix', 'xmin', 'xmax', 'ymin', 'ymax', 'zmin', 'zmax',
-                'verbose', 'timeout', 'hipskip', 'mp_size'
+                'verbose', 'timeout', 'hipskip', 'nranks'
         ]:
             update(attr, generator, arguments)
     else:
@@ -534,12 +534,14 @@ def command_run(arguments):
         filtered.precision = arguments.precision
     if arguments.dimension:
         filtered.dimension = arguments.dimension
+    if arguments.gpusperrank:
+        filtered.gpusperrank = arguments.gpusperrank
     if arguments.gpuspernode:
         filtered.gpuspernode = arguments.gpuspernode
-    if arguments.mp_size:
-        filtered.mp_size = arguments.mp_size
     if arguments.maxnodes:
         filtered.maxnodes = arguments.maxnodes
+    if arguments.nranks:
+        filtered.nranks = arguments.nranks
 
     if arguments.list:
         for test in filtered(generator).generate_problems():
@@ -554,10 +556,11 @@ def command_run(arguments):
         drank = {}
         # TODO: handle multiple gpus per rank.
         for test in filtered(generator).generate_problems():
-            if not test.mp_size in drank:
-                drank[test.mp_size] = [test]
+            keyv = (test.gpusperrank, test.nranks)
+            if not keyv in drank:
+                drank[keyv] = [test]
             else:
-                drank[test.mp_size].append(test)
+                drank[keyv].append(test)
 
         # We now have arrays of problems, each array associted to an mp size.
         # We can launch these separately in slurm jobs.
@@ -571,9 +574,18 @@ def command_run(arguments):
             newargv = copy.deepcopy(sys.argv)
             while '--slurm' in newargv:
                 newargv.remove('--slurm')
-            newargv.append('mp_size')
-            mp_size = configkey
-            newargv.append(str(mp_size))
+            for arg in ['--maxnodes', '--gpuspernode']:
+                while arg in newargv:
+                    idx = newargv.index(arg)
+                    del newargv[idx+1]
+                    del newargv[idx]
+                
+            newargv.append('--nranks')
+            nranks = configkey[1]
+            newargv.append(str(nranks))
+            newargv.append('--gpusperrank')
+            gpusperrank = configkey[0]
+            newargv.append(str(gpusperrank))
             print(newargv)
             # FIXME: launch sbatch jobs here.
             
@@ -598,7 +610,7 @@ def command_run(arguments):
         timer = perflib.timer.GroupedTimer()
         for attr in [
                 'device', 'bench', 'accutest', 'lib', 'out', 'device', 'ntrial',
-                'verbose', 'timeout', 'sequence', 'gpuspernode', 'mp_size'
+                'verbose', 'timeout', 'sequence', 'nranks', 'gpusperrank'
         ]:
             update(attr, timer, arguments)
 
@@ -771,8 +783,6 @@ def command_bweff(arguments):
                                       precision=prob.precision,
                                       nbatch=nbatch,
                                       ntrial=arguments.ntrial,
-                                      ingrid=prob.ingrid,
-                                      outgrid=prob.outgrid,
                                       gpuspernode=prob.gpuspernode)[0]
 
             fp.seek(0)
@@ -979,10 +989,14 @@ def main():
                             default=None,
                             help='Maximum number of nodes to use')
     for p in [run_parser, bweff_parser]:
-        p.add_argument('--mp_size',
+        p.add_argument('--nranks',
                        type=int,
                        help='Number of ranks ',
                        default=None)
+    run_parser.add_argument('--gpusperrank',
+                            type=int,
+                            help='Number of gpus per ranks ',
+                            default=None)
     run_parser.add_argument(
         '--hipskip',
         action=argparse.BooleanOptionalAction,
@@ -1230,10 +1244,12 @@ def main():
     #
     # Handle command-line option conflicts:
     #
-    if arguments.maxnodes != None and arguments.mp_size != None:
-        print("maxnodes and mp_size cannot be both specified")
+    if arguments.maxnodes != None and arguments.nranks != None:
+        print("maxnodes and nranks cannot be both specified")
         sys.exit(1)
-
+    if arguments.gpuspernode != None and arguments.gpusperrank != None:
+        print("gpuspernode and gpsperrank cannot be both specified")
+        sys.exit(1)
     
     logging.basicConfig(filename=arguments.logfile,
                         format='%(asctime)s %(levelname)s: %(message)s',

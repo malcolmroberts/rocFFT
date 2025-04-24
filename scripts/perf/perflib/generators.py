@@ -70,8 +70,13 @@ class Problem:
     odist: int = 0
     inplace: bool = False
 
-    mp_size: int = 1
+    nranks: int = 1
+    imgrid: List[int] = None
+    omgrid: List[int] = None
+    
     gpus_per_rank: int = 1
+    ingrid: List[int] = None
+    ongrid: List[int] = None
     
     min_wgs: int = 64
     max_wgs: int = 512
@@ -103,9 +108,16 @@ class FilteredProblemGenerator:
     inplace: List[bool] = field(default_factory=lambda: [True, False])
     real: List[bool] = field(default_factory=lambda: [True, False])
     precision: List[str] = field(default_factory=lambda: ["single", "double"])
-    gpuspernode: int = 1
+
     maxnodes: int = 0
-    mp_size: int = 1
+    nranks: int = 1
+
+    gpuspernode: int = 0
+    gpusperrank: int = 1
+
+    # FIXME: the plan here is to loop over all of the relevant combinations of gpus and ranks.
+    # If gpusperrank is specified, then we can still loop over maxnodes.
+    # If nranks is specified, then we can still loop over gpuspernode.
     
     def __call__(self, generator):
         self.generator = generator
@@ -113,16 +125,44 @@ class FilteredProblemGenerator:
 
     def generate_problems(self):
         import sympy
-        # We can either use maxnodes or mp_size, but not both.
-        for mp_size in (sympy.divisors(self.maxnodes) if self.maxnodes > 0 else [self.mp_size]):
-            for problem in self.generator.generate_problems():
-                problem.mp_size = mp_size
-                if len(problem.length) in self.dimension \
-                   and problem.direction in self.direction \
-                   and problem.inplace in self.inplace \
-                   and problem.real in self.real \
-                   and problem.precision in self.precision:
-                    yield problem
+
+        hybrid = [False]
+        if self.gpuspernode > 1 and self.maxnodes > 1:
+            print("We have two different scaling experiments")
+            # So we loop over the two possibilities, one is hybrid, one is traditional
+            hybrid.append(True)
+            
+        gpudivs = sympy.divisors(self.gpuspernode) if self.gpuspernode > 0 else [self.gpusperrank]
+        rankdivs = sympy.divisors(self.maxnodes) if self.maxnodes > 0 else [self.nranks]
+
+        for ishybrid in hybrid:
+            gpus_ranks = []
+            if not ishybrid:
+                # Traditional parallelism, ie one GPU per rank.
+                for ngpu in gpudivs:
+                    gpus_ranks.append([1, ngpu])
+                for nranks in rankdivs[1:]:
+                    gpus_ranks.append([1, self.gpuspernode * nranks])
+            else:
+                # Hybrid parallelism, ie more than one GPU per rank.
+                for ngpu in gpudivs:
+                    gpus_ranks.append([ngpu, 1])
+                for nranks in rankdivs[1:]:
+                    gpus_ranks.append([self.gpuspernode, nranks])
+                
+            for gr in gpus_ranks:
+                for problem in self.generator.generate_problems():
+                    problem.gpusperrank = gr[0]
+                    problem.nranks = gr[1]
+                    if ishybrid:
+                        problem.tag += "_hybrid"
+                        # FIXME: check that this actually creates a different file.
+                    if len(problem.length) in self.dimension \
+                       and problem.direction in self.direction \
+                       and problem.inplace in self.inplace \
+                       and problem.real in self.real \
+                       and problem.precision in self.precision:
+                        yield problem
 
 
 @dataclass

@@ -36,10 +36,12 @@ def run(bench,
         nbatch=1,
         ntrial=1,
         mp_exec='/usr/bin/mpirun',
-        mp_size=1,
+        nranks=1,
+        imgrid=None,
+        omgrid=None,
+        gpusperrank=1,
         ingrid=None,
         outgrid=None,
-        gpuspernode=1,
         device=None,
         libraries=None,
         verbose=False,
@@ -69,29 +71,16 @@ def run(bench,
     else:
         cmd += ['--length'] + list(length)
 
-    if len(ingrid) > 0:
-        if isinstance(ingrid, int):
-            if (mp_size == 1):
-                cmd += ['--ingrid', ingrid]
-            else:
-                cmd += ['--imgrid', ingrid]
-        else:
-            if (mp_size == 1):
-                cmd += ['--ingrid'] + list(ingrid)
-            else:
-                cmd += ['--imgrid'] + list(ingrid)
-
-    if len(outgrid) > 0:
-        if isinstance(outgrid, int):
-            if (mp_size == 1):
-                cmd += ['--outgrid', outgrid]
-            else:
-                cmd += ['--omgrid', outgrid]
-        else:
-            if (mp_size == 1):
-                cmd += ['--outgrid'] + list(outgrid)
-            else:
-                cmd += ['--omgrid'] + list(outgrid)
+    # FIXME: determine where to configure grids, and how to control the configuration.
+    if ingrid != None:
+        cmd += ['--ingrid', ingrid]
+    if outgrid != None:
+        cmd += ['--outgrid', outgrid]
+        
+    if imgrid != None:
+        cmd += ['--imgrid', imgrid]
+    if omgrid != None:
+        cmd += ['--omgrid', omgrid]
 
     if (gpuspernode > 1):
         cmd += ['--ngpus', ngpus]
