@@ -1242,7 +1242,7 @@ def main():
     arguments = parser.parse_args(remaining_args, args)
 
     #
-    # Handle command-line option conflicts:
+    # Handle command-line option conflicts and requirements:
     #
     if arguments.maxnodes != None and arguments.nranks != None:
         print("maxnodes and nranks cannot be both specified")
@@ -1250,6 +1250,13 @@ def main():
     if arguments.gpuspernode != None and arguments.gpusperrank != None:
         print("gpuspernode and gpsperrank cannot be both specified")
         sys.exit(1)
+    if arguments.slurm and (arguments.gpuspernode == None and arguments.gpusperrank == None):
+        print("--slurm requires --gpuspernode and/or --gpusperrank")
+        sys.exit(1)
+    if not arguments.slurm and (arguments.gpuspernode != None or arguments.gpusperrank != None):
+        print("--gpuspernode and --gpusperrank require --slurm")
+        sys.exit(1)
+        
     
     logging.basicConfig(filename=arguments.logfile,
                         format='%(asctime)s %(levelname)s: %(message)s',
