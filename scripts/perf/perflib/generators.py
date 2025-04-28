@@ -123,6 +123,20 @@ class FilteredProblemGenerator:
         self.generator = generator
         return self
 
+    # Determine if val is a perfect power with exponent dim.
+    def is_pow(val, dim):
+        if dim == 0:
+            return True
+        if dim == 1:
+            return True
+        if dim == 2:
+            return sympy.ntheory.primetest.is_square(val)
+        cutoff = math.ceil(pow(val, 1 / dim))
+        for idx in range(2, cutoff + 1):
+            if idx ** dim == val:
+                return True
+        return False
+                
     def generate_problems(self):
         import sympy
 
@@ -135,6 +149,12 @@ class FilteredProblemGenerator:
         gpudivs = sympy.divisors(self.gpuspernode) if self.gpuspernode > 0 else [self.gpusperrank]
         rankdivs = sympy.divisors(self.maxnodes) if self.maxnodes > 0 else [self.nranks]
 
+        # NB: for weak scaling, we need constant data per GPU, which means that, for example, 3D
+        # problems will use nubmers of GPUs that are cubes.  This implies some relationship between
+        # gpus per node and max nodes.  For example, with 6 gpus per node, we could have max nodes
+        # equal to 36, so then we get 1 gpu, then 36*6=216 gpus.  Powers-of-two are, as usual, much
+        # nicer to deal with.
+        
         for ishybrid in hybrid:
             gpus_ranks = []
             if not ishybrid:
@@ -149,9 +169,15 @@ class FilteredProblemGenerator:
                     gpus_ranks.append([ngpu, 1])
                 for nranks in rankdivs[1:]:
                     gpus_ranks.append([self.gpuspernode, nranks])
-                
-            for gr in gpus_ranks:
-                for problem in self.generator.generate_problems():
+            print(gpus_ranks)
+                    
+            for problem in self.generator.generate_problems():
+                for gr in gpus_ranks:
+                    ngpus = gr[0] * gr[1]
+                    if 'scaling' in problem.meta and problem.meta.scaling == 'weak':
+                        if not is_pow(ngpus, len(problem.length)):
+                            continue
+
                     problem.gpusperrank = gr[0]
                     problem.nranks = gr[1]
                     if ishybrid:

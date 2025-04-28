@@ -61,79 +61,47 @@ class Timer:
             raise RuntimeError(f"Unable to find mpi executable {self.bench}")
 
         failed_tokens = []
-
-        # get a list of powers of two less or equal than the number of requested resources,
-        # to be used for scalability experiments
-        gpu_list_pow2 = lambda n: [
-            2**i for i in range(int(ceil(n**0.5)) + 1) if 2**i <= n
-        ]
-
         total_prob_count = 0
         no_accutest_prob_count = 0
         for prob in generator.generate_problems():
             total_prob_count += 1
 
-            # FIXME: replace this with the code in FilteredProblemGenerator
-            
-            n_resources = 1
-            # scalability for single-proc multi-GPU:
-            if self.ngpus > 1 and self.mp_size == 1:
-                n_resources = self.ngpus
-            # scalability for multi-proc using 1-GPU per MPI:
-            elif self.maxnodes > 1 and self.ngpus == 1:
-                n_resources = self.maxnodes
+            token, seconds, success, __, __ = perflib.bench.run(
+                bench=self.bench,
+                length=tuple([ws_factor * l for l in prob.length]),
+                direction=prob.direction,
+                real=prob.real,
+                inplace=prob.inplace,
+                precision=prob.precision,
+                nbatch=prob.nbatch,
+                mp_size=self.mp_size,
+                mp_exec=self.mp_exec,
+                ingrid=self.ingrid,
+                outgrid=self.outgrid,
+                ngpus=self.ngpus,
+                ntrial=self.ntrial,
+                device=self.device,
+                libraries=self.lib,
+                verbose=self.verbose,
+                timeout=self.timeout,
+                sequence=self.sequence,
+                skiphip=self.hipskip,
+                scalability=(scaling != None))
 
-            scaling = prob.meta.get('scaling')
-            if scaling != None:
-                list_of_gpus = gpu_list_pow2(n_resources)
+            if success:
+                for idx, vals in enumerate(seconds):
+                    out = path(self.out[idx])
+                    logging.info("output: " + str(out))
+                    meta = {'title': prob.tag}
+                    meta.update(prob.meta)
+                    perflib.utils.write_dat(out, token, seconds[idx], meta)
             else:
-                list_of_gpus = [n_resources]
+                failed_tokens.append(token)
 
-            print(n_resources)
-            sys.exit(0)
-                
-            ws_factor = 1
-
-            for g in list_of_gpus:
-                token, seconds, success, __, __ = perflib.bench.run(
-                    self.bench,
-                    tuple([ws_factor * l for l in prob.length]),
-                    direction=prob.direction,
-                    real=prob.real,
-                    inplace=prob.inplace,
-                    precision=prob.precision,
-                    nbatch=prob.nbatch,
-                    mp_size=g if self.mp_size > 1 else 1,
-                    mp_exec=self.mp_exec,
-                    ingrid=self.ingrid,
-                    outgrid=self.outgrid,
-                    ngpus=g if self.ngpus > 1 else 1,
-                    ntrial=self.ntrial,
-                    device=self.device,
-                    libraries=self.lib,
-                    verbose=self.verbose,
-                    timeout=self.timeout,
-                    sequence=self.sequence,
-                    skiphip=self.hipskip,
-                    scalability=(scaling != None))
-
-                if scaling == 'weak':
-                    ws_factor *= 2
-
-                if success:
-                    for idx, vals in enumerate(seconds):
-                        out = path(self.out[idx])
-                        logging.info("output: " + str(out))
-                        meta = {'title': prob.tag}
-                        meta.update(prob.meta)
-                        perflib.utils.write_dat(out, token, seconds[idx], meta)
-                else:
-                    failed_tokens.append(token)
-
-                if self.active_tests_tokens and token.encode(
-                ) not in self.active_tests_tokens:
-                    no_accutest_prob_count += 1
-                    logging.info(f'No accuracy test coverage for: ' + token)
+            if self.active_tests_tokens and token.encode(
+            ) not in self.active_tests_tokens:
+                no_accutest_prob_count += 1
+                logging.info(f'No accuracy test coverage for: ' + token)
 
         if no_accutest_prob_count > 0:
             print('\t')

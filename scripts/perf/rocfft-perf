@@ -569,6 +569,8 @@ def command_run(arguments):
             print(keyv, len(drank[keyv]))
             # FIXME: this is just dev output, so remove on PR.
 
+
+        # FIXME: some debug code here. remove prints in PR
         print(sys.argv)
         for configkey in drank.keys():
             newargv = copy.deepcopy(sys.argv)
