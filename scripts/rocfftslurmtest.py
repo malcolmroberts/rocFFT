@@ -50,13 +50,16 @@ def main():
                         default=None,
                         help='build directory')
     parser.add_argument('--build',
-                        type=lambda x: bool(x.lower() in ("yes", "true", "t", "1")),
+                        type=lambda x: bool(x.lower() in
+                                            ("yes", "true", "t", "1")),
                         default=False)
     parser.add_argument('--ccache',
-                        type=lambda x: bool(x.lower() in ("yes", "true", "t", "1")),
+                        type=lambda x: bool(x.lower() in
+                                            ("yes", "true", "t", "1")),
                         default=False)
     parser.add_argument('--buildcraympi',
-                        type=lambda x: bool(x.lower() in ("yes", "true", "t", "1")),
+                        type=lambda x: bool(x.lower() in
+                                            ("yes", "true", "t", "1")),
                         default=False)
     parser.add_argument('--launcher',
                         type=str,
@@ -134,7 +137,6 @@ def main():
     print("build library?", args.build)
     print("buildcraympi library?", args.buildcraympi)
 
-    
     # Main job script:
 
     buildjob = None
