@@ -2305,11 +2305,11 @@ public:
 
         auto& field = fields.emplace_back();
 
-        // start with empty brick in field
+        // Start with empty brick in field
         field.bricks.reserve(total_bricks);
         field.bricks.emplace_back();
 
-        // go over the grid
+        // Go over the grid
         for(size_t i = 0; i < brick_grid.size(); ++i)
         {
             std::vector<fft_brick> cur_bricks;
@@ -2329,21 +2329,25 @@ public:
                     new_brick.lower.push_back(cur_length / brick_count * ibrick);
                     // last brick needs to include the whole split len
                     if(ibrick == brick_count - 1)
+                    {
                         new_brick.upper.push_back(cur_length);
+                    }
                     else
+                    {
                         new_brick.upper.push_back(std::min(
                             cur_length, new_brick.lower.back() + cur_length / brick_count));
+                    }
                 }
             }
         }
 
-        // give all bricks contiguous strides
+        // Give all bricks contiguous strides
         int brickIdx = 0;
         for(auto& b : field.bricks)
         {
             b.stride.resize(b.upper.size());
 
-            // fill strides from fastest to slowest
+            // Fill strides from fastest to slowest
             size_t brick_dist = 1;
             for(size_t distIdx = 0; distIdx < b.upper.size(); ++distIdx)
             {
@@ -2351,23 +2355,26 @@ public:
                 brick_dist *= *(b.upper.rbegin() + distIdx) - *(b.lower.rbegin() + distIdx);
             }
 
-            // split across ranks for a multi-process transform,
+            // Split across ranks for a multi-process transform,
             // otherwise split across bricks.  assume there's one
             // rank/device per brick
             if(mp_lib == fft_mp_lib_none)
             {
-                b.device = brickIdx++;
+                b.device = brickIdx;
             }
             else
             {
-                int rank = brickIdx / ngpus; // determine MPI rank
-                int gpu  = brickIdx % ngpus; // determine GPU within rank
+                if(ngpus % num_nodes != 0) {
+                    throw std::runtime_error("Number of nodes doesn't evenly divide the GPU count");
+                }
+                int gpusperrank = ngpus / num_nodes; 
+                int rank = gpusperrank / ngpus; // determine MPI rank
+                int gpu  = gpusperrank % ngpus; // determine GPU within rank
 
                 b.rank   = rank;
-                b.device = (rank % num_nodes) * ngpus + gpu;
-
-                brickIdx++;
+                b.device = gpu;
             }
+            brickIdx++;
         }
     }
 
