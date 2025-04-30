@@ -2285,12 +2285,12 @@ public:
     // starts with batch dimension, followed by FFT dimensions
     // slowest to fastest.
     // num_nodes represents the number of nodes used in the parallel
-    // computer, which are assumed to have at least ngpus each
-    void distribute_field(int                              ngpus,
+    // computer, which are assumed to have at least gpusperrank each
+    void distribute_field(int                              gpusperrank,
                           const std::vector<unsigned int>& brick_grid,
                           std::vector<fft_field>&          fields,
                           const std::vector<size_t>&       field_length,
-                          int                              num_nodes)
+                          int                              mpi_size)
     {
         if(brick_grid.size() != field_length.size())
             throw std::runtime_error(
@@ -2364,12 +2364,8 @@ public:
             }
             else
             {
-                if(ngpus % num_nodes != 0) {
-                    throw std::runtime_error("Number of nodes doesn't evenly divide the GPU count");
-                }
-                int gpusperrank = ngpus / num_nodes; 
-                int rank = gpusperrank / ngpus; // determine MPI rank
-                int gpu  = gpusperrank % ngpus; // determine GPU within rank
+                int rank = brickIdx / gpusperrank; // determine MPI rank
+                int gpu  = brickIdx % gpusperrank; // determine GPU within rank
 
                 b.rank   = rank;
                 b.device = gpu;
@@ -2383,22 +2379,22 @@ public:
     // and ending with fastest FFT dimension. For single-proc single-proc
     // multi-gpu, ngpus represents the number of GPUs to use;
     // while for multi-proc it represents the number of GPUs on each rank.
-    void distribute_input(int ngpus, const std::vector<unsigned int>& brick_grid, int num_nodes = 1)
+    void distribute_input(int gpusperrank, const std::vector<unsigned int>& brick_grid, int mpi_size = 1)
     {
         auto len = length;
         len.insert(len.begin(), nbatch);
-        distribute_field(ngpus, brick_grid, ifields, len, num_nodes);
+        distribute_field(gpusperrank, brick_grid, ifields, len, mpi_size);
     }
 
     // Distribute problem output among specified grid of devices/processors.
     // Grid specifies number of bricks per dimension, starting with batch
     // and ending with fastest FFT dimension.
     void
-        distribute_output(int ngpus, const std::vector<unsigned int>& brick_grid, int num_nodes = 1)
+        distribute_output(int gpusperrank, const std::vector<unsigned int>& brick_grid, int mpi_size = 1)
     {
         auto len = olength();
         len.insert(len.begin(), nbatch);
-        distribute_field(ngpus, brick_grid, ofields, len, num_nodes);
+        distribute_field(gpusperrank, brick_grid, ofields, len, mpi_size);
     }
 };
 
