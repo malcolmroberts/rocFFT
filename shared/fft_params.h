@@ -2379,7 +2379,9 @@ public:
     // and ending with fastest FFT dimension. For single-proc single-proc
     // multi-gpu, ngpus represents the number of GPUs to use;
     // while for multi-proc it represents the number of GPUs on each rank.
-    void distribute_input(int gpusperrank, const std::vector<unsigned int>& brick_grid, int mpi_size = 1)
+    void distribute_input(int                              gpusperrank,
+                          const std::vector<unsigned int>& brick_grid,
+                          int                              mpi_size = 1)
     {
         auto len = length;
         len.insert(len.begin(), nbatch);
@@ -2389,8 +2391,9 @@ public:
     // Distribute problem output among specified grid of devices/processors.
     // Grid specifies number of bricks per dimension, starting with batch
     // and ending with fastest FFT dimension.
-    void
-        distribute_output(int gpusperrank, const std::vector<unsigned int>& brick_grid, int mpi_size = 1)
+    void distribute_output(int                              gpusperrank,
+                           const std::vector<unsigned int>& brick_grid,
+                           int                              mpi_size = 1)
     {
         auto len = olength();
         len.insert(len.begin(), nbatch);
