@@ -25,7 +25,7 @@ class sbatchjob:
         self.errfilename = errfilename
 
 
-def sbatch(jobname, params, logdir, workdir, jobcmd, verbose=0):
+def sbatch(jobname, params, logdir, workdir, jobcmd, verbose=False):
     sbatchcmd = []
     sbatchcmd.append("sbatch")
 
@@ -68,8 +68,7 @@ def sbatch(jobname, params, logdir, workdir, jobcmd, verbose=0):
 
     batchscript += jobcmd
 
-    if verbose > 0:
-        print(verbose)
+    if verbose:
         print(batchscript)
 
     p = subprocess.Popen(sbatchcmd,
@@ -111,7 +110,7 @@ def scancel(job):
         sys.exit(1)
 
 
-def reportonjobs(params, logdir, jobs, verbose=0):
+def reportonjobs(params, logdir, jobs, verbose=False):
     jobids = []
     for job in jobs:
         jobids.append(job.jobid)
@@ -150,7 +149,7 @@ def reportonjobs(params, logdir, jobs, verbose=0):
 
     batchscript += reportcmd + "\n"
 
-    if verbose > 0:
+    if verbose:
         print(batchscript)
 
     sbatchcmd = []
