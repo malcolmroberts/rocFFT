@@ -40,6 +40,9 @@ def main():
         epilog="For a detailed usage overview, run: %(prog)s overview",
         parents=[conf_parser])
 
+    # NB: confgparser requires a value for boolean arguments, so action='store_true' isn't really an
+    # option for boolean argparse arguments which are also handled by configparser.
+
     parser.add_argument('--verbose', type=int, default=0)
     parser.add_argument('--logdir',
                         type=str,
