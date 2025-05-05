@@ -124,6 +124,7 @@ import re
 import collections
 import configparser
 import copy
+import datetime
 
 from pathlib import Path
 
@@ -552,6 +553,12 @@ def command_run(arguments):
         # If we are using slurm, we have to separate the individual runs into different groups
         # based on the node/gpu configuration.  Then we launch a separate processes.
 
+        
+        top = Path(__file__).resolve().parent / '..'
+        sys.path.append(str(top))
+        import rocslurm
+
+        
         # Dictionary of problems associated to a number-of-ranks / gpus-per-rank configuration:
         drank = {}
         # TODO: handle multiple gpus per rank.
@@ -589,6 +596,31 @@ def command_run(arguments):
             gpusperrank = configkey[0]
             newargv.append(str(gpusperrank))
             print(newargv)
+            
+            
+            # Set up the basic slurm parameters:
+            jobparams = rocslurm.sbatchparams()
+            if arguments.partition != None:
+                jobparams.partition = arguments.partition
+            jobparams.nnodes = 1
+            if arguments.acct != None:
+                jobparams.acct = arguments.acct
+            jobparams.modules = arguments.modules
+            jobparams.exports = arguments.exports
+            jobparams.gpuspernode = arguments.gpuspernode
+
+            jobparams.timelimit = datetime.timedelta(hours=2)
+            jobparams.gpuspertask = gpusperrank
+            jobparams.nnodes = ( nranks * gpusperrank ) // arguments.gpuspernode
+            jobparams.ntaskspernode = arguments.gpuspernode // gpusperrank
+
+            mpijob = rocslurm.sbatch("mpi" + str(nranks) + "x" + str(gpusperrank),
+                                     jobparams,
+                                     arguments.logdir,
+                                     str(top),
+                                     " ".join(newargv),
+                                     verbose=arguments.verbose)
+            
             # FIXME: launch sbatch jobs here.
             
         # FIXME: we need to collect and collate the output data.
@@ -1257,6 +1289,9 @@ def main():
         sys.exit(1)
     if not arguments.slurm and (arguments.gpuspernode != None or arguments.gpusperrank != None):
         print("--gpuspernode and --gpusperrank require --slurm")
+        sys.exit(1)
+    if arguments.slurm and not arguments.logdir:
+        print("--slurm requires --logdir")
         sys.exit(1)
         
     

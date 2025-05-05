@@ -174,7 +174,7 @@ class FilteredProblemGenerator:
             for problem in self.generator.generate_problems():
                 for gr in gpus_ranks:
                     ngpus = gr[0] * gr[1]
-                    if 'scaling' in problem.meta and problem.meta.scaling == 'weak':
+                    if problem.meta.get('scaling') == 'weak':
                         if not is_pow(ngpus, len(problem.length)):
                             continue
 
