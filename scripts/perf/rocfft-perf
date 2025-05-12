@@ -1144,7 +1144,8 @@ def main():
     parser.add_argument('--launcher',
                         type=str,
                         default=None,
-                        help='mpi launcher')
+                        help='Multi-process launcher')
+    parser.add_argument('--gpuidvar', type=str, default=None, help='Environment variable for rank/device selection')
     parser.add_argument('--partition',
                         type=str,
                         default=None,
