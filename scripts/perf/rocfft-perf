@@ -1150,6 +1150,15 @@ def main():
                         type=str,
                         default=None,
                         help='slurm partition')
+    parser.add_argument('--ccache',
+                        type=lambda x: bool(x.lower() in
+                                            ("yes", "true", "t", "1")),
+                        default=False)
+    parser.add_argument('--buildcraympi',
+                        type=lambda x: bool(x.lower() in
+                                            ("yes", "true", "t", "1")),
+                        default=False)
+
     parser.add_argument('--acct', type=str, default=None, help='slurm acct')
     parser.add_argument('--modules',
                               nargs='+',
