@@ -2284,7 +2284,7 @@ public:
     // number of bricks to split that dimension on.  Field length
     // starts with batch dimension, followed by FFT dimensions
     // slowest to fastest.
-    // num_ranks represents the number of nodes used in the parallel
+    // num_ranks represents the number of ranks used in the parallel
     // computer, which are assumed to have at least gpusperrank each
     void distribute_field(int                              gpusperrank,
                           const std::vector<unsigned int>& brick_grid,
