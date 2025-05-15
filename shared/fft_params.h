@@ -2377,7 +2377,7 @@ public:
     // Distribute problem input among specified grid of devices/processors.
     // Grid specifies number of bricks per dimension, starting with batch
     // and ending with fastest FFT dimension. For single-proc single-proc
-    // multi-gpu, ngpus represents the number of GPUs to use;
+    // multi-gpu, gpusperrank represents the number of GPUs to use;
     // while for multi-proc it represents the number of GPUs on each rank.
     void distribute_input(int                              gpusperrank,
                           const std::vector<unsigned int>& brick_grid,
