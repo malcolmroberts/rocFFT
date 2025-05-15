@@ -2284,13 +2284,13 @@ public:
     // number of bricks to split that dimension on.  Field length
     // starts with batch dimension, followed by FFT dimensions
     // slowest to fastest.
-    // num_nodes represents the number of nodes used in the parallel
+    // num_ranks represents the number of nodes used in the parallel
     // computer, which are assumed to have at least gpusperrank each
     void distribute_field(int                              gpusperrank,
                           const std::vector<unsigned int>& brick_grid,
                           std::vector<fft_field>&          fields,
                           const std::vector<size_t>&       field_length,
-                          int                              mpi_size)
+                          int                              num_ranks)
     {
         if(brick_grid.size() != field_length.size())
             throw std::runtime_error(
@@ -2381,11 +2381,11 @@ public:
     // while for multi-proc it represents the number of GPUs on each rank.
     void distribute_input(int                              gpusperrank,
                           const std::vector<unsigned int>& brick_grid,
-                          int                              mpi_size = 1)
+                          int                              num_ranks = 1)
     {
         auto len = length;
         len.insert(len.begin(), nbatch);
-        distribute_field(gpusperrank, brick_grid, ifields, len, mpi_size);
+        distribute_field(gpusperrank, brick_grid, ifields, len, num_ranks);
     }
 
     // Distribute problem output among specified grid of devices/processors.
@@ -2393,11 +2393,11 @@ public:
     // and ending with fastest FFT dimension.
     void distribute_output(int                              gpusperrank,
                            const std::vector<unsigned int>& brick_grid,
-                           int                              mpi_size = 1)
+                           int                              num_ranks = 1)
     {
         auto len = olength();
         len.insert(len.begin(), nbatch);
-        distribute_field(gpusperrank, brick_grid, ofields, len, mpi_size);
+        distribute_field(gpusperrank, brick_grid, ofields, len, num_ranks);
     }
 };
 
