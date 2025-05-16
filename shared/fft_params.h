@@ -703,11 +703,6 @@ public:
                 "Grid of processors must be of the same dimension as the FFT!");
         }
 
-        if((ingrid_size != mp_ranks) || (outgrid_size != mp_ranks))
-        {
-            throw std::runtime_error("Number of GPUs defined by input/output grids must be "
-                                     "equal to the number of available GPUs!");
-        }
     }
 
     // optional brick decomposition of inputs/outputs

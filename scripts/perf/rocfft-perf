@@ -553,11 +553,9 @@ def command_run(arguments):
         # If we are using slurm, we have to separate the individual runs into different groups
         # based on the node/gpu configuration.  Then we launch a separate processes.
 
-        
         top = Path(__file__).resolve().parent / '..'
         sys.path.append(str(top))
         import rocslurm
-
         
         # Dictionary of problems associated to a number-of-ranks / gpus-per-rank configuration:
         drank = {}
@@ -581,6 +579,15 @@ def command_run(arguments):
         print(sys.argv)
         for configkey in drank.keys():
             newargv = copy.deepcopy(sys.argv)
+            import os
+            cwd = os.getcwd()
+            print(cwd)
+            newargv[0] = os.path.realpath(__file__)
+
+            # FIXME: make sure that the non-slurm context doesn't overwrite this option.
+            newargv.insert(1, '--logfile')
+            newargv.insert(2, arguments.logdir + "/$SLURM_JOB_ID/rocfft-perf.log")
+            
             while '--slurm' in newargv:
                 newargv.remove('--slurm')
             for arg in ['--maxnodes', '--gpuspernode']:
@@ -595,6 +602,7 @@ def command_run(arguments):
             newargv.append('--gpusperrank')
             gpusperrank = configkey[0]
             newargv.append(str(gpusperrank))
+
             print(newargv)
             
             
@@ -602,7 +610,6 @@ def command_run(arguments):
             jobparams = rocslurm.sbatchparams()
             if arguments.partition != None:
                 jobparams.partition = arguments.partition
-            jobparams.nnodes = 1
             if arguments.acct != None:
                 jobparams.acct = arguments.acct
             jobparams.modules = arguments.modules
@@ -611,7 +618,7 @@ def command_run(arguments):
 
             jobparams.timelimit = datetime.timedelta(hours=2)
             jobparams.gpuspertask = gpusperrank
-            jobparams.nnodes = ( nranks * gpusperrank ) // arguments.gpuspernode
+            jobparams.nnodes = ( nranks * gpusperrank + arguments.gpuspernode - 1) // arguments.gpuspernode
             jobparams.ntaskspernode = arguments.gpuspernode // gpusperrank
 
             mpijob = rocslurm.sbatch("mpi" + str(nranks) + "x" + str(gpusperrank),
@@ -627,8 +634,15 @@ def command_run(arguments):
             
     else:
         # build timer
+        import os
+        
+        file_path = os.path.realpath(__file__)
+        print(file_path)
+        cwd = os.getcwd()
+        print(cwd)
+        
         if arguments.bench is None:
-            print("No benchmarker set... use -w /path/to/benchmarker.")
+            print("No benchmarker set... use --bench /path/to/benchmarker.")
             return
         dyna = 'dyna' in arguments.bench
         if dyna:
@@ -644,7 +658,7 @@ def command_run(arguments):
         timer = perflib.timer.GroupedTimer()
         for attr in [
                 'device', 'bench', 'accutest', 'lib', 'out', 'device', 'ntrial',
-                'verbose', 'timeout', 'sequence', 'nranks', 'gpusperrank'
+                'verbose', 'timeout', 'sequence', 'launcher'
         ]:
             update(attr, timer, arguments)
 
@@ -903,7 +917,7 @@ def command_bweff(arguments):
 #
 
 def main():
-
+    
     # First parser is to get the config file.
     conf_parser = argparse.ArgumentParser(
         prog='rocfftslurm',
@@ -1140,7 +1154,6 @@ def main():
                             help='precision',
                             action='append')
     
-    #slurm_parser = run_parser.add_argument_group('Slurm')
     parser.add_argument('--launcher',
                         type=str,
                         default=None,
@@ -1291,14 +1304,11 @@ def main():
     if arguments.maxnodes != None and arguments.nranks != None:
         print("maxnodes and nranks cannot be both specified")
         sys.exit(1)
-    if arguments.gpuspernode != None and arguments.gpusperrank != None:
+    if arguments.slurm and (arguments.gpuspernode != None and arguments.gpusperrank != None):
         print("gpuspernode and gpsperrank cannot be both specified")
         sys.exit(1)
     if arguments.slurm and (arguments.gpuspernode == None and arguments.gpusperrank == None):
         print("--slurm requires --gpuspernode and/or --gpusperrank")
-        sys.exit(1)
-    if not arguments.slurm and (arguments.gpuspernode != None or arguments.gpusperrank != None):
-        print("--gpuspernode and --gpusperrank require --slurm")
         sys.exit(1)
     if arguments.slurm and not arguments.logdir:
         print("--slurm requires --logdir")

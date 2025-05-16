@@ -76,7 +76,7 @@ class Problem:
     
     gpus_per_rank: int = 1
     ingrid: List[int] = None
-    ongrid: List[int] = None
+    outgrid: List[int] = None
     
     min_wgs: int = 64
     max_wgs: int = 512
@@ -179,10 +179,23 @@ class FilteredProblemGenerator:
                             continue
 
                     problem.gpusperrank = gr[0]
+                    if problem.gpusperrank > 1:
+                        problem.ingrid = [1] * len(problem.length)
+                        problem.ingrid[0] = problem.gpusperrank
+                        problem.outgrid = [1] * len(problem.length)
+                        problem.outgrid[len(problem.length) - 1] = problem.gpusperrank
+
                     problem.nranks = gr[1]
+                    if problem.nranks > 1:
+                        problem.imgrid = [1] * len(problem.length)
+                        problem.imgrid[0] = problem.nranks
+                        problem.omgrid = [1] * len(problem.length)
+                        problem.omgrid[len(problem.length) - 1] = problem.nranks
+
                     if ishybrid:
                         problem.tag += "_hybrid"
                         # FIXME: check that this actually creates a different file.
+                        
                     if len(problem.length) in self.dimension \
                        and problem.direction in self.direction \
                        and problem.inplace in self.inplace \
@@ -262,12 +275,20 @@ class FileProblemGenerator:
         for length, nbatch in self.table:
             for precision, real, inplace in itertools.product(
                     self.precision, self.real, self.inplace):
+                ingrid = [1] * len(length)
+                outgrid = [1] * len(length)
+                imgrid = [1] * len(length)
+                omgrid = [1] * len(length)
                 yield Problem(length,
                               nbatch=nbatch,
                               direction=-1,
                               inplace=inplace,
                               real=real,
-                              precision=precision)
+                              precision=precision,
+                              ingrid=ingrid,
+                              outgrid=outgrid,
+                              imgrid=imgrid,
+                              omgrid=omgrid)
 
 
 @dataclass
@@ -281,12 +302,20 @@ class TableProblemGenerator:
         for length, nbatch in self.table:
             for precision, real, inplace in itertools.product(
                     self.precision, self.real, self.inplace):
+                ingrid = [1] * len(length)
+                outgrid = [1] * len(length)
+                imgrid = [1] * len(length)
+                omgrid = [1] * len(length)
                 yield Problem(length,
                               nbatch=nbatch,
                               direction=-1,
                               inplace=inplace,
                               real=real,
-                              precision=precision)
+                              precision=precision,
+                              ingrid=ingrid,
+                              outgrid=outgrid,
+                              imgrid=imgrid,
+                              omgrid=omgrid)
 
 
 def suite_file(base):

@@ -42,23 +42,21 @@ class Timer:
     device: int = 0
     ntrial: int = 10
     mp_size: int = 1
-    mp_exec: str = ""
-    ingrid: List[int] = field(default_factory=list)
-    outgrid: List[int] = field(default_factory=list)
+    ingrid: List[int] = None
+    outgrid: List[int] = None
     ngpus: int = 1
     verbose: bool = False
     timeout: float = 0
     sequence: int = None
     hipskip: bool = True
-
+    launcher: str = None
+    
     def run_cases(self, generator):
 
         bench = path(self.bench)
         if not bench.is_file():
             raise RuntimeError(f"Unable to find (dyna-)bench: {self.bench}")
 
-        if self.mp_size > 1 and self.mp_exec == None:
-            raise RuntimeError(f"Unable to find mpi executable {self.bench}")
 
         failed_tokens = []
         total_prob_count = 0
@@ -68,17 +66,18 @@ class Timer:
 
             token, seconds, success, __, __ = perflib.bench.run(
                 bench=self.bench,
-                length=tuple([ws_factor * l for l in prob.length]),
+                length=prob.length,
                 direction=prob.direction,
                 real=prob.real,
                 inplace=prob.inplace,
                 precision=prob.precision,
                 nbatch=prob.nbatch,
-                mp_size=self.mp_size,
-                mp_exec=self.mp_exec,
-                ingrid=self.ingrid,
-                outgrid=self.outgrid,
-                ngpus=self.ngpus,
+                gpusperrank=prob.gpusperrank,
+                imgrid=prob.imgrid,
+                omgrid=prob.omgrid,
+                ingrid=prob.ingrid,
+                outgrid=prob.outgrid,
+                launcher=self.launcher,
                 ntrial=self.ntrial,
                 device=self.device,
                 libraries=self.lib,
@@ -86,7 +85,7 @@ class Timer:
                 timeout=self.timeout,
                 sequence=self.sequence,
                 skiphip=self.hipskip,
-                scalability=(scaling != None))
+                scalability=('scaling' in  prob.meta))
 
             if success:
                 for idx, vals in enumerate(seconds):
@@ -124,7 +123,7 @@ class GroupedTimer:
     device: int = 0
     ntrial: int = 10
     mp_size: int = 1
-    mp_exec: str = ""
+    launcher: str = None
     ngpus: int = 1
     verbose: bool = False
     timeout: float = 0

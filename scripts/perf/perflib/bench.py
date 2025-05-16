@@ -35,7 +35,7 @@ def run(bench,
         precision='single',
         nbatch=1,
         ntrial=1,
-        mp_exec='/usr/bin/mpirun',
+        launcher=None,
         nranks=1,
         imgrid=None,
         omgrid=None,
@@ -60,30 +60,40 @@ def run(bench,
             if sequence is not None:
                 cmd += ['--sequence', str(sequence)]
 
-    if mp_size == 1:
-        if skiphip:
-            cmd += ['--ignore_runtime_failures']
-        else:
-            cmd += ['--no-ignore_runtime_failures']
+    # if mp_size == 1:
+    #     if skiphip:
+    #         cmd += ['--ignore_runtime_failures']
+    #     else:
+    #         cmd += ['--no-ignore_runtime_failures']
 
     if isinstance(length, int):
         cmd += ['--length', length]
     else:
         cmd += ['--length'] + list(length)
 
-    # FIXME: determine where to configure grids, and how to control the configuration.
-    if ingrid != None:
-        cmd += ['--ingrid', ingrid]
-    if outgrid != None:
-        cmd += ['--outgrid', outgrid]
-        
-    if imgrid != None:
-        cmd += ['--imgrid', imgrid]
-    if omgrid != None:
-        cmd += ['--omgrid', omgrid]
+    import numpy
 
-    if (gpuspernode > 1):
-        cmd += ['--ngpus', ngpus]
+    if ingrid != None or outgrid != None:
+        gpusperrank = max(numpy.prod(ingrid), numpy.prod(outgrid))
+        cmd += ['--ngpus']
+        cmd += str(gpusperrank)
+    if ingrid != None:
+        cmd += ['--ingrid']
+        for val in ingrid:
+            cmd += [str(val)]
+    if outgrid != None:
+        cmd += ['--outgrid']
+        for val in outgrid:
+            cmd += [str(val)]
+
+    if imgrid != None:
+        cmd += ['--imgrid'] 
+        for val in imgrid:
+            cmd += [str(val)]
+    if omgrid != None:
+        cmd += ['--omgrid']
+        for val in omgrid:
+            cmd += [str(val)]
 
     cmd += ['-N', ntrial]
     cmd += ['-b', nbatch]
@@ -95,28 +105,6 @@ def run(bench,
         cmd += ['--precision', 'single']
     elif precision == 'double':
         cmd += ['--precision', 'double']
-    if mp_size == 1 and (device is not None):
-        cmd += ['--device', device]
-
-    # default to slab decomposition for scalability experiments,
-    # which grants the least number of transpositions
-    # TODO: extend to further decompositions
-    if (scalability):
-        if (ngpus > 1):
-            if (len(length) == 3):
-                cmd += ['--ingrid'] + list([1, 1, ngpus])
-                cmd += ['--outgrid'] + list([ngpus, 1, 1])
-            elif (len(length) == 2):
-                cmd += ['--ingrid'] + list([1, ngpus])
-                cmd += ['--outgrid'] + list([ngpus, 1])
-
-        if (mp_size > 1):
-            if (len(length) == 3):
-                cmd += ['--imgrid'] + list([1, 1, mp_size])
-                cmd += ['--omgrid'] + list([mp_size, 1, 1])
-            elif (len(length) == 2):
-                cmd += ['--imgrid'] + list([1, mp_size])
-                cmd += ['--omgrid'] + list([mp_size, 1])
 
     itype, otype = 0, 0
     if real:
@@ -133,13 +121,15 @@ def run(bench,
     if verbose:
         cmd += ['--verbose']
 
-    if (mp_size > 1):
-        cmd.insert(0, str(mp_size))
-        cmd.insert(
-            0, "-n"
-        )  # flag to set the number of MPI processes for mpirun or equivalent
-        cmd.insert(0, mp_exec)
-        cmd += ['--benchmark']
+    # if (mp_size > 1):
+    #     cmd.insert(0, str(mp_size))
+    #     cmd.insert(
+    #         0, "-n"
+    #     )  # flag to set the number of MPI processes for mpirun or equivalent
+    #     cmd.insert(0, mp_exec)
+    if launcher != None:
+        cmd.insert(0, launcher)
+    cmd += ['--benchmark']
 
     cmd = [str(x) for x in cmd]
 
@@ -149,6 +139,7 @@ def run(bench,
     fout = tempfile.TemporaryFile(mode="w+")
     ferr = tempfile.TemporaryFile(mode="w+")
 
+    print("cmd:", cmd) #FIXME: temp
     time_start = time.time()
     proc = subprocess.Popen(cmd, stdout=fout, stderr=ferr)
     try:
