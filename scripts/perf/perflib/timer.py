@@ -50,6 +50,7 @@ class Timer:
     sequence: int = None
     hipskip: bool = True
     launcher: str = None
+    gpuidvar: str = None
     
     def run_cases(self, generator):
 
@@ -85,7 +86,8 @@ class Timer:
                 timeout=self.timeout,
                 sequence=self.sequence,
                 skiphip=self.hipskip,
-                scalability=('scaling' in  prob.meta))
+                scalability=('scaling' in  prob.meta), # FIXME: remove?
+                gpuidvar=self.gpuidvar)
 
             if success:
                 for idx, vals in enumerate(seconds):

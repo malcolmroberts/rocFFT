@@ -543,6 +543,8 @@ def command_run(arguments):
         filtered.maxnodes = arguments.maxnodes
     if arguments.nranks:
         filtered.nranks = arguments.nranks
+    if arguments.gpuidvar:
+        filtered.gpuidvar = arguments.gpuidvar
 
     if arguments.list:
         for test in filtered(generator).generate_problems():
@@ -658,7 +660,7 @@ def command_run(arguments):
         timer = perflib.timer.GroupedTimer()
         for attr in [
                 'device', 'bench', 'accutest', 'lib', 'out', 'device', 'ntrial',
-                'verbose', 'timeout', 'sequence', 'launcher'
+                'verbose', 'timeout', 'sequence', 'launcher', 'gpuidvar'
         ]:
             update(attr, timer, arguments)
 

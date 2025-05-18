@@ -48,7 +48,8 @@ def run(bench,
         timeout=300,
         sequence=None,
         skiphip=True,
-        scalability=False):
+        scalability=False,
+        gpuidvar=None):
     """Run rocFFT bench and return execution times."""
     cmd = [pathlib.Path(bench).resolve()]
 
@@ -127,19 +128,33 @@ def run(bench,
     #         0, "-n"
     #     )  # flag to set the number of MPI processes for mpirun or equivalent
     #     cmd.insert(0, mp_exec)
-    if launcher != None:
-        cmd.insert(0, launcher)
+    
     cmd += ['--benchmark']
 
     cmd = [str(x) for x in cmd]
 
+    if gpuidvar != None:
+        bashprecmd = "export ROCR_VISIBLE_DEVICES="
+        for idx in range(gpusperrank):
+            if (idx != 0):
+                bashprecmd += ","
+            bashprecmd += "$((" + str(
+                gpusperrank) + " * ${" + gpuidvar + "} + " + str(
+                    idx) + "))"
+        bashprecmd += "; "
+        cmd = ["bash", "-c", bashprecmd + " " + " ".join(cmd)]
+
+    if launcher != None:
+        cmd.insert(0, launcher)
+
+    print("cmd:", cmd)
+        
     logging.info('running: ' + ' '.join(cmd))
     if verbose:
         print('running: ' + ' '.join(cmd))
     fout = tempfile.TemporaryFile(mode="w+")
     ferr = tempfile.TemporaryFile(mode="w+")
-
-    print("cmd:", cmd) #FIXME: temp
+    
     time_start = time.time()
     proc = subprocess.Popen(cmd, stdout=fout, stderr=ferr)
     try:
