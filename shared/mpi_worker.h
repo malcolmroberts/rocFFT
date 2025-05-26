@@ -1082,7 +1082,10 @@ int mpi_worker_main(const char*                                               de
     {
         for(auto& times : gpu_time)
         {
-            std::cout << "Max rank time:";
+            std::cout << "Token: " << params.token() << std::endl;
+            
+            std::cout << "Time computed as maximum over ranks.";
+            std::cout << "\nExecution gpu time:";
             for(auto i : times)
                 std::cout << " " << i;
             std::cout << " ms" << std::endl;
