@@ -56,8 +56,8 @@ if( NOT HIP_FOUND )
   find_package( hip REQUIRED PATHS /opt/rocm/lib/cmake/hip/ )
 endif()
 
-if( NOT ROCmCMakeBuildTools_FOUND )
-  find_package( ROCmCMakeBuildTools REQUIRED )
+if( NOT ROCM_FOUND )
+  find_package( ROCM REQUIRED )
 endif()
 
 if( USE_HIPRAND AND NOT hiprand_FOUND )
