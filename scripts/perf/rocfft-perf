@@ -591,13 +591,14 @@ def command_run(arguments):
             print(cwd)
             newargv[0] = os.path.realpath(__file__)
 
-            # FIXME: make sure that the non-slurm context doesn't overwrite this option.
-            newargv.insert(1, '--logfile')
-            newargv.insert(2, arguments.logdir + "/$SLURM_JOB_ID/rocfft-perf.log")
+            if '--slurm' in newargv:
+                # Write rocfft-perf.log to separate files under slurm.
+                newargv.insert(1, '--logfile')
+                newargv.insert(2, arguments.logdir + "/$SLURM_JOB_ID/rocfft-perf.log")
             
             while '--slurm' in newargv:
                 newargv.remove('--slurm')
-            for arg in ['--maxnodes', '--gpuspernode']:
+            for arg in ['--maxnodes', '--gpuspernode', '-o', '--out']:
                 while arg in newargv:
                     idx = newargv.index(arg)
                     del newargv[idx+1]
@@ -610,6 +611,12 @@ def command_run(arguments):
             gpusperrank = configkey[0]
             newargv.append(str(gpusperrank))
 
+            jobname = "mpi" + str(nranks) + "x" + str(gpusperrank)
+
+            for val in arguments.out:
+                newargv.append('--out')
+                newargv.append(val + "/" + jobname)
+            
             print(newargv)
             
             # Set up the basic slurm parameters:
@@ -627,7 +634,7 @@ def command_run(arguments):
             jobparams.nnodes = ( nranks * gpusperrank + arguments.gpuspernode - 1) // arguments.gpuspernode
             jobparams.ntaskspernode = nranks
 
-            mpijob = rocslurm.sbatch("mpi" + str(nranks) + "x" + str(gpusperrank),
+            mpijob = rocslurm.sbatch(jobname,
                                      jobparams,
                                      arguments.logdir,
                                      str(top),
