@@ -115,6 +115,8 @@ class FilteredProblemGenerator:
     gpuspernode: int = 0
     gpusperrank: int = None
 
+    slurm: bool = False
+
     # FIXME: the plan here is to loop over all of the relevant combinations of gpus and ranks.
     # If gpusperrank is specified, then we can still loop over maxnodes.
     # If nranks is specified, then we can still loop over gpuspernode.
@@ -140,75 +142,74 @@ class FilteredProblemGenerator:
     def generate_problems(self):
         import sympy
 
-        hybrid = [False]
-        if self.gpuspernode > 1 and self.maxnodes > 1:
-            print("We have two different scaling experiments")
-            # So we loop over the two possibilities, one is hybrid, one is traditional
-            hybrid.append(True)
-            
-        gpudivs = sympy.divisors(self.gpuspernode) if self.gpuspernode > 0 else [self.gpusperrank]
-        rankdivs = sympy.divisors(self.maxnodes) if self.maxnodes > 0 else [self.nranks]
-
         # NB: for weak scaling, we need constant data per GPU, which means that, for example, 3D
         # problems will use nubmers of GPUs that are cubes.  This implies some relationship between
         # gpus per node and max nodes.  For example, with 6 gpus per node, we could have max nodes
         # equal to 36, so then we get 1 gpu, then 36*6=216 gpus.  Powers-of-two are, as usual, much
         # nicer to deal with.
         
-        for ishybrid in hybrid:
-            gpus_ranks = []
-            if not ishybrid:
-                # Traditional parallelism, ie one GPU per rank.
-                for ngpu in gpudivs:
-                    gpus_ranks.append([1, ngpu])
-                for nranks in rankdivs[1:]:
-                    gpus_ranks.append([1, self.gpuspernode * nranks])
-            else:
-                # Hybrid parallelism, ie more than one GPU per rank.
-                for ngpu in gpudivs:
-                    gpus_ranks.append([ngpu, 1])
-                for nranks in rankdivs[1:]:
-                    gpus_ranks.append([self.gpuspernode, nranks])
-            print(gpus_ranks)
-                    
-            for problem in self.generator.generate_problems():
-                for gr in gpus_ranks:
-                    ngpus = gr[0] * gr[1]
-                    if problem.meta.get('scaling') == 'weak':
-                        if not is_pow(ngpus, len(problem.length)):
-                            continue
+        gpus_ranks = []
+        if self.slurm:
+            print("slurm!")
+            hybrid = [False]
+            if self.gpuspernode > 1 and self.maxnodes > 1:
+                print("We have two different scaling experiments")
+                # So we loop over the two possibilities, one is hybrid, one is traditional
+                hybrid.append(True)
 
-                    problem.gpusperrank = gr[0]
-                    if problem.gpusperrank > 1:
-                        problem.ingrid = [1] * len(problem.length)
-                        problem.ingrid[0] = problem.gpusperrank
-                        problem.outgrid = [1] * len(problem.length)
-                        problem.outgrid[len(problem.length) - 1] = problem.gpusperrank
+            gpudivs = sympy.divisors(self.gpuspernode) if self.gpuspernode > 0 else [self.gpusperrank]
+            rankdivs = sympy.divisors(self.maxnodes) if self.maxnodes > 0 else [self.nranks]
 
-                    problem.nranks = gr[1]
-                    if problem.nranks > 1:
-                        problem.imgrid = [1] * len(problem.length)
-                        problem.imgrid[0] = problem.nranks
-                        problem.omgrid = [1] * len(problem.length)
-                        problem.omgrid[len(problem.length) - 1] = problem.nranks
+            for ishybrid in hybrid:
+                if not ishybrid:
+                    # Traditional parallelism, ie one GPU per rank.
+                    for ngpu in gpudivs:
+                        gpus_ranks.append([1, ngpu])
+                    for nranks in rankdivs[1:]:
+                        gpus_ranks.append([1, self.gpuspernode * nranks])
+                else:
+                    # Hybrid parallelism, ie more than one GPU per rank.
+                    for ngpu in gpudivs:
+                        gpus_ranks.append([ngpu, 1])
+                    for nranks in rankdivs[1:]:
+                        gpus_ranks.append([self.gpuspernode, nranks])
 
-                    if self.nranks != None:
-                        if self.nranks != problem.nranks:
-                            continue
-                    if self.gpusperrank != None:
-                        if self.gpusperrank != problem.gpusperrank:
-                            continue
-                        
-                    if ishybrid:
-                        problem.tag += "_hybrid"
-                        # FIXME: check that this actually creates a different file.
-                        
-                    if len(problem.length) in self.dimension \
-                       and problem.direction in self.direction \
-                       and problem.inplace in self.inplace \
-                       and problem.real in self.real \
-                       and problem.precision in self.precision:
-                        yield problem
+        else:
+            gpus_ranks = [[self.gpusperrank, self.nranks]]
+
+        print("gpus_ranks:", gpus_ranks)
+
+        for problem in self.generator.generate_problems():
+            for gr in gpus_ranks:
+                ngpus = gr[0] * gr[1]
+                if problem.meta.get('scaling') == 'weak':
+                    if not is_pow(ngpus, len(problem.length)):
+                        continue
+
+                problem.gpusperrank = gr[0]
+                if problem.gpusperrank > 1:
+                    problem.ingrid = [1] * len(problem.length)
+                    problem.ingrid[0] = problem.gpusperrank
+                    problem.outgrid = [1] * len(problem.length)
+                    problem.outgrid[len(problem.length) - 1] = problem.gpusperrank
+
+                problem.nranks = gr[1]
+                if problem.nranks > 1:
+                    problem.imgrid = [1] * len(problem.length)
+                    problem.imgrid[0] = problem.nranks
+                    problem.omgrid = [1] * len(problem.length)
+                    problem.omgrid[len(problem.length) - 1] = problem.nranks
+
+                if gr[0] > 1 and gr[1] > 1:
+                    problem.tag += "_hybrid"
+                    # FIXME: check that this actually creates a different file.
+
+                if len(problem.length) in self.dimension \
+                   and problem.direction in self.direction \
+                   and problem.inplace in self.inplace \
+                   and problem.real in self.real \
+                   and problem.precision in self.precision:
+                    yield problem
 
 
 @dataclass

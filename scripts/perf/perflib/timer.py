@@ -41,10 +41,10 @@ class Timer:
     out: List[str] = field(default_factory=list)
     device: int = 0
     ntrial: int = 10
-    mp_size: int = 1
+    nranks: int = 1
+    gpusperrank: int = 1
     ingrid: List[int] = None
     outgrid: List[int] = None
-    ngpus: int = 1
     verbose: bool = False
     timeout: float = 0
     sequence: int = None
@@ -53,7 +53,7 @@ class Timer:
     gpuidvar: str = None
     
     def run_cases(self, generator):
-
+        print("run_cases from Timer") # FIXME: temp
         bench = path(self.bench)
         if not bench.is_file():
             raise RuntimeError(f"Unable to find (dyna-)bench: {self.bench}")
@@ -124,13 +124,15 @@ class GroupedTimer:
     out: List[str] = field(default_factory=list)
     device: int = 0
     ntrial: int = 10
-    mp_size: int = 1
+    nranks: int = 1
+    gpusperrank: int = 1
     launcher: str = None
-    ngpus: int = 1
     verbose: bool = False
     timeout: float = 0
 
     def run_cases(self, generator):
+        print("run_cases from GroupedTimer") # FIXME: temp
+        print("Generator is a", type(generator))
         failed_tokens = []
         all_problems = collections.defaultdict(list)
         for problem in generator.generate_problems():

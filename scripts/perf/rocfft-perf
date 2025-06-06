@@ -543,6 +543,8 @@ def command_run(arguments):
         filtered.maxnodes = arguments.maxnodes
     if arguments.nranks:
         filtered.nranks = arguments.nranks
+    if arguments.slurm:
+        filtered.slurm = arguments.slurm
 
     if arguments.gpuidvar:
         filtered.gpuidvar = arguments.gpuidvar
@@ -556,6 +558,8 @@ def command_run(arguments):
         # If we are using slurm, we have to separate the individual runs into different groups
         # based on the node/gpu configuration.  Then we launch a separate processes.
 
+        #print("running slurm phase") # FIXME: temp
+        
         top = Path(__file__).resolve().parent / '..'
         sys.path.append(str(top))
         import rocslurm
@@ -574,7 +578,7 @@ def command_run(arguments):
         # We can launch these separately in slurm jobs.
         
         for keyv in drank.keys():
-            print(keyv, len(drank[keyv]))
+            print("keys:", keyv, len(drank[keyv]))
             # FIXME: this is just dev output, so remove on PR.
 
 
@@ -616,12 +620,12 @@ def command_run(arguments):
                 jobparams.acct = arguments.acct
             jobparams.modules = arguments.modules
             jobparams.exports = arguments.exports
-            jobparams.gpuspernode = arguments.gpuspernode
+            jobparams.gpuspernode = arguments.gpuspernode // gpusperrank
 
             jobparams.timelimit = datetime.timedelta(hours=2)
             jobparams.gpuspertask = gpusperrank
             jobparams.nnodes = ( nranks * gpusperrank + arguments.gpuspernode - 1) // arguments.gpuspernode
-            jobparams.ntaskspernode = arguments.gpuspernode // gpusperrank
+            jobparams.ntaskspernode = nranks
 
             mpijob = rocslurm.sbatch("mpi" + str(nranks) + "x" + str(gpusperrank),
                                      jobparams,
@@ -630,7 +634,6 @@ def command_run(arguments):
                                      " ".join(newargv),
                                      verbose=arguments.verbose)
             
-            # FIXME: launch sbatch jobs here.
             
         # FIXME: we need to collect and collate the output data.
             
@@ -638,6 +641,8 @@ def command_run(arguments):
         # build timer
         import os
         
+        #print("running execution phase") # FIXME: temp
+
         file_path = os.path.realpath(__file__)
         print(file_path)
         cwd = os.getcwd()
