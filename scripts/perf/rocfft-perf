@@ -543,6 +543,7 @@ def command_run(arguments):
         filtered.maxnodes = arguments.maxnodes
     if arguments.nranks:
         filtered.nranks = arguments.nranks
+
     if arguments.gpuidvar:
         filtered.gpuidvar = arguments.gpuidvar
 
@@ -607,7 +608,6 @@ def command_run(arguments):
 
             print(newargv)
             
-            
             # Set up the basic slurm parameters:
             jobparams = rocslurm.sbatchparams()
             if arguments.partition != None:
@@ -660,7 +660,8 @@ def command_run(arguments):
         timer = perflib.timer.GroupedTimer()
         for attr in [
                 'device', 'bench', 'accutest', 'lib', 'out', 'device', 'ntrial',
-                'verbose', 'timeout', 'sequence', 'launcher', 'gpuidvar'
+                'verbose', 'timeout', 'sequence', 'launcher', 'gpuidvar',
+                'nranks', 'gpusperrank'
         ]:
             update(attr, timer, arguments)
 

@@ -42,9 +42,11 @@ def sbatch(jobname, params, logdir, workdir, jobcmd, verbose=False):
     if params.ntaskspernode != None:
         batchscript += "#SBATCH --ntasks-per-node=" + str(
             params.ntaskspernode) + "\n"
-    if params.gpuspertask != None:
-        batchscript += "#SBATCH --gpus-per-task=" + str(
-            params.gpuspertask) + "\n"
+    # Combining --gpus-per-task with --ntasks-per-node and --gpus-per-node seems to cause errors
+    # with setting the hip device
+    # if params.gpuspertask != None:
+    #     batchscript += "#SBATCH --gpus-per-task=" + str(
+    #         params.gpuspertask) + "\n"
     if params.gpuspernode != None:
         batchscript += "#SBATCH --gpus-per-node=" + str(
             params.gpuspernode) + "\n"

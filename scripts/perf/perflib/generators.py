@@ -110,10 +110,10 @@ class FilteredProblemGenerator:
     precision: List[str] = field(default_factory=lambda: ["single", "double"])
 
     maxnodes: int = 0
-    nranks: int = 1
+    nranks: int = None
 
     gpuspernode: int = 0
-    gpusperrank: int = 1
+    gpusperrank: int = None
 
     # FIXME: the plan here is to loop over all of the relevant combinations of gpus and ranks.
     # If gpusperrank is specified, then we can still loop over maxnodes.
@@ -192,6 +192,13 @@ class FilteredProblemGenerator:
                         problem.omgrid = [1] * len(problem.length)
                         problem.omgrid[len(problem.length) - 1] = problem.nranks
 
+                    if self.nranks != None:
+                        if self.nranks != problem.nranks:
+                            continue
+                    if self.gpusperrank != None:
+                        if self.gpusperrank != problem.gpusperrank:
+                            continue
+                        
                     if ishybrid:
                         problem.tag += "_hybrid"
                         # FIXME: check that this actually creates a different file.
