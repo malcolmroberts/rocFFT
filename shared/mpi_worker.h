@@ -427,7 +427,7 @@ double half_epsilon    = default_half_epsilon();
 double single_epsilon  = default_single_epsilon();
 double double_epsilon  = default_double_epsilon();
 
-// execute the specific number of trials on a vec of libraries
+// Execute the specific number of trials on a vec of libraries
 template <typename AllParams>
 void exec_testcases(std::function<AllParams(const std::vector<std::string>&)> make_params,
                     MPI_Comm                                                  mpi_comm,
@@ -497,27 +497,27 @@ void exec_testcases(std::function<AllParams(const std::vector<std::string>&)> ma
         }
     }
 
-    // for all other ranks, resize to what rank 0 has, in preparation
+    // For all other ranks, resize to what rank 0 has, in preparation
     // for receiving the test case order
     testcases.resize(ntrial * lib_strings.size());
 
-    // send test case order from rank 0 to all ranks
+    // Send test case order from rank 0 to all ranks
     MPI_Bcast(testcases.data(), testcases.size(), MPI_UINT64_T, 0, mpi_comm);
 
-    // use first params to know things like precision, type that
+    // Use first params to know things like precision, type that
     // won't change between libraries
     const auto& params        = all_params.front();
     const auto  in_elem_size  = var_size<size_t>(params.precision, params.itype);
     const auto  out_elem_size = var_size<size_t>(params.precision, params.otype);
 
-    // allocate and initialize input buffers
+    // Allocate and initialize input buffers
     alloc_local_bricks(
         mpi_rank, params.ifields.back().bricks, in_elem_size, local_inputs, local_input_ptrs);
 
     init_local_input<decltype(params), gpubuf>(
         mpi_rank, params, params.ifields.back().bricks, in_elem_size, local_input_ptrs);
 
-    // gather input for FFTW before we transform, in case we're doing an in-place FFT
+    // Gather input for FFTW before we transform, in case we're doing an in-place FFT
     std::vector<hostbuf> cpu_data(1);
     if(run_fftw)
     {
@@ -549,7 +549,7 @@ void exec_testcases(std::function<AllParams(const std::vector<std::string>&)> ma
                            local_output_ptrs);
     }
 
-    // execute FFTs
+    // Execute FFTs
     std::chrono::time_point<std::chrono::steady_clock> start, stop;
 
     // call rocfft_plan_create
@@ -574,8 +574,8 @@ void exec_testcases(std::function<AllParams(const std::vector<std::string>&)> ma
             start = std::chrono::steady_clock::now();
         }
 
-        all_params[testcase].execute(reinterpret_cast<void**>(local_input_ptrs.data()),
-                                     reinterpret_cast<void**>(local_output_ptrs.data()));
+        auto ret = all_params[testcase].execute(reinterpret_cast<void**>(local_input_ptrs.data()),
+                                                reinterpret_cast<void**>(local_output_ptrs.data()));
 
         if(run_bench)
         {

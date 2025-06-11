@@ -51,9 +51,10 @@ class Timer:
     hipskip: bool = True
     launcher: str = None
     gpuidvar: str = None
+    tagpostfix: str = None
+
     
     def run_cases(self, generator):
-        print("run_cases from Timer") # FIXME: temp
         bench = path(self.bench)
         if not bench.is_file():
             raise RuntimeError(f"Unable to find (dyna-)bench: {self.bench}")
@@ -88,6 +89,7 @@ class Timer:
                 skiphip=self.hipskip,
                 scalability=('scaling' in  prob.meta), # FIXME: remove?
                 gpuidvar=self.gpuidvar)
+
 
             if success:
                 for idx, vals in enumerate(seconds):
@@ -131,8 +133,6 @@ class GroupedTimer:
     timeout: float = 0
 
     def run_cases(self, generator):
-        print("run_cases from GroupedTimer") # FIXME: temp
-        print("Generator is a", type(generator))
         failed_tokens = []
         all_problems = collections.defaultdict(list)
         for problem in generator.generate_problems():
@@ -155,7 +155,7 @@ class GroupedTimer:
                 f'\n{tag} (group {i} of {len(all_problems)}): {len(problems)} problems'
             )
             timer = Timer(**self.__dict__)
-            timer.out = [path(x) / (tag + '.dat') for x in self.out]
+            timer.out = [path(x) / (tag + self.tagpostfix + '.dat') for x in self.out]
             failed_tokens += timer.run_cases(
                 perflib.generators.VerbatimGenerator(problems))
         return failed_tokens

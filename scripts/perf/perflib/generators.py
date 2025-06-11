@@ -110,10 +110,10 @@ class FilteredProblemGenerator:
     precision: List[str] = field(default_factory=lambda: ["single", "double"])
 
     maxnodes: int = 0
-    nranks: int = None
+    nranks: int = 1
 
     gpuspernode: int = 0
-    gpusperrank: int = None
+    gpusperrank: int = 1
 
     slurm: bool = False
 

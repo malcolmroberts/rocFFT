@@ -146,6 +146,9 @@ int main(int argc, char* argv[])
                  ignore_hip_runtime_failures,
                  "Ignore hip runtime failures");
 
+    app.add_flag("--benchmark", "For command-line compatibility with rocfft_mpi_worker");
+
+    
     app.add_option("--device", deviceId, "Select a specific device id")->default_val(0);
     app.add_option("--verbose", verbose, "Control output verbosity")->default_val(0);
     app.add_option("-N, --ntrial", ntrial, "Trial size for the problem")

@@ -185,6 +185,7 @@ def run(bench,
     for line in cout.splitlines():
         if line.startswith(tokentoken):
             token = line[len(tokentoken):]
+            print(token) # FIXME: temp
 
     for line in cerr.splitlines():
         if line.startswith(soltokenTag):
