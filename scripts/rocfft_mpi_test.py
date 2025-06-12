@@ -20,8 +20,14 @@ def main():
                         type=str,
                         default=None,
                         help='path to rocfft-test')
-    parser.add_argument('--launcher', type=str, default=None, help='Multi-process launcher')
-    parser.add_argument('--gpuidvar', type=str, default=None, help='Environment variable for rank/device selection')
+    parser.add_argument('--launcher',
+                        type=str,
+                        default=None,
+                        help='Multi-process launcher')
+    parser.add_argument('--gpuidvar',
+                        type=str,
+                        default=None,
+                        help='Environment variable for rank/device selection')
     parser.add_argument('--gpusperrank',
                         type=int,
                         help='Gpus per rank',

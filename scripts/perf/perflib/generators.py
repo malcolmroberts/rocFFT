@@ -73,19 +73,18 @@ class Problem:
     nranks: int = 1
     imgrid: List[int] = None
     omgrid: List[int] = None
-    
+
     gpus_per_rank: int = 1
     ingrid: List[int] = None
     outgrid: List[int] = None
-    
+
     min_wgs: int = 64
     max_wgs: int = 512
-    
+
     full_token: bool = False
     tag: str = None
     meta: Dict[str, str] = field(default_factory=dict)
 
-    
     def toJSON(self):
         tuning_dict = self.__dict__
         del tuning_dict['tag']
@@ -117,13 +116,13 @@ class FilteredProblemGenerator:
     gpusperrank: int = 1
 
     slurm: bool = False
-    
+
     tagpostfix: str = None
-    
+
     # FIXME: the plan here is to loop over all of the relevant combinations of gpus and ranks.
     # If gpusperrank is specified, then we can still loop over maxnodes.
     # If nranks is specified, then we can still loop over gpuspernode.
-    
+
     def __call__(self, generator):
         self.generator = generator
         return self
@@ -138,10 +137,10 @@ class FilteredProblemGenerator:
             return sympy.ntheory.primetest.is_square(val)
         cutoff = math.ceil(pow(val, 1 / dim))
         for idx in range(2, cutoff + 1):
-            if idx ** dim == val:
+            if idx**dim == val:
                 return True
         return False
-                
+
     def generate_problems(self):
         import sympy
 
@@ -150,7 +149,7 @@ class FilteredProblemGenerator:
         # gpus per node and max nodes.  For example, with 6 gpus per node, we could have max nodes
         # equal to 36, so then we get 1 gpu, then 36*6=216 gpus.  Powers-of-two are, as usual, much
         # nicer to deal with.
-        
+
         gpus_ranks = []
         if self.slurm:
             print("slurm!")
@@ -162,8 +161,12 @@ class FilteredProblemGenerator:
                 # So we loop over the two possibilities, one is hybrid, one is traditional
                 hybrid.append(True)
 
-            gpudivs = sympy.divisors(self.gpuspernode) if self.gpuspernode > 0 else [self.gpusperrank]
-            rankdivs = sympy.divisors(self.maxnodes) if self.maxnodes > 0 else [self.nranks]
+            gpudivs = sympy.divisors(
+                self.gpuspernode) if self.gpuspernode > 0 else [
+                    self.gpusperrank
+                ]
+            rankdivs = sympy.divisors(
+                self.maxnodes) if self.maxnodes > 0 else [self.nranks]
 
             for ishybrid in hybrid:
                 if not ishybrid:
@@ -196,7 +199,8 @@ class FilteredProblemGenerator:
                     problem.ingrid = [1] * len(problem.length)
                     problem.ingrid[0] = problem.gpusperrank
                     problem.outgrid = [1] * len(problem.length)
-                    problem.outgrid[len(problem.length) - 1] = problem.gpusperrank
+                    problem.outgrid[len(problem.length) -
+                                    1] = problem.gpusperrank
 
                 problem.nranks = gr[1]
                 if problem.nranks > 1:

@@ -120,7 +120,7 @@ def reportonjobs(params, logdir, jobs, verbose=False):
     if len(jobids) == 0:
         print("no jobs to report on!")
         return
-        
+
     batchscript = "#!/bin/bash\n"
 
     jobname = "report"

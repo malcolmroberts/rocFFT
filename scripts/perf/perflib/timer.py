@@ -51,12 +51,11 @@ class Timer:
     hipskip: bool = True
     launcher: str = None
     gpuidvar: str = None
-    
+
     def run_cases(self, generator):
         bench = path(self.bench)
         if not bench.is_file():
             raise RuntimeError(f"Unable to find (dyna-)bench: {self.bench}")
-
 
         failed_tokens = []
         total_prob_count = 0
@@ -85,9 +84,8 @@ class Timer:
                 timeout=self.timeout,
                 sequence=self.sequence,
                 skiphip=self.hipskip,
-                scalability=('scaling' in  prob.meta), # FIXME: remove?
+                scalability=('scaling' in prob.meta),  # FIXME: remove?
                 gpuidvar=self.gpuidvar)
-
 
             if success:
                 for idx, vals in enumerate(seconds):

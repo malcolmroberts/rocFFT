@@ -88,7 +88,7 @@ def run(bench,
             cmd += [str(val)]
 
     if imgrid != None:
-        cmd += ['--imgrid'] 
+        cmd += ['--imgrid']
         for val in imgrid:
             cmd += [str(val)]
     if omgrid != None:
@@ -128,7 +128,7 @@ def run(bench,
     #         0, "-n"
     #     )  # flag to set the number of MPI processes for mpirun or equivalent
     #     cmd.insert(0, mp_exec)
-    
+
     cmd += ['--benchmark']
 
     cmd = [str(x) for x in cmd]
@@ -139,8 +139,7 @@ def run(bench,
             if (idx != 0):
                 bashprecmd += ","
             bashprecmd += "$((" + str(
-                gpusperrank) + " * ${" + gpuidvar + "} + " + str(
-                    idx) + "))"
+                gpusperrank) + " * ${" + gpuidvar + "} + " + str(idx) + "))"
         bashprecmd += "; "
         cmd = ["bash", "-c", bashprecmd + " " + " ".join(cmd)]
 
@@ -148,13 +147,13 @@ def run(bench,
         cmd.insert(0, launcher)
 
     print("cmd:", cmd)
-        
+
     logging.info('running: ' + ' '.join(cmd))
     if verbose:
         print('running: ' + ' '.join(cmd))
     fout = tempfile.TemporaryFile(mode="w+")
     ferr = tempfile.TemporaryFile(mode="w+")
-    
+
     time_start = time.time()
     proc = subprocess.Popen(cmd, stdout=fout, stderr=ferr)
     try:
@@ -185,7 +184,7 @@ def run(bench,
     for line in cout.splitlines():
         if line.startswith(tokentoken):
             token = line[len(tokentoken):]
-            print(token) # FIXME: temp
+            print(token)  # FIXME: temp
 
     for line in cerr.splitlines():
         if line.startswith(soltokenTag):
