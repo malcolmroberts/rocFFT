@@ -60,11 +60,10 @@ def run(bench,
             if sequence is not None:
                 cmd += ['--sequence', str(sequence)]
 
-    if mp_size == 1:
-        if skiphip:
-            cmd += ['--ignore_runtime_failures']
-        else:
-            cmd += ['--no-ignore_runtime_failures']
+    if skiphip:
+        cmd += ['--ignore_runtime_failures']
+    else:
+        cmd += ['--no-ignore_runtime_failures']
 
     if isinstance(length, int):
         cmd += ['--length', length]
