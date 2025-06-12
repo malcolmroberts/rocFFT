@@ -702,7 +702,6 @@ public:
             throw std::runtime_error(
                 "Grid of processors must be of the same dimension as the FFT!");
         }
-
     }
 
     // optional brick decomposition of inputs/outputs
