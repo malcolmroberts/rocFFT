@@ -84,7 +84,6 @@ class Timer:
                 timeout=self.timeout,
                 sequence=self.sequence,
                 skiphip=self.hipskip,
-                scalability=('scaling' in prob.meta),  # FIXME: remove?
                 gpuidvar=self.gpuidvar)
 
             if success:

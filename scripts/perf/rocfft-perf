@@ -560,8 +560,6 @@ def command_run(arguments):
     if arguments.slurm:
         # If we are using slurm, we have to separate the individual runs into different groups
         # based on the node/gpu configuration.  Then we launch a separate processes.
-
-        #print("running slurm phase") # FIXME: temp
         
         top = Path(__file__).resolve().parent / '..'
         sys.path.append(str(top))
@@ -580,21 +578,13 @@ def command_run(arguments):
         # We now have arrays of problems, each array associted to an mp size.
         # We can launch these separately in slurm jobs.
         
-        for keyv in drank.keys():
-            print("keys:", keyv, len(drank[keyv]))
-            # FIXME: this is just dev output, so remove on PR.
-
-
         # Array of 
         jobs = []
     
-        # FIXME: some debug code here. remove prints in PR
-        print(sys.argv)
         for configkey in drank.keys():
             newargv = copy.deepcopy(sys.argv)
             import os
             cwd = os.getcwd()
-            print(cwd)
             newargv[0] = os.path.realpath(__file__)
 
             if '--slurm' in newargv:
@@ -621,12 +611,6 @@ def command_run(arguments):
 
             newargv.append("--tagpostfix")
             newargv.append(jobname)
-            
-            # for val in arguments.out:
-            #     newargv.append('--out')
-            #     newargv.append(val + "/" + jobname)
-            
-            print(newargv)
             
             # Set up the basic slurm parameters:
             jobparams = rocslurm.sbatchparams()
@@ -668,12 +652,8 @@ def command_run(arguments):
         # build timer
         import os
         
-        #print("running execution phase") # FIXME: temp
-
         file_path = os.path.realpath(__file__)
-        print(file_path)
         cwd = os.getcwd()
-        print(cwd)
         
         if arguments.bench is None:
             print("No benchmarker set... use --bench /path/to/benchmarker.")

@@ -48,7 +48,6 @@ def run(bench,
         timeout=300,
         sequence=None,
         skiphip=True,
-        scalability=False,
         gpuidvar=None):
     """Run rocFFT bench and return execution times."""
     cmd = [pathlib.Path(bench).resolve()]
@@ -61,11 +60,11 @@ def run(bench,
             if sequence is not None:
                 cmd += ['--sequence', str(sequence)]
 
-    # if mp_size == 1:
-    #     if skiphip:
-    #         cmd += ['--ignore_runtime_failures']
-    #     else:
-    #         cmd += ['--no-ignore_runtime_failures']
+    if mp_size == 1:
+        if skiphip:
+            cmd += ['--ignore_runtime_failures']
+        else:
+            cmd += ['--no-ignore_runtime_failures']
 
     if isinstance(length, int):
         cmd += ['--length', length]
@@ -184,7 +183,6 @@ def run(bench,
     for line in cout.splitlines():
         if line.startswith(tokentoken):
             token = line[len(tokentoken):]
-            print(token)  # FIXME: temp
 
     for line in cerr.splitlines():
         if line.startswith(soltokenTag):
