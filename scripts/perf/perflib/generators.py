@@ -85,6 +85,7 @@ class Problem:
     tag: str = None
     meta: Dict[str, str] = field(default_factory=dict)
 
+    
     def toJSON(self):
         tuning_dict = self.__dict__
         del tuning_dict['tag']
@@ -116,7 +117,9 @@ class FilteredProblemGenerator:
     gpusperrank: int = 1
 
     slurm: bool = False
-
+    
+    tagpostfix: str = None
+    
     # FIXME: the plan here is to loop over all of the relevant combinations of gpus and ranks.
     # If gpusperrank is specified, then we can still loop over maxnodes.
     # If nranks is specified, then we can still loop over gpuspernode.
@@ -151,6 +154,8 @@ class FilteredProblemGenerator:
         gpus_ranks = []
         if self.slurm:
             print("slurm!")
+            print(type(self))
+            print(self.tagpostfix)
             hybrid = [False]
             if self.gpuspernode > 1 and self.maxnodes > 1:
                 print("We have two different scaling experiments")
@@ -200,9 +205,8 @@ class FilteredProblemGenerator:
                     problem.omgrid = [1] * len(problem.length)
                     problem.omgrid[len(problem.length) - 1] = problem.nranks
 
-                if gr[0] > 1 and gr[1] > 1:
-                    problem.tag += "_hybrid"
-                    # FIXME: check that this actually creates a different file.
+                if self.tagpostfix != None:
+                    problem.tag += self.tagpostfix
 
                 if len(problem.length) in self.dimension \
                    and problem.direction in self.direction \

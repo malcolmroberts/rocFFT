@@ -693,7 +693,7 @@ def command_run(arguments):
         for attr in [
                 'device', 'bench', 'accutest', 'lib', 'out', 'device', 'ntrial',
                 'verbose', 'timeout', 'sequence', 'launcher', 'gpuidvar',
-                'nranks', 'gpusperrank', 'tagpostfix'
+                'nranks', 'gpusperrank'
         ]:
             update(attr, timer, arguments)
 

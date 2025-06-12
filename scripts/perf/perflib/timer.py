@@ -51,8 +51,6 @@ class Timer:
     hipskip: bool = True
     launcher: str = None
     gpuidvar: str = None
-    tagpostfix: str = None
-
     
     def run_cases(self, generator):
         bench = path(self.bench)
@@ -155,7 +153,7 @@ class GroupedTimer:
                 f'\n{tag} (group {i} of {len(all_problems)}): {len(problems)} problems'
             )
             timer = Timer(**self.__dict__)
-            timer.out = [path(x) / (tag + self.tagpostfix + '.dat') for x in self.out]
+            timer.out = [path(x) / (tag + '.dat') for x in self.out]
             failed_tokens += timer.run_cases(
                 perflib.generators.VerbatimGenerator(problems))
         return failed_tokens
