@@ -735,7 +735,6 @@ int mpi_worker_main(const char*                                               de
     bool run_bench = false;
     
     app.add_flag("--ignore_runtime_failures,!--no-ignore_runtime_failures",
-                 ignore_hip_runtime_failures,
                  "For compability with (dyna)-rocfft-bench");
     
     auto bench_flag
