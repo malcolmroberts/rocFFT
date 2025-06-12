@@ -733,10 +733,10 @@ int mpi_worker_main(const char*                                               de
 
     bool run_fftw  = false;
     bool run_bench = false;
-    
+
     app.add_flag("--ignore_runtime_failures,!--no-ignore_runtime_failures",
                  "For compability with (dyna)-rocfft-bench");
-    
+
     auto bench_flag
         = app.add_flag("--benchmark", run_bench, "Benchmark a specified number of MPI transforms");
     app.add_option("-N, --ntrial", ntrial, "Number of trials to benchmark")
