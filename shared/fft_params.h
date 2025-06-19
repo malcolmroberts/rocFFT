@@ -693,10 +693,6 @@ public:
             }
         }
 
-        // sanity checks
-        int ingrid_size  = product(ingrid.begin(), ingrid.end());
-        int outgrid_size = product(outgrid.begin(), outgrid.end());
-
         if((ingrid.size() != length.size()) || (outgrid.size() != length.size()))
         {
             throw std::runtime_error(

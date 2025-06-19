@@ -577,7 +577,7 @@ void exec_testcases(std::function<AllParams(const std::vector<std::string>&)> ma
         auto ret = all_params[testcase].execute(reinterpret_cast<void**>(local_input_ptrs.data()),
                                                 reinterpret_cast<void**>(local_output_ptrs.data()));
 
-        if(run_bench)
+        if(ret == fft_status_success && run_bench)
         {
             (void)hipDeviceSynchronize();
             stop                                              = std::chrono::steady_clock::now();
