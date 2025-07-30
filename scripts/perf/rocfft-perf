@@ -645,6 +645,7 @@ def command_run(arguments):
             reportjobparams.acct = arguments.acct
         reportjobparams.ntaskspernode = 1
         reportjobparams.nnodes = 1
+        reportjobparams.timelimit = datetime.timedelta(hours=1)
         rocslurm.reportonjobs(reportjobparams, arguments.logdir, jobs, verbose=arguments.verbose)
         # FIXME: we need to collect and collate the output data.
             
